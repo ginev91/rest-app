@@ -1,0 +1,24 @@
+server:
+  port: 8080
+
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/main_app_db
+    username: postgres
+    password: password
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+
+kitchen:
+  service:
+    url: http://localhost:8081
+
+jwt:
+  secret: change-this-to-a-strong-secret-with-enough-bytes
+  expiration-ms: 3600000
+
+logging:
+  level:
+    org.example: INFO

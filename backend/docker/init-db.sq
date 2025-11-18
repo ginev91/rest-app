@@ -1,0 +1,5 @@
+CREATE USER myuser WITH PASSWORD 'secret';
+CREATE DATABASE main_app_db;
+CREATE DATABASE kitchen_db;
+GRANT ALL PRIVILEGES ON DATABASE main_app_db TO myuser;
+GRANT ALL PRIVILEGES ON DATABASE kitchen_db TO myuser;
