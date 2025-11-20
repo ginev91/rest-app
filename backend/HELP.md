@@ -1,81 +1,214 @@
-# Getting Started
+# Backend — Run & Troubleshooting Guide
 
-### Reference Documentation
+This document explains how to run the backend services (main-service, kitchen-svc, postgres, redis, jaeger) locally and in Docker Compose, how to reinitialize the database/init scripts, common troubleshooting steps, and useful commands.
 
-For further reference, please consider the following sections:
+## Overview
+- Project root for these instructions: `backend/`
+- Services in the Compose stack: `postgres`, `redis`, `main-service`, `kitchen-svc`, `jaeger` (Zipkin-compatible endpoint exposed on port `9411`).
+- Databases created by init script: `main_app_db`, `kitchen_db`
+- DB application user: `myuser` with password: `canti` (default in the repo's init SQL and compose envs)
 
-* [Official Apache Maven documentation](https://maven.apache.org/guides/index.html)
-* [Spring Boot Maven Plugin Reference Guide](https://docs.spring.io/spring-boot/3.5.7/maven-plugin)
-* [Create an OCI image](https://docs.spring.io/spring-boot/3.5.7/maven-plugin/build-image.html)
-* [Distributed Tracing Reference Guide](https://docs.micrometer.io/tracing/reference/index.html)
-* [Getting Started with Distributed Tracing](https://docs.spring.io/spring-boot/3.5.7/reference/actuator/tracing.html)
-* [Config Client](https://docs.spring.io/spring-cloud-config/reference/client.html)
-* [Eureka Discovery Client](https://docs.spring.io/spring-cloud-netflix/reference/spring-cloud-netflix.html#_service_discovery_eureka_clients)
-* [Eureka Server](https://docs.spring.io/spring-cloud-netflix/reference/spring-cloud-netflix.html#spring-cloud-eureka-server)
-* [Gateway](https://docs.spring.io/spring-cloud-gateway/reference/spring-cloud-gateway-server-mvc.html)
-* [Reactive Gateway](https://docs.spring.io/spring-cloud-gateway/reference/spring-cloud-gateway.html)
-* [Cloud Bootstrap](https://docs.spring.io/spring-cloud-commons/reference/spring-cloud-commons/application-context-services.html)
-* [Spring Configuration Processor](https://docs.spring.io/spring-boot/3.5.7/specification/configuration-metadata/annotation-processor.html)
-* [Spring Data JDBC](https://docs.spring.io/spring-boot/3.5.7/reference/data/sql.html#data.sql.jdbc)
-* [Spring Data JPA](https://docs.spring.io/spring-boot/3.5.7/reference/data/sql.html#data.sql.jpa-and-spring-data)
-* [Spring Data Redis (Access+Driver)](https://docs.spring.io/spring-boot/3.5.7/reference/data/nosql.html#data.nosql.redis)
-* [Spring Data Reactive Redis](https://docs.spring.io/spring-boot/3.5.7/reference/data/nosql.html#data.nosql.redis)
-* [Rest Repositories](https://docs.spring.io/spring-boot/3.5.7/how-to/data-access.html#howto.data-access.exposing-spring-data-repositories-as-rest)
-* [Spring Boot DevTools](https://docs.spring.io/spring-boot/3.5.7/reference/using/devtools.html)
-* [Docker Compose Support](https://docs.spring.io/spring-boot/3.5.7/reference/features/dev-services.html#features.dev-services.docker-compose)
-* [Spring for Apache Kafka](https://docs.spring.io/spring-boot/3.5.7/reference/messaging/kafka.html)
-* [Apache Kafka Streams Support](https://docs.spring.io/spring-kafka/reference/streams.html)
-* [Apache Kafka Streams Binding Capabilities of Spring Cloud Stream](https://docs.spring.io/spring-cloud-stream/reference/kafka/kafka-streams-binder/usage.html)
-* [OAuth2 Authorization Server](https://docs.spring.io/spring-boot/3.5.7/reference/web/spring-security.html#web.security.oauth2.authorization-server)
-* [OAuth2 Client](https://docs.spring.io/spring-boot/3.5.7/reference/web/spring-security.html#web.security.oauth2.client)
-* [Spring REST Docs](https://docs.spring.io/spring-restdocs/docs/current/reference/htmlsingle/)
-* [Spring Security](https://docs.spring.io/spring-boot/3.5.7/reference/web/spring-security.html)
-* [Spring Session for Spring Data Redis](https://docs.spring.io/spring-session/reference/)
-* [OpenAI](https://docs.spring.io/spring-ai/reference/api/chat/openai-chat.html)
-* [Validation](https://docs.spring.io/spring-boot/3.5.7/reference/io/validation.html)
-* [Spring Web](https://docs.spring.io/spring-boot/3.5.7/reference/web/servlet.html)
-* [Spring Reactive Web](https://docs.spring.io/spring-boot/3.5.7/reference/web/reactive.html)
+> Note: We replaced Zipkin with Jaeger (Jaeger exposes a Zipkin-compatible endpoint on 9411) to support arm64 hosts (Apple Silicon / ARM Linux). No code changes were required because services use `spring.zipkin.base-url`.
 
-### Guides
+---
 
-The following guides illustrate how to use some features concretely:
+## Prerequisites
+- Docker & Docker Compose v2 (or `docker compose` command).
+- (Optional for local builds) Java 17 and Maven.
+- (Optional) `psql` client for DB checks.
 
-* [Service Registration and Discovery with Eureka and Spring Cloud](https://spring.io/guides/gs/service-registration-and-discovery/)
-* [Service Registration and Discovery with Eureka and Spring Cloud](https://spring.io/guides/gs/service-registration-and-discovery/)
-* [Using Spring Cloud Gateway](https://github.com/spring-cloud-samples/spring-cloud-gateway-sample)
-* [Using Spring Data JDBC](https://github.com/spring-projects/spring-data-examples/tree/master/jdbc/basics)
-* [Accessing Data with JPA](https://spring.io/guides/gs/accessing-data-jpa/)
-* [Messaging with Redis](https://spring.io/guides/gs/messaging-redis/)
-* [Messaging with Redis](https://spring.io/guides/gs/messaging-redis/)
-* [Accessing JPA Data with REST](https://spring.io/guides/gs/accessing-data-rest/)
-* [Accessing Neo4j Data with REST](https://spring.io/guides/gs/accessing-neo4j-data-rest/)
-* [Accessing MongoDB Data with REST](https://spring.io/guides/gs/accessing-mongodb-data-rest/)
-* [Samples for using Apache Kafka Streams with Spring Cloud stream](https://github.com/spring-cloud/spring-cloud-stream-samples/tree/master/kafka-streams-samples)
-* [Securing a Web Application](https://spring.io/guides/gs/securing-web/)
-* [Spring Boot and OAuth2](https://spring.io/guides/tutorials/spring-boot-oauth2/)
-* [Authenticating a User with LDAP](https://spring.io/guides/gs/authenticating-ldap/)
-* [Validation](https://spring.io/guides/gs/validating-form-input/)
-* [Building a RESTful Web Service](https://spring.io/guides/gs/rest-service/)
-* [Serving Web Content with Spring MVC](https://spring.io/guides/gs/serving-web-content/)
-* [Building REST services with Spring](https://spring.io/guides/tutorials/rest/)
-* [Building a Reactive RESTful Web Service](https://spring.io/guides/gs/reactive-rest-service/)
+---
 
-### Docker Compose support
+## Quick start (recommended)
+From the `backend/` folder:
 
-This project contains a Docker Compose file named `compose.yaml`.
-In this file, the following services have been defined:
+1. Stop and remove any existing stack and volumes (this will remove DB data):
+   docker compose down -v --remove-orphans
 
-* postgres: [`postgres:latest`](https://hub.docker.com/_/postgres)
-* redis: [`redis:latest`](https://hub.docker.com/_/redis)
-* zipkin: [`openzipkin/zipkin:latest`](https://hub.docker.com/r/openzipkin/zipkin/)
+2. Build and start everything:
+   docker compose up -d --build
 
-Please review the tags of the used images and set them to the same as you're running in production.
+3. Check status:
+   docker compose ps
 
-### Maven Parent overrides
+4. Tail logs:
+   docker compose logs --tail=200 --follow main-service kitchen-svc postgres jaeger
 
-Due to Maven's design, elements are inherited from the parent POM to the project POM.
-While most of the inheritance is fine, it also inherits unwanted elements like `<license>` and `<developers>` from the
-parent.
-To prevent this, the project POM contains empty overrides for these elements.
-If you manually switch to a different parent and actually want the inheritance, you need to remove those overrides.
+5. Open Jaeger UI to view traces: http://localhost:16686  
+   Zipkin-compatible endpoint: http://localhost:9411
 
+---
+
+## Reinitialize Postgres / run init scripts
+The repository includes `backend/docker/init-db.sql` which is executed only when the Postgres data volume is initialized for the first time. To re-run it (destroy existing DB data):
+
+1. Stop and remove stack and volumes:
+   docker compose down -v --remove-orphans
+
+2. Start compose again:
+   docker compose up -d --build
+
+3. Verify DB and user exist:
+   docker exec -it postgres psql -U postgres -c "\l"
+   docker exec -it postgres psql -U myuser -d main_app_db -c "\dt"
+
+---
+
+## Environment variables used by services
+Services read these environment variables (they are set in `docker-compose.yml` for container runs; set them in your IDE or shell when running locally):
+
+- SPRING_DATASOURCE_URL (examples)
+    - Container: `jdbc:postgresql://postgres:5432/main_app_db`
+    - Host (IDE): `jdbc:postgresql://localhost:5432/main_app_db`
+- SPRING_DATASOURCE_USERNAME: `myuser`
+- SPRING_DATASOURCE_PASSWORD: `canti`
+- SPRING_ZIPKIN_BASE_URL: `http://jaeger:9411` (for container runs)
+- SPRING_REDIS_HOST / SPRING_REDIS_PORT for redis
+
+You can also override configuration via VM args:
+-Dspring.datasource.username=myuser -Dspring.datasource.password=canti
+
+---
+
+## Run services locally (IDE / Maven)
+If you prefer to run a service from the IDE:
+
+1. Ensure Postgres is running (via Docker compose or a local Postgres).
+2. Set environment variables in the run configuration or export them:
+   export SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/main_app_db
+   export SPRING_DATASOURCE_USERNAME=myuser
+   export SPRING_DATASOURCE_PASSWORD=canti
+   export SPRING_ZIPKIN_BASE_URL=http://localhost:9411
+
+3. Start the service (example with Maven):
+   mvn -DskipTests -pl main-service -am spring-boot:run
+
+If you want an in-memory DB instead of Postgres for quick dev, use a `local` profile (H2) and run:
+SPRING_PROFILES_ACTIVE=local mvn -DskipTests -pl main-service -am spring-boot:run
+
+---
+
+## Building Docker images if Maven downloads fail inside Docker
+If the parent Dockerfile runs Maven and dependency downloads fail (common when downloads are truncated), build the jars locally and use a Dockerfile that copies the jar:
+
+1. Build jar locally:
+   mvn -DskipTests clean package -pl kitchen-svc -am
+
+2. Build image from the service folder using Dockerfile.dev (or the Dockerfile that copies the prebuilt JAR):
+   cd kitchen-svc
+   docker build -t kitchen-svc:dev -f Dockerfile.dev --build-arg JAR_FILE=target/<kitchen-jar>.jar .
+
+Then run the container (or update compose to use the local image tag).
+
+---
+
+## Common issues & fixes
+
+1. Database connection refused
+    - Symptom: "Connection to localhost:5432 refused"
+    - Cause: App tried connecting to `localhost:5432` while running in a container (localhost means the container itself)
+    - Fix: Use service hostname in JDBC URL in container runs:
+      `jdbc:postgresql://postgres:5432/kitchen_db`
+
+2. Password authentication failed
+    - Symptom: "FATAL: password authentication failed for user 'postgres'"
+    - Cause: App credentials don't match DB user
+    - Fix: Either update service env to use `myuser` / `canti`, or change postgres password:
+      docker exec -it postgres psql -U postgres -c "ALTER USER postgres WITH PASSWORD 'canti';"
+
+3. Postgres init script didn't run (databases/users missing)
+    - Reason: init scripts are executed only when the data volume is created
+    - Fix: Remove the postgres volume and recreate:
+      docker compose down -v
+      docker compose up -d --build
+
+4. Zipkin image platform mismatch on Apple Silicon (arm64)
+    - Symptom: image `openzipkin/zipkin:...` fails due to platform (linux/amd64)
+    - Fix we applied: replace Zipkin with `jaegertracing/all-in-one:1.48` which exposes a Zipkin-compatible endpoint on `9411` and runs on arm64. If you need Zipkin specifically, you must find an arm64 tag or enable x86 emulation in your Docker VM.
+
+5. Maven corrupted/partial downloads (dependency truncated)
+    - Symptom: `Premature end of Content-Length delimited message body` while downloading a jar
+    - Fix:
+        - Remove the corrupted cached artifact(s), then force a re-download:
+          rm -rf ~/.m2/repository/org/hibernate/orm/hibernate-core/6.6.2.Final
+          rm -rf ~/.m2/repository/org/bouncycastle/bcprov-jdk18on/1.80
+          mvn -U -DskipTests clean package -pl kitchen-svc -am
+        - Alternatively use:
+          mvn dependency:purge-local-repository -DmanualInclude=org.hibernate.orm:hibernate-core,org.bouncycastle:bcprov-jdk18on -DreResolve=true
+
+6. Service depends_on references missing service
+    - Symptom: `service "main-service" depends on undefined service "zipkin"`
+    - Fix: Update `depends_on` for services to reference `jaeger` (or add a `zipkin` service alias using the Jaeger image). Example:
+      depends_on:
+      postgres:
+      condition: service_healthy
+      redis:
+      condition: service_started
+      jaeger:
+      condition: service_healthy
+
+---
+
+## Useful commands
+
+- Bring stack down and remove volumes:
+  docker compose down -v --remove-orphans
+
+- Build & start (rebuild images):
+  docker compose up -d --build
+
+- Build without cache:
+  docker compose build --no-cache
+  docker compose up -d
+
+- Check container status:
+  docker compose ps
+
+- Tail logs:
+  docker compose logs --tail=200 --follow main-service kitchen-svc postgres jaeger
+
+- Exec into Postgres and run SQL:
+  docker exec -it postgres psql -U postgres -c "\l"
+  docker exec -it postgres psql -U myuser -d kitchen_db -c "\dt"
+
+- Remove a broken zipkin container/image:
+  docker rm -f zipkin || true
+  docker image rm openzipkin/zipkin:2.23.2 || true
+
+- Remove specific corrupted maven cache files (macOS / Linux):
+  rm -rf ~/.m2/repository/org/hibernate/orm/hibernate-core/6.6.2.Final
+  rm -rf ~/.m2/repository/org/bouncycastle/bcprov-jdk18on/1.80
+
+- Windows PowerShell equivalents:
+  Remove-Item -Recurse -Force $env:USERPROFILE\.m2\repository\org\hibernate\orm\hibernate-core\6.6.2.Final
+  Remove-Item -Recurse -Force $env:USERPROFILE\.m2\repository\org\bouncycastle\bcprov-jdk18on\1.80
+
+---
+
+## Debugging checklist (if a service fails)
+1. Run:
+   docker compose ps
+   docker compose logs --tail=200 <service-name>
+
+2. If DB errors, verify Postgres is healthy:
+   docker compose logs --tail=200 postgres
+   docker exec -it postgres psql -U postgres -c "\l"
+
+3. If auth issue, check the service environment credentials vs. the DB user.
+
+4. If service starts before Postgres: restart the service after Postgres is healthy:
+   docker compose restart <service-name>
+
+5. If problem persists, paste the last ~200 lines of logs for the service and the postgres container here.
+
+---
+
+## Final notes
+- For local development where you don't need a persistent DB, use an H2 profile to avoid the need for Postgres.
+- Do not commit real production passwords; use secrets management for production.
+- If you'd like, I can:
+    - add this `HELP.md` into `backend/` (copy/paste for you), or
+    - open a PR with the file added, or
+    - create a smaller README snippet to include in the top-level project README.
+
+If you want the file committed, tell me and I’ll produce the exact patch text for you to add to the repo.

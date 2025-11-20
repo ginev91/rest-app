@@ -10,8 +10,8 @@ public interface BillingClient {
     UUID createBill(@RequestBody Object billRequest);
 
     @PutMapping("/api/billing/bills/{id}/split")
-    void splitBill(@PathVariable UUID id, @RequestParam int parts);
+    void splitBill(@PathVariable("id") UUID id, @RequestParam("parts") int parts);
 
     @GetMapping("/api/billing/bills/{id}")
-    Object getBill(@PathVariable UUID id);
+    Object getBill(@PathVariable("id") UUID id);
 }

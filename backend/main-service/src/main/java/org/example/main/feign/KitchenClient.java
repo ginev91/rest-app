@@ -11,8 +11,8 @@ public interface KitchenClient {
     void createKitchenOrder(@RequestBody Object kitchenOrder);
 
     @PutMapping("/api/kitchen/orders/{id}/status")
-    void updateKitchenOrderStatus(@PathVariable UUID id, @RequestParam String status);
+    void updateKitchenOrderStatus(@PathVariable("id") UUID id, @RequestParam("status") String status);
 
     @DeleteMapping("/api/kitchen/orders/{id}")
-    void cancelKitchenOrder(@PathVariable UUID id);
+    void cancelKitchenOrder(@PathVariable("id") UUID id);
 }

@@ -1,0 +1,116 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: canti
+      POSTGRES_DB: postgres
+    volumes:
+      - ./docker/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d postgres -h postgres" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - backend-network
+
+#  db-init:
+#    image: postgres:15
+#    container_name: db-init
+#    depends_on:
+#      postgres:
+#        condition: service_healthy
+#    volumes:
+#      - ./docker/create-db.sh:/scripts/create-db.sh:ro
+#    entrypoint: ["/bin/bash", "/scripts/create-db.sh"]
+#    environment:
+#      PGSUPERUSER: myuser
+#      PGSUPERPASS: canti
+#      APP_USER: myuser
+#      APP_PASS: canti
+#      DBS: "main_app_db kitchen_db"
+#    restart: "no"
+#    networks:
+#      - backend-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - backend-network
+
+  kitchen-svc:
+    build:
+      context: .
+      dockerfile: kitchen-svc/Dockerfile
+    container_name: kitchen-svc
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://backend-postgres-1:5432/kitchen_db
+      SPRING_DATASOURCE_USERNAME: myuser
+      SPRING_DATASOURCE_PASSWORD: canti
+      SPRING_REDIS_HOST: redis
+      SPRING_ZIPKIN_BASE_URL: http://zipkin:9411
+      SPRING_PROFILES_ACTIVE: docker
+    ports:
+      - "8081:8081"
+    depends_on:
+      - redis
+      - postgres
+    networks:
+      - backend-network
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -f http://localhost:8081/actuator/health || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+
+  main-service:
+    build:
+      context: .
+      dockerfile: main-service/Dockerfile
+    container_name: main-service
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://backend-postgres-1:5432/main_app_db
+      SPRING_DATASOURCE_USERNAME: myuser
+      SPRING_DATASOURCE_PASSWORD: canti
+      SPRING_REDIS_HOST: redis
+      SPRING_ZIPKIN_BASE_URL: http://zipkin:9411
+      KITCHEN_SERVICE_URL: http://kitchen-svc:8081
+      SPRING_PROFILES_ACTIVE: docker
+    ports:
+      - "8080:8080"
+    depends_on:
+      kitchen-svc:
+        condition: service_healthy
+#      db-init:
+#        condition: service_completed_successfully
+      redis:
+        condition: service_started
+    networks:
+      - backend-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+
+volumes:
+  postgres-data:
+
+networks:
+  backend-network:
+    name: backend_backend-network
+    driver: bridge

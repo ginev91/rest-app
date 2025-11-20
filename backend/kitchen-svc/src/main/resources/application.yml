@@ -1,11 +1,19 @@
 server:
   port: 8081
 
+jwt:
+  secret: "MySuperSecretTokenKeyForKitchenService"
+  expiration-ms: 3600000 # 1 hour in milliseconds
+
 spring:
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:}
+
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/kitchen_db}
-    username: ${SPRING_DATASOURCE_USERNAME:postgres}
-    password: ${SPRING_DATASOURCE_PASSWORD:password}
+    url: jdbc:postgresql://127.0.0.1:5432/kitchen_db
+    username: myuser
+    password: canti
+
   jpa:
     hibernate:
       ddl-auto: update
@@ -13,11 +21,14 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+
   redis:
     host: ${SPRING_REDIS_HOST:localhost}
     port: ${SPRING_REDIS_PORT:6379}
+
   zipkin:
-    base-url: ${SPRING_ZIPKIN_BASE_URL:http://localhost:9411}
+    base-url: ${SPRING_ZIPKIN_BASE_URL:http://jaeger:9411}
+
   cache:
     type: ${SPRING_CACHE_TYPE:simple}
 
@@ -29,7 +40,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,metrics,loggers
   endpoint:
     health:
       show-details: when_authorized
@@ -37,3 +48,4 @@ management:
 logging:
   level:
     org.example.kitchen: INFO
+    org.hibernate: INFO

@@ -1,10 +1,8 @@
 package org.example.main.model;
 
 import jakarta.persistence.*;
-import java.util.UUID;
-
 import lombok.*;
-import org.hibernate.annotations.GenericGenerator;
+import java.util.UUID;
 
 @Entity
 @Table(name = "order_items")
@@ -14,14 +12,22 @@ import org.hibernate.annotations.GenericGenerator;
 @AllArgsConstructor
 @Builder
 public class OrderItem {
+
     @Id
-    @GeneratedValue(generator = "UUID")
-    @GenericGenerator(name = "UUID", strategy = "org.hibernate.id.UUIDGenerator")
+    @GeneratedValue
+    @Column(columnDefinition = "uuid")
     private UUID id;
 
     @Column(nullable = false)
-    private UUID menuItemId;
+    private int quantity;
 
-    @Column(nullable = false)
-    private Integer quantity;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "menu_item_id", nullable = false)
+    private MenuItem menuItem;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "order_id")
+    private OrderEntity order;
+
+    // If you have extra fields add them here (price overrides, notes, etc.)
 }
