@@ -3,8 +3,16 @@ server:
 
 
 jwt:
-  secret: "MySuperSecretTokenKeyForMainService" # should not commit the real key
-  expiration-ms: 3600000 # 1 hour in milliseconds
+  # should not commit a real secret into source control; override with env in prod
+  secret: ${APP_JWT_SECRET:MySuperSecretTokenKeyForMainService}
+  expiration-ms: ${APP_JWT_EXPIRATION_MS:3600000} # 1 hour in ms
+
+app:
+  jwtSecret: ${APP_JWT_SECRET:change-me-with-a-secure-long-random-string-at-least-32-chars}
+  jwtExpirationMs: ${APP_JWT_EXPIRATION_MS:3600000}
+
+frontend:
+  origin: ${FRONTEND_ORIGIN:http://localhost:8082}
 
 spring:
   profiles:

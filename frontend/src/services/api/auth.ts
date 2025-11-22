@@ -69,7 +69,8 @@ export async function fetchCurrentUser(): Promise<any | null> {
   try {
     const r = await api.get("/api/auth/me");
     return r.data;
-  } catch (err: any) {
+  } catch (err) {
+    console.debug("fetchCurrentUser failed", err?.response?.status);
     return null;
   }
 }
