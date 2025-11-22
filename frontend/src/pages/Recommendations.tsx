@@ -6,6 +6,8 @@ import { Badge } from '@/components/ui/badge';
 import Layout from '@/components/Layout';
 import { toast } from 'sonner';
 import { Sparkles, Loader2 } from 'lucide-react';
+import { recommend } from '@/services/api/recommendations';
+import { fetchMenuItem } from '@/services/api/menu';
 
 interface Recommendation {
   mealName: string;
@@ -23,35 +25,60 @@ const Recommendations = () => {
 
   const getRecommendation = async () => {
     if (!prompt.trim()) {
-      toast.error('Please describe what you\'re looking for');
+      toast.error("Please describe what you're looking for");
       return;
     }
 
     setIsLoading(true);
-    
-    // TODO: Replace with actual API call to your Spring backend AI endpoint
-    // const response = await fetch('YOUR_BACKEND_URL/api/recommendations', {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify({ prompt }),
-    // });
-    // const data = await response.json();
+    setRecommendation(null);
 
-    // Mock response for development
-    setTimeout(() => {
-      const mockRecommendation: Recommendation = {
-        mealName: 'High-Protein Grilled Chicken Bowl',
-        description: 'A perfectly balanced meal featuring grilled chicken breast with fresh garden salad, cherry tomatoes, and a light lemon dressing. This meal is designed to meet your high-protein requirements while staying within your caloric goals.',
-        menuItem: 'Grilled Chicken Breast with Caesar Salad',
-        calories: 780,
-        protein: 45,
-        matchPercentage: 92,
+    try {
+      // Call backend recommendation API with the free-text prompt.
+      // The backend is expected to accept a body like { preferences: string, likes?: string[], dislikes?: string[], maxKcal?: number }
+      const resp = await recommend({ preferences: prompt });
+
+      // resp may contain recipe text, matchedMenuItemId and score
+      // Map response to the local Recommendation shape.
+      let mealName = 'Recommended meal';
+      let description = (resp as any)?.recipe ?? '';
+      let calories = (resp as any)?.calories ?? 0;
+      let protein = (resp as any)?.protein ?? 0;
+      let matchPercentage = Math.round(((resp as any)?.score ?? (resp as any)?.matchPercentage ?? 0) * 100);
+
+      // If the recommendation includes a matchedMenuItemId, try to fetch its name
+      let menuItem = '';
+      const matchedMenuItemId = (resp as any)?.matchedMenuItemId ?? (resp as any)?.menuItemId ?? null;
+      if (matchedMenuItemId) {
+        try {
+          const mi = await fetchMenuItem(matchedMenuItemId);
+          menuItem = mi?.name ?? '';
+          mealName = mi?.name ?? mealName;
+        } catch (e) {
+          // ignore, use recipe-based name
+        }
+      } else if (description) {
+        // Derive a short meal name from the recipe/description
+        mealName = description.split('\n')[0].slice(0, 60);
+      }
+
+      const mapped: Recommendation = {
+        mealName,
+        description,
+        menuItem: menuItem || 'Custom suggestion',
+        calories,
+        protein,
+        matchPercentage,
       };
-      
-      setRecommendation(mockRecommendation);
-      setIsLoading(false);
+
+      setRecommendation(mapped);
       toast.success('Recommendation generated!');
-    }, 2000);
+    } catch (err: any) {
+      console.error('Recommendation error', err);
+      const msg = err?.response?.data?.message ?? 'Recommendation failed. Please try again.';
+      toast.error(msg);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -121,7 +148,7 @@ const Recommendations = () => {
               <p className="text-muted-foreground leading-relaxed">
                 {recommendation.description}
               </p>
-              
+
               <div className="flex gap-4 pt-4 border-t">
                 <div className="flex-1 text-center p-4 bg-primary/5 rounded-lg">
                   <p className="text-3xl font-bold text-primary">{recommendation.calories}</p>
