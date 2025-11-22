@@ -29,7 +29,6 @@ public class RoleService implements IRoleService {
     @Override
     @Transactional(readOnly = true)
     public Optional<Role> findByName(String name) {
-        // assumes RoleRepository defines Optional<Role> findByName(String)
         return roleRepository.findByName(name);
     }
 

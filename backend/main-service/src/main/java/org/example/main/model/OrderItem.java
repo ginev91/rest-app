@@ -29,5 +29,48 @@ public class OrderItem {
     @JoinColumn(name = "order_id")
     private OrderEntity order;
 
-    // If you have extra fields add them here (price overrides, notes, etc.)
+    // convenience transient field: not persisted directly, kept in sync with menuItem
+    @Transient
+    @Setter(AccessLevel.NONE)
+    @Getter(AccessLevel.NONE)
+    private UUID menuItemId;
+
+    public UUID getMenuItemId() {
+        if (this.menuItem != null) {
+            return this.menuItem.getId();
+        }
+        return this.menuItemId;
+    }
+
+
+    public void setMenuItemId(UUID id) {
+        this.menuItemId = id;
+        if (id == null) {
+            this.menuItem = null;
+            return;
+        }
+
+        try {
+            MenuItem ref = new MenuItem();
+            ref.setId(id);
+            this.menuItem = ref;
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+        }
+    }
+
+    @PostLoad
+    private void syncMenuItemIdAfterLoad() {
+        if (this.menuItem != null) {
+            this.menuItemId = this.menuItem.getId();
+        }
+    }
+
+    @PrePersist
+    @PreUpdate
+    private void syncMenuItemBeforeSave() {
+        if (this.menuItem != null) {
+            this.menuItemId = this.menuItem.getId();
+        }
+    }
 }
