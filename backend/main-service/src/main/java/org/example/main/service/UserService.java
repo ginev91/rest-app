@@ -43,7 +43,11 @@ public class UserService implements IUserService {
     @Override
     @Transactional(readOnly = true)
     public Optional<User> findByUsername(String username) {
-        return userRepository.findByUsername(username);
+        Optional<User> user = userRepository.findByUsername(username); // returns User (nullable)
+        if (user == null) {
+            throw new ResourceNotFoundException("User not found: " + username);
+        }
+        return user;
     }
 
     @Override

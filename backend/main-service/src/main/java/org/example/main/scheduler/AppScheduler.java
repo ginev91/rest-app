@@ -19,14 +19,6 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-/**
- * Scheduler producing useful restaurant reports:
- * - periodic check for currently active tables
- * - daily report for the previous day (order count, totals, top items)
- *
- * Make sure scheduling is enabled on the application class:
- *   @EnableScheduling
- */
 @Component
 public class AppScheduler {
     private static final Logger log = LoggerFactory.getLogger(AppScheduler.class);
@@ -89,10 +81,9 @@ public class AppScheduler {
             ZonedDateTime startOfDay = yesterday.atStartOfDay(zone);
             ZonedDateTime endOfDay = startOfDay.plusDays(1);
 
-            Instant from = startOfDay.toInstant();
-            Instant to = endOfDay.toInstant();
+            OffsetDateTime from = startOfDay.toOffsetDateTime();
+            OffsetDateTime to = endOfDay.toOffsetDateTime();
 
-            // Fetch orders with items to avoid lazy-loading later (this method fetches items)
             List<OrderEntity> orders = orderRepository.findWithItemsByCreatedAtBetween(from, to);
 
             int ordersCount = orders.size();

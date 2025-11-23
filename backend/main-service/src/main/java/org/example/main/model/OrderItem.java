@@ -3,6 +3,9 @@ package org.example.main.model;
 import jakarta.persistence.*;
 import lombok.*;
 import java.util.UUID;
+import java.math.BigDecimal;
+
+import org.hibernate.annotations.GenericGenerator;
 
 @Entity
 @Table(name = "order_items")
@@ -14,63 +17,49 @@ import java.util.UUID;
 public class OrderItem {
 
     @Id
-    @GeneratedValue
+    @GeneratedValue(generator = "UUID")
+    @GenericGenerator(name = "UUID", strategy = "org.hibernate.id.UUIDGenerator")
     @Column(columnDefinition = "uuid")
     private UUID id;
 
     @Column(nullable = false)
     private int quantity;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "menu_item_id", nullable = false)
+    // link to menu item entity (optional). Keep LAZY to avoid eager loading.
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "menu_item_id", nullable = true)
     private MenuItem menuItem;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "order_id")
+    // snapshot of menu item name and price at order time:
+    @Column(name = "menu_item_name", nullable = false)
+    private String menuItemName;
+
+    @Column(name = "price", nullable = false)
+    private BigDecimal price;
+
+    // owning side for order relationship
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "order_id", nullable = false)
     private OrderEntity order;
 
-    // convenience transient field: not persisted directly, kept in sync with menuItem
-    @Transient
-    @Setter(AccessLevel.NONE)
-    @Getter(AccessLevel.NONE)
-    private UUID menuItemId;
-
+    // Convenience getters to expose menuItem id without forcing menuItem fetch
     public UUID getMenuItemId() {
-        if (this.menuItem != null) {
-            return this.menuItem.getId();
-        }
-        return this.menuItemId;
-    }
-
-
-    public void setMenuItemId(UUID id) {
-        this.menuItemId = id;
-        if (id == null) {
-            this.menuItem = null;
-            return;
-        }
-
-        try {
-            MenuItem ref = new MenuItem();
-            ref.setId(id);
-            this.menuItem = ref;
-        } catch (Exception ex) {
-            throw new RuntimeException(ex);
-        }
-    }
-
-    @PostLoad
-    private void syncMenuItemIdAfterLoad() {
-        if (this.menuItem != null) {
-            this.menuItemId = this.menuItem.getId();
-        }
+        return (this.menuItem != null) ? this.menuItem.getId() : null;
     }
 
     @PrePersist
     @PreUpdate
-    private void syncMenuItemBeforeSave() {
+    private void syncSnapshotFields() {
         if (this.menuItem != null) {
-            this.menuItemId = this.menuItem.getId();
+            if (this.menuItemName == null || this.menuItemName.isBlank()) {
+                this.menuItemName = this.menuItem.getName();
+            }
+            if (this.price == null) {
+                this.price = this.menuItem.getPrice();
+            }
         }
+
+        if (this.menuItemName == null) this.menuItemName = "";
+        if (this.price == null) this.price = BigDecimal.ZERO;
     }
 }

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -14,8 +14,15 @@ const Login = () => {
   const [name, setName] = useState('');
   const [isRegister, setIsRegister] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const { login, register } = useAuth();
+  const { login, register, isAuthenticated, token } = useAuth();
   const navigate = useNavigate();
+
+  // Redirect to menu if already logged in
+  useEffect(() => {
+    if (isAuthenticated && token) {
+      navigate('/menu', { replace: true });
+    }
+  }, [isAuthenticated, token, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

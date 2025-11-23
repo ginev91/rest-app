@@ -2,10 +2,13 @@ package org.example.main.model;
 
 import jakarta.persistence.*;
 import java.math.BigDecimal;
+import java.util.Map;
 import java.util.UUID;
 
 import lombok.*;
 import org.hibernate.annotations.GenericGenerator;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "menu_items")
@@ -25,6 +28,20 @@ public class MenuItem {
 
     private String description;
 
-    @Column(nullable = false)
+    @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal price;
+
+    @ManyToOne(fetch = FetchType.EAGER, optional = false)
+    @JoinColumn(name = "category_id")
+    private CategoryEntity category;
+
+    @Column(nullable = false)
+    private int calories;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(columnDefinition = "jsonb", nullable = false)
+    private Macros macros;
+
+    @Column(nullable = false)
+    private boolean available;
 }

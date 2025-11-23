@@ -8,37 +8,6 @@ import { Order } from '@/types/order';
 import { toast } from 'sonner';
 import { ArrowRight, CheckCircle } from 'lucide-react';
 
-// Mock orders data
-const mockOrders: Order[] = [
-  {
-    id: '1',
-    userId: '1',
-    userName: 'John Doe',
-    tableNumber: 5,
-    items: [
-      { menuItemId: '1', menuItemName: 'Grilled Chicken Breast', quantity: 1, price: 18.99 },
-      { menuItemId: '2', menuItemName: 'Caesar Salad', quantity: 1, price: 12.99 },
-    ],
-    status: 'confirmed',
-    totalAmount: 31.98,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: '2',
-    userId: '2',
-    userName: 'Jane Smith',
-    tableNumber: 3,
-    items: [
-      { menuItemId: '3', menuItemName: 'Salmon Fillet', quantity: 2, price: 24.99 },
-    ],
-    status: 'preparing',
-    totalAmount: 49.98,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-];
-
 const statusFlow = {
   pending: 'confirmed',
   confirmed: 'preparing',
@@ -48,7 +17,7 @@ const statusFlow = {
 };
 
 const Dashboard = () => {
-  const [orders, setOrders] = useState<Order[]>(mockOrders);
+  const [orders, setOrders] = useState<Order[]>([]);
 
   const updateOrderStatus = (orderId: string, newStatus: Order['status']) => {
     setOrders(prev => 

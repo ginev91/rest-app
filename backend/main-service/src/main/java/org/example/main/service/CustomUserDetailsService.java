@@ -1,4 +1,4 @@
-package org.example.main.security;
+package org.example.main.service;
 
 import org.example.main.model.User;
 import org.example.main.repository.UserRepository;
@@ -11,20 +11,25 @@ import java.util.stream.Collectors;
 @Service
 public class CustomUserDetailsService implements UserDetailsService {
 
-    private final UserRepository users;
+    private final UserRepository userRepository; // no SecurityConfig dependency here
 
-    public CustomUserDetailsService(UserRepository users) {
-        this.users = users;
+    public CustomUserDetailsService(UserRepository userRepository) {
+        this.userRepository = userRepository;
     }
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        User user = users.findByUsername(username)
+        User u = userRepository.findByUsername(username)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
+
+        var authorities = u.getRoles().stream()
+                .map(r -> new SimpleGrantedAuthority(r.getName()))
+                .collect(Collectors.toList());
+
         return new org.springframework.security.core.userdetails.User(
-                user.getUsername(),
-                user.getPasswordHash(),
-                user.getRoles().stream().map(r -> new SimpleGrantedAuthority(r.getName())).collect(Collectors.toSet())
+                u.getUsername(),
+                u.getPasswordHash(),
+                authorities
         );
     }
 }

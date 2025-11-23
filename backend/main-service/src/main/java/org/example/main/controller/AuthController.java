@@ -1,4 +1,5 @@
 package org.example.main.controller;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
@@ -13,13 +14,14 @@ import org.example.main.security.JwtUtils;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @RestController
@@ -28,18 +30,18 @@ public class AuthController {
 
     private final UserRepository users;
     private final RoleRepository roles;
-    private final BCryptPasswordEncoder passwordEncoder;
+    private final PasswordEncoder passwordEncoder; // use the interface
     private final JwtUtils jwt;
     private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
 
-    public AuthController(UserRepository users, RoleRepository roles, BCryptPasswordEncoder passwordEncoder, JwtUtils jwt) {
+    public AuthController(UserRepository users, RoleRepository roles, PasswordEncoder passwordEncoder, JwtUtils jwt) {
         this.users = users;
         this.roles = roles;
         this.passwordEncoder = passwordEncoder;
         this.jwt = jwt;
     }
 
-    @GetMapping("/api/auth/me")
+    @GetMapping("/me")
     public ResponseEntity<?> me(Authentication authentication) {
         try {
             logger.debug("Handling /api/auth/me - authentication: {}", authentication);
@@ -82,7 +84,8 @@ public class AuthController {
 
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody @Valid RegisterRequestDto req) {
-        if (users.findByUsername(req.getUsername()).isPresent()) {
+        Optional<User> existing = users.findByUsername(req.getUsername());
+        if (existing.isPresent()) {
             return ResponseEntity.badRequest().body("Username already taken");
         }
         User u = new User();
@@ -102,13 +105,16 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody @Valid LoginRequestDto req) {
-        var userOpt = users.findByUsername(req.getUsername());
-        if (userOpt.isEmpty()) return ResponseEntity.status(401).body("Invalid credentials");
-        var user = userOpt.get();
-        if (!passwordEncoder.matches(req.getPassword(), user.getPasswordHash())) {
-            return ResponseEntity.status(401).body("Invalid credentials");
+        Optional<User> userOpt = users.findByUsername(req.getUsername());
+        if (userOpt.isPresent()) {
+            User user = userOpt.get();
+            if (!passwordEncoder.matches(req.getPassword(), user.getPasswordHash())) {
+                return ResponseEntity.status(401).body("Invalid credentials");
+            }
+            String token = jwt.generateToken(user.getUsername());
+            return ResponseEntity.ok(new AuthResponseDto(token, user.getUsername()));
         }
-        String token = jwt.generateToken(user.getUsername());
-        return ResponseEntity.ok(new AuthResponseDto(token, user.getUsername()));
+
+        return ResponseEntity.status(401).body("Invalid credentials");
     }
 }

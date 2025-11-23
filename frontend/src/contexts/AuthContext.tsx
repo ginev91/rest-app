@@ -27,7 +27,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // On mount: restore token (if any) and try to fetch current user
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -43,7 +42,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           localStorage.setItem('user', JSON.stringify(user));
           setAuthState({ user, token: storedToken ?? null, isAuthenticated: true });
         } else {
-          // fallback to localStorage user
           const storedUser = localStorage.getItem('user');
           if (storedUser) {
             try {
@@ -63,7 +61,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => {
       mounted = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const refreshUser = async (): Promise<User | null> => {
@@ -105,7 +102,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return userFromResp;
       }
 
-      // fallback to fetching /api/auth/me
       const fetched = await fetchCurrentUser();
       if (fetched) {
         localStorage.setItem('user', JSON.stringify(fetched));
