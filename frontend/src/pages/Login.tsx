@@ -17,7 +17,6 @@ const Login = () => {
   const { login, register, isAuthenticated, token } = useAuth();
   const navigate = useNavigate();
 
-  // Redirect to menu if already logged in
   useEffect(() => {
     if (isAuthenticated && token) {
       navigate('/menu', { replace: true });

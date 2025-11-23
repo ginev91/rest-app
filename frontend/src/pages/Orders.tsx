@@ -1,38 +1,12 @@
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import Layout from '@/components/Layout';
 import { Order } from '@/types/order';
-import { Clock, CheckCircle2, ChefHat, Utensils } from 'lucide-react';
-
-const mockOrders: Order[] = [
-  {
-    id: '1',
-    userId: '1',
-    userName: 'John Doe',
-    tableNumber: 5,
-    items: [
-      { menuItemId: '1', menuItemName: 'Grilled Chicken Breast', quantity: 1, price: 18.99 },
-      { menuItemId: '2', menuItemName: 'Caesar Salad', quantity: 1, price: 12.99 },
-    ],
-    status: 'preparing',
-    totalAmount: 31.98,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: '2',
-    userId: '1',
-    userName: 'John Doe',
-    items: [
-      { menuItemId: '3', menuItemName: 'Salmon Fillet', quantity: 1, price: 24.99 },
-    ],
-    status: 'completed',
-    totalAmount: 24.99,
-    createdAt: new Date(Date.now() - 86400000).toISOString(),
-    updatedAt: new Date(Date.now() - 86400000).toISOString(),
-  },
-];
+import { Clock, CheckCircle2, ChefHat, Utensils, Loader2 } from 'lucide-react';
+import { getOrders } from '@/services/api/order';
+import { toast } from 'sonner';
 
 const statusConfig = {
   pending: { label: 'Pending', icon: Clock, color: 'bg-warning/10 text-warning' },
@@ -44,8 +18,28 @@ const statusConfig = {
 };
 
 const Orders = () => {
-  const activeOrders = mockOrders.filter(o => o.status !== 'completed');
-  const completedOrders = mockOrders.filter(o => o.status === 'completed');
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    fetchOrders();
+  }, []);
+
+  const fetchOrders = async () => {
+    try {
+      setIsLoading(true);
+      const data = await getOrders();
+      setOrders(data);
+    } catch (error) {
+      console.error('Failed to fetch orders:', error);
+      toast.error('Failed to load orders');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const activeOrders = orders.filter(o => o.status !== 'completed');
+  const completedOrders = orders.filter(o => o.status === 'completed');
 
   const OrderCard = ({ order }: { order: Order }) => {
     const config = statusConfig[order.status];
@@ -90,6 +84,16 @@ const Orders = () => {
     );
   };
 
+  if (isLoading) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </Layout>
+    );
+  }
+
   return (
     <Layout>
       <div className="space-y-8">
@@ -121,7 +125,7 @@ const Orders = () => {
           </div>
         )}
 
-        {mockOrders.length === 0 && (
+        {orders.length === 0 && (
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">
               <Utensils className="h-12 w-12 text-muted-foreground mb-4" />
