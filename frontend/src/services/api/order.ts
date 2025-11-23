@@ -1,4 +1,3 @@
-// src/api/orders.ts
 import api from "./client";
 
 export interface OrderItemReq { menuItemId: string; quantity: number; note?: string; }

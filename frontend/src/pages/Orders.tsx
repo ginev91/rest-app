@@ -7,6 +7,7 @@ import { Order } from '@/types/order';
 import { Clock, CheckCircle2, ChefHat, Utensils, Loader2 } from 'lucide-react';
 import { getOrders } from '@/services/api/order';
 import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext';
 
 const statusConfig = {
   pending: { label: 'Pending', icon: Clock, color: 'bg-warning/10 text-warning' },
@@ -18,23 +19,58 @@ const statusConfig = {
 };
 
 const Orders = () => {
+  const { user, isLoading: authLoading } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    fetchOrders();
-  }, []);
+    console.log('Orders useEffect triggered');
+    console.log('Auth loading:', authLoading);
+    console.log('User:', user);
+    
+    // Wait for auth to finish loading
+    if (authLoading) {
+      console.log('Waiting for auth to load...');
+      return;
+    }
+
+    if (!user) {
+      console.warn('No user found after auth loaded');
+      setIsLoading(false);
+      return;
+    }
+
+    if (user?.userId) {
+      console.log('User ID found, fetching orders:', user.userId);
+      fetchOrders();
+    } else {
+      console.warn('User exists but no ID:', user);
+      setIsLoading(false);
+    }
+  }, [user, authLoading]);
 
   const fetchOrders = async () => {
+    if (!user?.userId) {
+      console.warn('Cannot fetch orders: No user ID');
+      setIsLoading(false);
+      return;
+    }
+
     try {
       setIsLoading(true);
-      const data = await getOrders();
+      console.log('Starting fetch orders for user:', user.userId);
+      
+      const data = await getOrders({ userId: user.userId });
+      console.log('Orders fetched successfully:', data);
       setOrders(data);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to fetch orders:', error);
-      toast.error('Failed to load orders');
+      console.error('Error details:', error.response?.data || error.message);
+      toast.error(`Failed to load orders: ${error.response?.data?.message || error.message}`);
+      setOrders([]); // Set empty array on error
     } finally {
       setIsLoading(false);
+      console.log('Fetch orders completed');
     }
   };
 
@@ -84,11 +120,14 @@ const Orders = () => {
     );
   };
 
-  if (isLoading) {
+  if (authLoading || isLoading) {
     return (
       <Layout>
-        <div className="flex items-center justify-center min-h-[400px]">
+        <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-muted-foreground">
+            {authLoading ? 'Loading user information...' : 'Loading orders...'}
+          </p>
         </div>
       </Layout>
     );

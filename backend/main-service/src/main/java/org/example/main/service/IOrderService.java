@@ -4,9 +4,11 @@ import org.example.main.dto.request.OrderRequestDto;
 import org.example.main.dto.response.OrderDetailsResponseDto;
 import org.example.main.dto.response.OrderResponseDto;
 
+import java.util.List;
 import java.util.UUID;
 
 public interface IOrderService {
+
     UUID placeOrder(OrderRequestDto dto);
     void callWaiter(UUID orderId);
     void cancelOrder(UUID orderId);
@@ -14,4 +16,7 @@ public interface IOrderService {
     OrderResponseDto getOrderSummary(UUID orderId);
 
     OrderDetailsResponseDto getOrderDetails(UUID orderId);
+
+    List<OrderResponseDto> getOrdersForUser(UUID user_id);
+
 }

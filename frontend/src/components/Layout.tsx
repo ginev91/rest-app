@@ -20,14 +20,14 @@ const Layout = ({ children }: LayoutProps) => {
   };
 
   const navItems = [
-    { path: '/menu', label: 'Menu', icon: Menu, roles: ['customer', 'waiter', 'admin'] },
-    { path: '/orders', label: 'My Orders', icon: ShoppingCart, roles: ['customer'] },
-    { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['waiter', 'admin'] },
-    { path: '/tables', label: 'Tables', icon: Users, roles: ['waiter', 'admin'] },
-    { path: '/recommendations', label: 'AI Recommendations', icon: Sparkles, roles: ['customer', 'waiter', 'admin'] },
+    { path: '/menu', label: 'Menu', icon: Menu, roles: ['ROLE_USER', 'ROLE_WAITER', 'ROLE_ADMIN'] },
+    { path: '/orders', label: 'My Orders', icon: ShoppingCart, roles: ['ROLE_USER'] },
+    { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['ROLE_WAITER', 'ROLE_ADMIN'] },
+    { path: '/tables', label: 'Tables', icon: Users, roles: ['ROLE_WAITER', 'ROLE_ADMIN'] },
+    { path: '/recommendations', label: 'AI Recommendations', icon: Sparkles, roles: ['ROLE_USER', 'ROLE_WAITER', 'ROLE_ADMIN'] },
   ];
 
-  const visibleNavItems = navItems.filter(item => item.roles.includes(user?.role || 'customer'));
+  const visibleNavItems = navItems.filter(item => item.roles.includes(user?.role || 'ROLE_USER'));
 
   return (
     <div className="min-h-screen bg-background">

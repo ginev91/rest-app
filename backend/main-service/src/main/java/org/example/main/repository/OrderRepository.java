@@ -34,4 +34,9 @@ public interface OrderRepository extends JpaRepository<OrderEntity, UUID> {
      * Find orders whose status is among the provided list (used for "open" orders in periodic checks).
      */
     List<OrderEntity> findByStatusIn(List<String> statuses);
+
+    @Query("select distinct o from OrderEntity o " +
+            "left join fetch o.items oi " +
+            "where o.customerId = :userId")
+    List<OrderEntity> findWithItemsByCustomerUserId(@Param("userId") UUID userId);
 }

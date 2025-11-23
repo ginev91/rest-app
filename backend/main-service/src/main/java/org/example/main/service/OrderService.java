@@ -128,6 +128,16 @@ public class OrderService implements IOrderService {
         return mapEntityToDetailsDto(o);
     }
 
+    @Transactional(readOnly = true)
+    public List<OrderResponseDto> getOrdersForUser(UUID userId) {
+        if (userId == null) return Collections.emptyList();
+
+        List<OrderEntity> entities = orderRepository.findWithItemsByCustomerUserId(userId);
+        return entities.stream()
+                .map(this::mapToOrderResponseDto) // or inline mapper
+                .collect(Collectors.toList());
+    }
+
     /**
      * IOrderService implementation: placeOrder returns the saved order id (UUID)
      */
@@ -188,6 +198,14 @@ public class OrderService implements IOrderService {
                 .createdAt(o.getCreatedAt())
                 .updatedAt(o.getUpdatedAt())
                 .items(items)
+                .build();
+    }
+
+    private OrderResponseDto mapToOrderResponseDto(OrderEntity e) {
+        return OrderResponseDto.builder()
+                .orderId(e.getId())
+                .status(e.getStatus())
+                // populate other lightweight fields
                 .build();
     }
 }

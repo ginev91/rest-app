@@ -21,7 +21,7 @@ const Menu = () => {
   const fetchMenuItems = async () => {
     try {
       setIsLoading(true);
-      const response = await api.get('/api/menu-items');
+      const response = await api.get('/api/menu');
       setMenuItems(response.data);
     } catch (error) {
       console.error('Failed to fetch menu items:', error);

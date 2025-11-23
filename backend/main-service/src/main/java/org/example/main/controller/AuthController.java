@@ -62,6 +62,8 @@ public class AuthController {
                 dto.put("authorities", ud.getAuthorities().stream()
                         .map(GrantedAuthority::getAuthority)
                         .collect(Collectors.toList()));
+                Optional<User> userOpt = users.findByUsername(ud.getUsername());
+                userOpt.ifPresent(user -> dto.put("userId", user.getId()));
             } else if (principal instanceof Map) {
                 try {
                     @SuppressWarnings("unchecked")
@@ -100,7 +102,7 @@ public class AuthController {
         u.setRoles(Collections.singleton(userRole));
         users.save(u);
         String token = jwt.generateToken(u.getUsername());
-        return ResponseEntity.ok(new AuthResponseDto(token, u.getUsername()));
+        return ResponseEntity.ok(new AuthResponseDto(token, u.getUsername(), u.getId()));
     }
 
     @PostMapping("/login")
@@ -112,7 +114,7 @@ public class AuthController {
                 return ResponseEntity.status(401).body("Invalid credentials");
             }
             String token = jwt.generateToken(user.getUsername());
-            return ResponseEntity.ok(new AuthResponseDto(token, user.getUsername()));
+            return ResponseEntity.ok(new AuthResponseDto(token, user.getUsername(), user.getId()));
         }
 
         return ResponseEntity.status(401).body("Invalid credentials");

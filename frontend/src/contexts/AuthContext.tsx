@@ -19,6 +19,12 @@ interface AuthContextType extends AuthState {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Helper function to clean role (remove leading dot)
+const cleanRole = (role: string | undefined): string => {
+  if (!role) return 'ROLE_USER';
+  return role.startsWith('.') ? role.substring(1) : role;
+};
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [authState, setAuthState] = useState<AuthState>({
     user: null,
@@ -32,28 +38,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     (async () => {
       try {
         const storedToken = localStorage.getItem('token');
+        const storedUser = localStorage.getItem('user');
+        
         if (storedToken) {
           setAccessToken(storedToken);
         }
 
-        const user = await fetchCurrentUser();
-        if (!mounted) return;
-        if (user) {
-          localStorage.setItem('user', JSON.stringify(user));
-          setAuthState({ user, token: storedToken ?? null, isAuthenticated: true });
-        } else {
-          const storedUser = localStorage.getItem('user');
-          if (storedUser) {
-            try {
-              const parsed = JSON.parse(storedUser) as User;
-              setAuthState({ user: parsed, token: storedToken ?? null, isAuthenticated: !!parsed });
-            } catch {
-              localStorage.removeItem('user');
+        if (storedUser) {
+          try {
+            const parsed = JSON.parse(storedUser) as User;
+            parsed.role = cleanRole(parsed.role);
+            console.log('Loaded user from localStorage:', parsed);
+            if (mounted) {
+              setAuthState({ user: parsed, token: storedToken ?? null, isAuthenticated: true });
             }
+          } catch {
+            localStorage.removeItem('user');
+          }
+        }
+
+        // Try to fetch fresh user data if we have a token
+        if (storedToken) {
+          const user = await fetchCurrentUser();
+          if (!mounted) return;
+          if (user) {
+            if ((user as any).role) {
+              (user as any).role = cleanRole((user as any).role);
+            }
+            console.log('Fetched user from server:', user);
+            localStorage.setItem('user', JSON.stringify(user));
+            setAuthState({ user, token: storedToken, isAuthenticated: true });
           }
         }
       } catch (err) {
-        // ignore
+        console.error('Auth initialization error:', err);
       } finally {
         if (mounted) setIsLoading(false);
       }
@@ -68,6 +86,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const user = await fetchCurrentUser();
       if (user) {
+        if ((user as any).role) {
+          (user as any).role = cleanRole((user as any).role);
+        }
+        console.log('Refreshed user:', user);
         localStorage.setItem('user', JSON.stringify(user));
         setAuthState(prev => ({ ...prev, user, isAuthenticated: true }));
         return user;
@@ -83,27 +105,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Login: frontend uses email as username
   const login = async (email: string, password: string): Promise<User | null> => {
     setIsLoading(true);
     try {
-      const resp = await apiLogin(email, password); // sends { username, password }
+      console.log('AuthContext: Starting login...');
+      const resp = await apiLogin(email, password);
+      console.log('AuthContext: Login response:', resp);
+      
       const token = (resp as any)?.token ?? (resp as any)?.accessToken;
       if (token) {
         setAccessToken(token);
         localStorage.setItem('token', token);
       }
 
-      // If backend returned a user object use it; if only username returned, try to fetch /me
-      const userFromResp = (resp as any)?.user ?? ((resp as any)?.username ? { username: (resp as any).username } : null);
-      if (userFromResp && Object.keys(userFromResp).length > 0) {
-        localStorage.setItem('user', JSON.stringify(userFromResp));
-        setAuthState({ user: userFromResp, token: token ?? authState.token, isAuthenticated: true });
-        return userFromResp;
+      // Extract userId, username, and role from response
+      const userId = (resp as any)?.userId;
+      const username = (resp as any)?.username || email;
+      const role = cleanRole((resp as any)?.role);
+
+      if (userId) {
+        const userData: User = {
+          id: userId,
+          username: username,
+          role: role,
+        };
+        console.log('AuthContext: Created user data:', userData);
+        localStorage.setItem('user', JSON.stringify(userData));
+        setAuthState({ user: userData, token: token ?? authState.token, isAuthenticated: true });
+        return userData;
       }
 
+      // Fallback: fetch from /me endpoint
+      console.log('AuthContext: No userId in response, fetching from /me...');
       const fetched = await fetchCurrentUser();
       if (fetched) {
+        if ((fetched as any).role) {
+          (fetched as any).role = cleanRole((fetched as any).role);
+        }
+        console.log('AuthContext: Fetched user:', fetched);
         localStorage.setItem('user', JSON.stringify(fetched));
         setAuthState({ user: fetched, token: token ?? authState.token, isAuthenticated: true });
         return fetched;
@@ -112,32 +151,49 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setAuthState({ user: null, token: null, isAuthenticated: false });
       return null;
     } catch (err) {
+      console.error('AuthContext: Login failed:', err);
       throw err;
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Register: your Login UI calls register(email,password,name) - we map to backend payload username=email, fullName=name
   const register = async (email: string, password: string, name: string): Promise<User | null> => {
     setIsLoading(true);
     try {
-      const resp = await apiRegister(name, email, password); // apiRegister maps to { username: email, password, fullName: name }
+      console.log('AuthContext: Starting registration...');
+      const resp = await apiRegister(name, email, password);
+      console.log('AuthContext: Registration response:', resp);
+      
       const token = (resp as any)?.token ?? (resp as any)?.accessToken;
       if (token) {
         setAccessToken(token);
         localStorage.setItem('token', token);
       }
 
-      const userFromResp = (resp as any)?.user ?? ((resp as any)?.username ? { username: (resp as any).username } : null);
-      if (userFromResp && Object.keys(userFromResp).length > 0) {
-        localStorage.setItem('user', JSON.stringify(userFromResp));
-        setAuthState({ user: userFromResp, token: token ?? authState.token, isAuthenticated: true });
-        return userFromResp;
+      const userId = (resp as any)?.userId;
+      const username = (resp as any)?.username || email;
+      const role = cleanRole((resp as any)?.role);
+
+      if (userId) {
+        const userData: User = {
+          id: userId,
+          username: username,
+          role: role,
+        };
+        console.log('AuthContext: Created user data:', userData);
+        localStorage.setItem('user', JSON.stringify(userData));
+        setAuthState({ user: userData, token: token ?? authState.token, isAuthenticated: true });
+        return userData;
       }
 
+      console.log('AuthContext: No userId in response, fetching from /me...');
       const fetched = await fetchCurrentUser();
       if (fetched) {
+        if ((fetched as any).role) {
+          (fetched as any).role = cleanRole((fetched as any).role);
+        }
+        console.log('AuthContext: Fetched user:', fetched);
         localStorage.setItem('user', JSON.stringify(fetched));
         setAuthState({ user: fetched, token: token ?? authState.token, isAuthenticated: true });
         return fetched;
@@ -146,6 +202,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setAuthState({ user: null, token: null, isAuthenticated: false });
       return null;
     } catch (err) {
+      console.error('AuthContext: Registration failed:', err);
       throw err;
     } finally {
       setIsLoading(false);
@@ -168,6 +225,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const setUser = (user: User | null) => {
+    if (user && user.role) {
+      user.role = cleanRole(user.role);
+    }
     setAuthState(prev => ({
       ...prev,
       user,

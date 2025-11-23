@@ -31,19 +31,15 @@ public class OrderEntity {
     @Column(name = "table_id", columnDefinition = "uuid")
     private UUID tableId;
 
-    // optional numeric table number used by FE
     @Column(name = "table_number")
     private Integer tableNumber;
 
-    // reference to the customer (user) in your system
     @Column(name = "customer_id", columnDefinition = "uuid")
     private UUID customerId;
 
-    // snapshot of customer/display name for convenience
     @Column(name = "customer_name")
     private String customerName;
 
-    // order status - stored as string
     @Column(nullable = false)
     private String status; // e.g. "preparing", "completed", "pending"
 

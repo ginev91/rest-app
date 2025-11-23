@@ -28,14 +28,27 @@ const Login = () => {
     setIsLoading(true);
 
     try {
+      let user;
       if (isRegister) {
-        await register(email, password, name);
-        toast.success('Account created successfully!');
+        user = await register(email, password, name);
+        if (user) {
+          toast.success('Account created successfully!');
+        }
       } else {
-        await login(email, password);
-        toast.success('Welcome back!');
+        user = await login(email, password);
+        if (user) {
+          toast.success('Welcome back!');
+        }
       }
-      navigate('/menu');
+      
+      if (user) {
+        // Wait a brief moment for the token to be set in the API client
+        setTimeout(() => {
+          navigate('/menu');
+        }, 100);
+      } else {
+        toast.error(isRegister ? 'Registration failed. Please try again.' : 'Login failed. Please check your credentials.');
+      }
     } catch (error) {
       toast.error(isRegister ? 'Registration failed. Please try again.' : 'Login failed. Please check your credentials.');
     } finally {
