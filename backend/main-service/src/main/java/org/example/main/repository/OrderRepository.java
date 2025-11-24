@@ -39,4 +39,9 @@ public interface OrderRepository extends JpaRepository<OrderEntity, UUID> {
             "left join fetch o.items oi " +
             "where o.customerId = :userId")
     List<OrderEntity> findWithItemsByCustomerUserId(@Param("userId") UUID userId);
+
+    @Query("select distinct o from OrderEntity o " +
+            "left join fetch o.items oi " +
+            "where o.waiterId = :userId")
+    List<OrderEntity> findWithItemsByWaiterUserId(@Param("userId") UUID userId);
 }

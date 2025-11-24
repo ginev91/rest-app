@@ -1,35 +1,80 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import Layout from '@/components/Layout';
-import { Table } from '@/types/order';
-import { Users } from 'lucide-react';
+import { Users, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
+import api from '@/services/api/client';
 
-// Mock tables data
-const mockTables: Table[] = [
-  { id: '1', number: 1, capacity: 2, status: 'occupied', currentOrderId: '1' },
-  { id: '2', number: 2, capacity: 4, status: 'available' },
-  { id: '3', number: 3, capacity: 4, status: 'occupied', currentOrderId: '2' },
-  { id: '4', number: 4, capacity: 6, status: 'reserved' },
-  { id: '5', number: 5, capacity: 2, status: 'available' },
-  { id: '6', number: 6, capacity: 8, status: 'available' },
-  { id: '7', number: 7, capacity: 4, status: 'occupied' },
-  { id: '8', number: 8, capacity: 4, status: 'available' },
-];
+interface Table {
+  id: string;
+  code: string;
+  seats: number;
+  currentOccupancy: number;
+  status: 'AVAILABLE' | 'OCCUPIED' | 'RESERVED' | 'OUT_OF_SERVICE';
+}
 
 const statusConfig = {
-  available: { label: 'Available', bgColor: 'bg-success/10 hover:bg-success/20 border-success/30', badgeColor: 'bg-success text-success-foreground' },
-  occupied: { label: 'Occupied', bgColor: 'bg-destructive/10 hover:bg-destructive/20 border-destructive/30', badgeColor: 'bg-destructive text-destructive-foreground' },
-  reserved: { label: 'Reserved', bgColor: 'bg-warning/10 hover:bg-warning/20 border-warning/30', badgeColor: 'bg-warning text-warning-foreground' },
+  AVAILABLE: { 
+    label: 'Available', 
+    bgColor: 'bg-success/10 hover:bg-success/20 border-success/30', 
+    badgeColor: 'bg-success text-success-foreground' 
+  },
+  OCCUPIED: { 
+    label: 'Occupied', 
+    bgColor: 'bg-destructive/10 hover:bg-destructive/20 border-destructive/30', 
+    badgeColor: 'bg-destructive text-destructive-foreground' 
+  },
+  RESERVED: { 
+    label: 'Reserved', 
+    bgColor: 'bg-warning/10 hover:bg-warning/20 border-warning/30', 
+    badgeColor: 'bg-warning text-warning-foreground' 
+  },
+    OUT_OF_SERVICE: {
+    label: 'Out of Service',
+    bgColor: 'bg-muted/10 hover:bg-muted/20 border-muted/30',
+    badgeColor: 'bg-muted text-muted-foreground'
+  }
 };
 
 const Tables = () => {
-  const [tables] = useState<Table[]>(mockTables);
+  const [tables, setTables] = useState<Table[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const navigate = useNavigate();
 
-  const availableCount = tables.filter(t => t.status === 'available').length;
-  const occupiedCount = tables.filter(t => t.status === 'occupied').length;
-  const reservedCount = tables.filter(t => t.status === 'reserved').length;
+  useEffect(() => {
+    loadTables();
+  }, []);
+
+  async function loadTables() {
+    setLoading(true);
+    try {
+      const res = await api.get('/api/tables');
+      console.log('Tables loaded:', res.data);
+      setTables(res.data);
+    } catch (err: any) {
+      console.error('Failed to load tables:', err);
+      toast.error('Failed to load tables');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const availableCount = tables.filter(t => t.status === 'AVAILABLE').length;
+  const occupiedCount = tables.filter(t => t.status === 'OCCUPIED').length;
+  const reservedCount = tables.filter(t => t.status === 'RESERVED').length;
+
+  if (loading) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
@@ -70,14 +115,15 @@ const Tables = () => {
                   'cursor-pointer transition-all border-2',
                   config.bgColor
                 )}
+                onClick={() => navigate(`/tables/${table.id}`)}
               >
                 <CardContent className="p-6 text-center space-y-3">
                   <div className="text-3xl font-bold">
-                    {table.number}
+                    {table.code}
                   </div>
                   <div className="flex items-center justify-center gap-1 text-sm text-muted-foreground">
                     <Users className="h-4 w-4" />
-                    {table.capacity}
+                    <span>{table.currentOccupancy}/{table.seats}</span>
                   </div>
                   <Badge className={cn('text-xs', config.badgeColor)}>
                     {config.label}
@@ -87,6 +133,16 @@ const Tables = () => {
             );
           })}
         </div>
+
+        {tables.length === 0 && (
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <Users className="h-12 w-12 text-muted-foreground mb-4" />
+              <p className="text-lg font-semibold mb-2">No tables found</p>
+              <p className="text-muted-foreground">Tables will appear here once they are added</p>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </Layout>
   );

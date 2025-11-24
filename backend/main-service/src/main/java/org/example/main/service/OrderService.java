@@ -5,6 +5,7 @@ import org.example.main.dto.request.OrderRequestDto.OrderItemRequest;
 import org.example.main.dto.response.OrderDetailsResponseDto;
 import org.example.main.dto.response.OrderItemResponseDto;
 import org.example.main.dto.response.OrderResponseDto;
+import org.example.main.feign.KitchenClient;
 import org.example.main.model.MenuItem;
 import org.example.main.model.OrderEntity;
 import org.example.main.model.OrderItem;
@@ -22,19 +23,25 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.UUID;
 
+import lombok.extern.slf4j.Slf4j;
+
 @Service
+@Slf4j
 public class OrderService implements IOrderService {
 
     private final OrderRepository orderRepository;
     private final MenuItemRepository menuItemRepository;
     private final UserRepository userRepository;
+    private final KitchenClient kitchenClient;
 
     public OrderService(OrderRepository orderRepository,
                         MenuItemRepository menuItemRepository,
-                        UserRepository userRepository) {
+                        UserRepository userRepository,
+                        KitchenClient kitchenClient) {
         this.orderRepository = orderRepository;
         this.menuItemRepository = menuItemRepository;
         this.userRepository = userRepository;
+        this.kitchenClient = kitchenClient;
     }
 
     /**
@@ -63,7 +70,7 @@ public class OrderService implements IOrderService {
 
         OrderEntity order = new OrderEntity();
         order.setTableId(request.getTableId());
-
+        order.setTableNumber(request.getTableNumber());
         order.setCustomerId(request.getCustomerId());
         order.setCustomerName(findUserName(request.getCustomerId()));
         order.setStatus("preparing");
@@ -94,6 +101,32 @@ public class OrderService implements IOrderService {
         order.setTotalAmount(total);
 
         OrderEntity saved = orderRepository.save(order);
+        log.info("Order created: {} total={} by customer={}", saved.getId(), saved.getTotalAmount(), saved.getCustomerId());
+
+
+        try {
+            KitchenClient.KitchenOrderRequest kre = new KitchenClient.KitchenOrderRequest();
+            kre.sourceOrderId = saved.getId();
+            kre.tableNumber = saved.getTableNumber();
+            kre.customerName = saved.getCustomerName();
+            kre.items = saved.getItems().stream().map(it -> {
+                KitchenClient.KitchenOrderItem koi = new KitchenClient.KitchenOrderItem();
+                koi.menuItemId = it.getMenuItemId();
+                koi.menuItemName = it.getMenuItemName();
+                koi.quantity = it.getQuantity();
+                return koi;
+            }).collect(Collectors.toList());
+
+            KitchenClient.KitchenOrderResponse kresp = kitchenClient.createKitchenOrder(kre);
+            if (kresp != null && kresp.id != null) {
+                saved.setKitchenOrderId(kresp.id);
+                saved.setKitchenStatus(kresp.status);
+                orderRepository.save(saved);
+                log.info("Kitchen order created: {} for order {}", kresp.id, saved.getId());
+            }
+        } catch (Exception ex) {
+            log.error("Failed to notify kitchen service for order {}: {}", saved.getId(), ex.getMessage());
+        }
 
         return OrderResponseDto.builder()
                 .orderId(saved.getId())
@@ -101,9 +134,7 @@ public class OrderService implements IOrderService {
                 .build();
     }
 
-    /**
-     * Lightweight summary getter used by controller / other callers.
-     */
+
     @Override
     @Transactional(readOnly = true)
     public OrderResponseDto getOrderSummary(UUID orderId) {
@@ -116,9 +147,6 @@ public class OrderService implements IOrderService {
                 .build();
     }
 
-    /**
-     * Full details getter returning OrderDetailsResponseDto used by frontend to render full order.
-     */
     @Override
     @Transactional(readOnly = true)
     public OrderDetailsResponseDto getOrderDetails(UUID orderId) {
@@ -131,16 +159,24 @@ public class OrderService implements IOrderService {
     @Transactional(readOnly = true)
     public List<OrderResponseDto> getOrdersForUser(UUID userId) {
         if (userId == null) return Collections.emptyList();
-
+        String userRole = userRepository.findRoleByUserId(userId);
+        if (userRole != null && "ROLE_ADMIN".equals(userRole)) {
+            List<OrderEntity> allOrders = orderRepository.findAll();
+            return allOrders.stream()
+                    .map(this::mapToOrderResponseDto)
+                    .collect(Collectors.toList());
+        } else if (userRole != null && "ROLE_EMPLOYEE".equals(userRole)) {
+            List<OrderEntity> entities = orderRepository.findWithItemsByWaiterUserId(userId);
+            return entities.stream()
+                    .map(this::mapToOrderResponseDto)
+                    .collect(Collectors.toList());
+        }
         List<OrderEntity> entities = orderRepository.findWithItemsByCustomerUserId(userId);
         return entities.stream()
-                .map(this::mapToOrderResponseDto) // or inline mapper
+                .map(this::mapToOrderResponseDto)
                 .collect(Collectors.toList());
     }
 
-    /**
-     * IOrderService implementation: placeOrder returns the saved order id (UUID)
-     */
     @Override
     @Transactional
     public UUID placeOrder(OrderRequestDto dto) {
@@ -148,9 +184,6 @@ public class OrderService implements IOrderService {
         return resp.getOrderId();
     }
 
-    /**
-     * IOrderService implementation: mark order as 'call_waiter'
-     */
     @Override
     @Transactional
     public void callWaiter(UUID orderId) {
@@ -160,9 +193,6 @@ public class OrderService implements IOrderService {
         orderRepository.save(o);
     }
 
-    /**
-     * IOrderService implementation: cancel the order
-     */
     @Override
     @Transactional
     public void cancelOrder(UUID orderId) {
@@ -170,6 +200,11 @@ public class OrderService implements IOrderService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
         o.setStatus("cancelled");
         orderRepository.save(o);
+    }
+
+    @Override
+    public void updateStatus(UUID orderId, String status) {
+
     }
 
     private String findUserName(UUID userId) {
@@ -197,6 +232,8 @@ public class OrderService implements IOrderService {
                 .totalAmount(o.getTotalAmount())
                 .createdAt(o.getCreatedAt())
                 .updatedAt(o.getUpdatedAt())
+                .kitchenOrderId(o.getKitchenOrderId() != null ? o.getKitchenOrderId().toString() : null)
+                .kitchenStatus(o.getKitchenStatus())
                 .items(items)
                 .build();
     }
@@ -205,7 +242,6 @@ public class OrderService implements IOrderService {
         return OrderResponseDto.builder()
                 .orderId(e.getId())
                 .status(e.getStatus())
-                // populate other lightweight fields
                 .build();
     }
 }

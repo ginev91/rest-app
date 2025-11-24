@@ -3,10 +3,9 @@ package org.example.main.mapper;
 import jakarta.validation.Valid;
 import org.example.main.dto.request.RegisterRequestDto;
 import org.example.main.dto.response.UserProfileResponseDto;
-import org.example.main.model.Role;
 import org.example.main.model.User;
 
-import java.util.stream.Collectors;
+import java.util.Collections;
 
 public final class UserMapper {
 
@@ -26,10 +25,10 @@ public final class UserMapper {
         p.setId(u.getId());
         p.setUsername(u.getUsername());
         p.setFullName(u.getFullName());
-        if (u.getRoles() != null) {
-            p.setRoles(u.getRoles().stream()
-                    .map(Role::getName)
-                    .collect(Collectors.toSet()));
+        if (u.getRole() != null && !u.getRole().isBlank()) {
+            p.setRoles(Collections.singleton(u.getRole()));
+        } else {
+            p.setRoles(Collections.emptySet());
         }
         return p;
     }

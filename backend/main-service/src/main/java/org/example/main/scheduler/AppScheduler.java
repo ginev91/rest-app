@@ -135,8 +135,7 @@ public class AppScheduler {
         }
     }
 
-    // Helpers: accept any Collection<?> and cast elements to OrderItem to avoid raw-type issues
-    @SuppressWarnings("unchecked")
+
     private Stream<OrderItem> safeStream(Collection<?> items) {
         if (items == null) return Stream.empty();
         return items.stream()
@@ -160,7 +159,6 @@ public class AppScheduler {
         }
     }
 
-    // simple holder for aggregation
     private static class ItemAgg {
         final MenuItem menuItem;
         long quantity;

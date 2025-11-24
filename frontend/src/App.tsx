@@ -11,6 +11,7 @@ import Dashboard from "./pages/Dashboard";
 import Tables from "./pages/Tables";
 import Recommendations from "./pages/Recommendations";
 import NotFound from "./pages/NotFound";
+import TableDetails from "./pages/TableDetails";
 
 const queryClient = new QueryClient();
 
@@ -33,6 +34,7 @@ const App = () => (
             <Route path="/orders" element={<ProtectedRoute><Orders /></ProtectedRoute>} />
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/tables" element={<ProtectedRoute><Tables /></ProtectedRoute>} />
+            <Route path="/tables/:tableId" element={<ProtectedRoute><TableDetails /></ProtectedRoute>} />
             <Route path="/recommendations" element={<ProtectedRoute><Recommendations /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>

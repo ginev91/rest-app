@@ -39,7 +39,7 @@ public class SecurityConfig {
                 )
                 .oauth2ResourceServer(oauth2 -> oauth2
                         .jwt(jwt -> jwt
-                                .jwtAuthenticationConverter(jwtAuthenticationConverter()) // uses our converter
+                                .jwtAuthenticationConverter(jwtAuthenticationConverter())
                         )
                 );
 
@@ -55,18 +55,15 @@ public class SecurityConfig {
      */
     private Converter<org.springframework.security.oauth2.jwt.Jwt, JwtAuthenticationToken> jwtAuthenticationConverter() {
         JwtGrantedAuthoritiesConverter grantedAuthoritiesConverter = new JwtGrantedAuthoritiesConverter();
-        grantedAuthoritiesConverter.setAuthoritiesClaimName("roles"); // change if claim is different
-        grantedAuthoritiesConverter.setAuthorityPrefix("ROLE_"); // will produce ROLE_ADMIN, etc.
+        grantedAuthoritiesConverter.setAuthoritiesClaimName("roles");
+        grantedAuthoritiesConverter.setAuthorityPrefix("ROLE_");
 
-        // Wrap the granted-authorities converter into a Converter<Jwt, JwtAuthenticationToken>
         return jwt -> {
             Collection<GrantedAuthority> authorities = grantedAuthoritiesConverter.convert(jwt);
-            // Optional post-processing: normalize or remap authority names here
             Collection<GrantedAuthority> mapped = authorities.stream()
-                    .map(a -> (GrantedAuthority) () -> a.getAuthority().trim()) // identity mapping; replace if needed
+                    .map(a -> (GrantedAuthority) () -> a.getAuthority().trim())
                     .collect(Collectors.toList());
 
-            // Create a JwtAuthenticationToken with the mapped authorities
             return new JwtAuthenticationToken(jwt, mapped);
         };
     }
@@ -74,7 +71,6 @@ public class SecurityConfig {
     @Bean
     public JwtDecoder jwtDecoder() {
         if (jwtSecret == null || jwtSecret.isBlank()) {
-            // assume jwk-set-uri is configured in properties; otherwise change to actual URI
             return NimbusJwtDecoder.withJwkSetUri("https://example.com/.well-known/jwks.json").build();
         }
         byte[] keyBytes = jwtSecret.getBytes(StandardCharsets.UTF_8);

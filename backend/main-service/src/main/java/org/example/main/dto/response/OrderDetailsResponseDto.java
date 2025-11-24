@@ -2,22 +2,31 @@ package org.example.main.dto.response;
 
 import lombok.*;
 
-import java.time.OffsetDateTime;
 import java.math.BigDecimal;
+import java.time.OffsetDateTime;
 import java.util.List;
 
-@Data
+/**
+ * Full order DTO returned by GET /api/orders/{id}
+ */
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class OrderDetailsResponseDto {
+
     private String id;
     private String userId;
     private String userName;
-    private Integer tableNumber;       // nullable if not used
-    private String status;             // e.g. "preparing", "completed"
+    private Integer tableNumber;
+    private String status;
     private BigDecimal totalAmount;
     private OffsetDateTime createdAt;
     private OffsetDateTime updatedAt;
+
+    private String kitchenOrderId;
+    private String kitchenStatus;
+
     private List<OrderItemResponseDto> items;
 }

@@ -25,24 +25,20 @@ public class OrderItem {
     @Column(nullable = false)
     private int quantity;
 
-    // link to menu item entity (optional). Keep LAZY to avoid eager loading.
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "menu_item_id", nullable = true)
     private MenuItem menuItem;
 
-    // snapshot of menu item name and price at order time:
     @Column(name = "menu_item_name", nullable = false)
     private String menuItemName;
 
     @Column(name = "price", nullable = false)
     private BigDecimal price;
 
-    // owning side for order relationship
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "order_id", nullable = false)
     private OrderEntity order;
 
-    // Convenience getters to expose menuItem id without forcing menuItem fetch
     public UUID getMenuItemId() {
         return (this.menuItem != null) ? this.menuItem.getId() : null;
     }

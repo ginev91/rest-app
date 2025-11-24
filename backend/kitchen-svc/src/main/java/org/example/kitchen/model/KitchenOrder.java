@@ -22,7 +22,6 @@ public class KitchenOrder {
     @Column(columnDefinition = "uuid", updatable = false, nullable = false)
     private UUID id;
 
-    // External order id from main-service
     @Column(name = "order_id", columnDefinition = "uuid", nullable = false)
     private UUID orderId;
 

@@ -11,7 +11,6 @@ public class CreateKitchenOrderRequest {
     @NotNull
     private UUID orderId;
 
-    // JSON or simple string describing items
     @NotBlank
     private String itemsJson;
 }

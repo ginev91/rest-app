@@ -27,7 +27,6 @@ public class OrderEntity {
     @GenericGenerator(name = "UUID", strategy = "org.hibernate.id.UUIDGenerator")
     private UUID id;
 
-    // UUID table id (keeps a reference to a table entity if you have one)
     @Column(name = "table_id", columnDefinition = "uuid")
     private UUID tableId;
 
@@ -36,6 +35,9 @@ public class OrderEntity {
 
     @Column(name = "customer_id", columnDefinition = "uuid")
     private UUID customerId;
+
+    @Column(name = "waiter_id", columnDefinition = "uuid", nullable = true)
+    private UUID waiterId;
 
     @Column(name = "customer_name")
     private String customerName;
@@ -49,11 +51,15 @@ public class OrderEntity {
     @Column(name = "updated_at")
     private OffsetDateTime updatedAt;
 
-    // total amount snapshot (sum of item price * qty)
     @Column(name = "total_amount", nullable = false, precision = 12, scale = 2)
     private BigDecimal totalAmount;
 
-    // items - the owning side is OrderItem.order
+    @Column(name = "kitchen_order_id", columnDefinition = "uuid")
+    private UUID kitchenOrderId;
+
+    @Column(name = "kitchen_status")
+    private String kitchenStatus;
+
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<OrderItem> items = new ArrayList<>();
@@ -71,5 +77,24 @@ public class OrderEntity {
     @PreUpdate
     private void preUpdate() {
         this.updatedAt = OffsetDateTime.now();
+    }
+
+    public boolean claimByWaiter(UUID newWaiterId) {
+        if (this.waiterId == null) {
+            this.waiterId = newWaiterId;
+            this.status = "assigned"; // adjust to your status values
+            return true;
+        }
+        return false;
+    }
+
+    /** Force-assign a waiter (use with caution). */
+    public void assignWaiter(UUID newWaiterId) {
+        this.waiterId = newWaiterId;
+    }
+
+    /** Unassign waiter (e.g., when order is cancelled or released). */
+    public void unassignWaiter() {
+        this.waiterId = null;
     }
 }

@@ -41,7 +41,6 @@ public class MenuItemService implements IMenuItemService {
 
     @Override
     public MenuItem create(MenuItem menuItem) {
-        // optional: validate duplicates
         return menuItemRepository.save(menuItem);
     }
 

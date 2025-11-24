@@ -16,7 +16,6 @@ public final class MenuItemMapper {
     public static MenuItem toEntity(@Valid MenuItemRequestDto req) {
         if (req == null) return null;
         MenuItem mi = new MenuItem();
-        // id is managed by JPA on create; for update controllers will set id separately if needed
         mi.setName(req.getName());
         mi.setDescription(req.getDescription());
         mi.setPrice(req.getPrice());

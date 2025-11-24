@@ -30,7 +30,7 @@ public class AuthController {
 
     private final UserRepository users;
     private final RoleRepository roles;
-    private final PasswordEncoder passwordEncoder; // use the interface
+    private final PasswordEncoder passwordEncoder;
     private final JwtUtils jwt;
     private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
 
@@ -64,6 +64,7 @@ public class AuthController {
                         .collect(Collectors.toList()));
                 Optional<User> userOpt = users.findByUsername(ud.getUsername());
                 userOpt.ifPresent(user -> dto.put("userId", user.getId()));
+                userOpt.ifPresent(user -> dto.put("role", user.getRole()));
             } else if (principal instanceof Map) {
                 try {
                     @SuppressWarnings("unchecked")
@@ -99,10 +100,10 @@ public class AuthController {
             r.setName("ROLE_USER");
             return roles.save(r);
         });
-        u.setRoles(Collections.singleton(userRole));
+        u.setRole(userRole.getName());
         users.save(u);
         String token = jwt.generateToken(u.getUsername());
-        return ResponseEntity.ok(new AuthResponseDto(token, u.getUsername(), u.getId()));
+        return ResponseEntity.ok(new AuthResponseDto(token, u.getUsername(), u.getId(), u.getRole()));
     }
 
     @PostMapping("/login")
@@ -114,7 +115,7 @@ public class AuthController {
                 return ResponseEntity.status(401).body("Invalid credentials");
             }
             String token = jwt.generateToken(user.getUsername());
-            return ResponseEntity.ok(new AuthResponseDto(token, user.getUsername(), user.getId()));
+            return ResponseEntity.ok(new AuthResponseDto(token, user.getUsername(), user.getId(), user.getRole()));
         }
 
         return ResponseEntity.status(401).body("Invalid credentials");

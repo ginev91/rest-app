@@ -9,14 +9,43 @@ import java.util.UUID;
 
 public interface IOrderService {
 
-    UUID placeOrder(OrderRequestDto dto);
-    void callWaiter(UUID orderId);
-    void cancelOrder(UUID orderId);
+    /**
+     * Create order and return lightweight response DTO.
+     */
+    OrderResponseDto createOrder(OrderRequestDto request);
 
+    /**
+     * Return an Order summary used in lists.
+     */
     OrderResponseDto getOrderSummary(UUID orderId);
 
+    /**
+     * Full order details for OrderDetails page.
+     */
     OrderDetailsResponseDto getOrderDetails(UUID orderId);
 
-    List<OrderResponseDto> getOrdersForUser(UUID user_id);
+    /**
+     * List orders for a given user.
+     */
+    List<OrderResponseDto> getOrdersForUser(UUID userId);
 
+    /**
+     * Convenience wrapper to place an order returning the saved UUID.
+     */
+    UUID placeOrder(OrderRequestDto dto);
+
+    /**
+     * Request waiter call
+     */
+    void callWaiter(UUID orderId);
+
+    /**
+     * Cancel order
+     */
+    void cancelOrder(UUID orderId);
+
+    /**
+     * Update arbitrary status (implement in service if you need generic status transitions)
+     */
+    void updateStatus(UUID orderId, String status);
 }

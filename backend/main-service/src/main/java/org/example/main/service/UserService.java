@@ -9,7 +9,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -43,8 +42,8 @@ public class UserService implements IUserService {
     @Override
     @Transactional(readOnly = true)
     public Optional<User> findByUsername(String username) {
-        Optional<User> user = userRepository.findByUsername(username); // returns User (nullable)
-        if (user == null) {
+        Optional<User> user = userRepository.findByUsername(username);
+        if (user.isEmpty()) {
             throw new ResourceNotFoundException("User not found: " + username);
         }
         return user;
@@ -59,17 +58,17 @@ public class UserService implements IUserService {
 
     @Override
     public User create(User user, String rawPassword) {
-        // encode password
         user.setPasswordHash(passwordEncoder.encode(rawPassword));
 
-        // ensure roles collection exists
-        if (user.getRoles() == null) user.setRoles(new HashSet<>());
-
-        // optionally assign default role if none
-        if (user.getRoles().isEmpty()) {
+        if (user.getRole() == null || user.getRole().isBlank()) {
             Role defaultRole = roleRepository.findByName("USER")
-                    .orElseGet(() -> roleRepository.save(new Role(null, "USER")));
-            user.getRoles().add(defaultRole);
+                    .orElseGet(() -> {
+                        Role r = new Role();
+                        r.setName("USER");
+                        return roleRepository.save(r);
+                    });
+            // store role as string on User
+            user.setRole(defaultRole.getName());
         }
 
         return userRepository.save(user);
@@ -80,7 +79,6 @@ public class UserService implements IUserService {
         User existing = findById(id);
         if (changes.getFullName() != null) existing.setFullName(changes.getFullName());
         if (changes.getUsername() != null) existing.setUsername(changes.getUsername());
-        // DO NOT copy passwordHash directly; use changePassword API instead (not implemented here)
         return userRepository.save(existing);
     }
 
@@ -94,9 +92,13 @@ public class UserService implements IUserService {
     public User assignRole(UUID userId, String roleName) {
         User user = findById(userId);
         Role role = roleRepository.findByName(roleName)
-                .orElseGet(() -> roleRepository.save(new Role(null, roleName)));
-        if (user.getRoles() == null) user.setRoles(new HashSet<>());
-        user.getRoles().add(role);
+                .orElseGet(() -> {
+                    Role r = new Role();
+                    r.setName(roleName);
+                    return roleRepository.save(r);
+                });
+        // set role name (String) on User to match current User model
+        user.setRole(role.getName());
         return userRepository.save(user);
     }
 }

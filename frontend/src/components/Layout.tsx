@@ -20,11 +20,11 @@ const Layout = ({ children }: LayoutProps) => {
   };
 
   const navItems = [
-    { path: '/menu', label: 'Menu', icon: Menu, roles: ['ROLE_USER', 'ROLE_WAITER', 'ROLE_ADMIN'] },
-    { path: '/orders', label: 'My Orders', icon: ShoppingCart, roles: ['ROLE_USER'] },
-    { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['ROLE_WAITER', 'ROLE_ADMIN'] },
-    { path: '/tables', label: 'Tables', icon: Users, roles: ['ROLE_WAITER', 'ROLE_ADMIN'] },
-    { path: '/recommendations', label: 'AI Recommendations', icon: Sparkles, roles: ['ROLE_USER', 'ROLE_WAITER', 'ROLE_ADMIN'] },
+    { path: '/menu', label: 'Menu', icon: Menu, roles: ['ROLE_USER', 'ROLE_EMPLOYEE', 'ROLE_ADMIN'] },
+    { path: '/orders', label: 'Orders', icon: ShoppingCart, roles: ['ROLE_USER', 'ROLE_EMPLOYEE', 'ROLE_ADMIN'] },
+    { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['ROLE_EMPLOYEE', 'ROLE_ADMIN'] },
+    { path: '/tables', label: 'Tables', icon: Users, roles: ['ROLE_EMPLOYEE', 'ROLE_ADMIN'] },
+    { path: '/recommendations', label: 'AI Recommendations', icon: Sparkles, roles: ['ROLE_USER', 'ROLE_EMPLOYEE', 'ROLE_ADMIN'] },
   ];
 
   const visibleNavItems = navItems.filter(item => item.roles.includes(user?.role || 'ROLE_USER'));
@@ -42,7 +42,7 @@ const Layout = ({ children }: LayoutProps) => {
               <h1 className="text-lg font-bold">Restaurant Manager</h1>
               {user && (
                 <p className="text-xs text-muted-foreground">
-                  {user.name} • {user.role}
+                  {user.username} • {user.role}
                 </p>
               )}
             </div>

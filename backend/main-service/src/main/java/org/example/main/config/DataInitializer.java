@@ -1,24 +1,18 @@
 package org.example.main.config;
 
-import org.example.main.model.CategoryEntity;
-import org.example.main.model.MenuItem;
-import org.example.main.model.Macros;
-import org.example.main.model.Role;
-import org.example.main.model.User;
-import org.example.main.repository.CategoryRepository;
-import org.example.main.repository.MenuItemRepository;
-import org.example.main.repository.RoleRepository;
-import org.example.main.repository.UserRepository;
+import org.example.main.model.*;
+import org.example.main.repository.*;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.example.main.model.enums.TableStatus;
+
+
 
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.Optional;
-import java.util.Set;
 
 @Component
 public class DataInitializer implements ApplicationRunner {
@@ -28,17 +22,21 @@ public class DataInitializer implements ApplicationRunner {
     private final RoleRepository roleRepository;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final RestaurantTableRepository tableRepository;
+
 
     public DataInitializer(CategoryRepository categoryRepository,
                            MenuItemRepository menuItemRepository,
                            RoleRepository roleRepository,
                            UserRepository userRepository,
-                           PasswordEncoder passwordEncoder) {
+                           PasswordEncoder passwordEncoder,
+                           RestaurantTableRepository tableRepository) {
         this.categoryRepository = categoryRepository;
         this.menuItemRepository = menuItemRepository;
         this.roleRepository = roleRepository;
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.tableRepository = tableRepository;
     }
 
     @Override
@@ -46,6 +44,7 @@ public class DataInitializer implements ApplicationRunner {
     public void run(ApplicationArguments args) throws Exception {
         seedCategoriesAndMenuItems();
         seedRolesAndUsers();
+        seedTablesIfNeeded();
     }
 
     private void seedCategoriesAndMenuItems() {
@@ -61,7 +60,7 @@ public class DataInitializer implements ApplicationRunner {
                                 .price(BigDecimal.valueOf(18.99))
                                 .category(mainCourse)
                                 .calories(350)
-                                .macros(new Macros(42, 10, 5)) // protein, fat, carbs
+                                .macros(new Macros(42, 10, 5))
                                 .available(true)
                                 .build(),
                         MenuItem.builder()
@@ -102,26 +101,53 @@ public class DataInitializer implements ApplicationRunner {
     }
 
     private void seedRolesAndUsers() {
-        Role adminRole = roleRepository.findByName("ROLE_ADMIN").orElseGet(() -> roleRepository.save(Role.builder().name("ROLE_ADMIN").build()));
-        Role employeeRole = roleRepository.findByName("ROLE_EMPLOYEE").orElseGet(() -> roleRepository.save(Role.builder().name("ROLE_EMPLOYEE").build()));
-        Role userRole = roleRepository.findByName("ROLE_USER").orElseGet(() -> roleRepository.save(Role.builder().name("ROLE_USER").build()));
+        Role adminRole = roleRepository.findByName("ROLE_ADMIN")
+                .orElseGet(() -> roleRepository.save(Role.builder().name("ROLE_ADMIN").build()));
+        Role employeeRole = roleRepository.findByName("ROLE_EMPLOYEE")
+                .orElseGet(() -> roleRepository.save(Role.builder().name("ROLE_EMPLOYEE").build()));
+        Role userRole = roleRepository.findByName("ROLE_USER")
+                .orElseGet(() -> roleRepository.save(Role.builder().name("ROLE_USER").build()));
 
-        userRepository.findByUsername("admin").orElseGet(() -> {
+        // Use the same username when checking and creating the user
+        userRepository.findByUsername("admin@test.com").orElseGet(() -> {
             User u = new User();
-            u.setUsername("admin");
-            u.setPasswordHash(passwordEncoder.encode("adminpass")); // for now using default pass
+            u.setUsername("admin@test.com");
+            u.setPasswordHash(passwordEncoder.encode("adminpass"));
             u.setFullName("System Administrator");
-            u.setRoles(Set.of(adminRole));
+            // store role as a single String (role name)
+            u.setRole(adminRole.getName());
             return userRepository.save(u);
         });
 
-        userRepository.findByUsername("employee").orElseGet(() -> {
+        userRepository.findByUsername("employee@test.com").orElseGet(() -> {
             User u = new User();
-            u.setUsername("employee");
-            u.setPasswordHash(passwordEncoder.encode("emppass")); // for now using default pass
+            u.setUsername("employee@test.com");
+            u.setPasswordHash(passwordEncoder.encode("emppass"));
             u.setFullName("Employee User");
-            u.setRoles(Set.of(employeeRole));
+            u.setRole(employeeRole.getName());
             return userRepository.save(u);
         });
+
+        userRepository.findByUsername("user@test.com").orElseGet(() -> {
+            User u = new User();
+            u.setUsername("user@test.com");
+            u.setPasswordHash(passwordEncoder.encode("userpass"));
+            u.setFullName("Regular User");
+            u.setRole(userRole.getName());
+            return userRepository.save(u);
+        });
+    }
+
+    private void seedTablesIfNeeded() {
+        if (tableRepository.count() == 0) {
+            List<RestaurantTable> tables = List.of(
+                    RestaurantTable.builder().code("T1").seats(2).currentOccupancy(0).status(TableStatus.AVAILABLE).build(),
+                    RestaurantTable.builder().code("T2").seats(2).currentOccupancy(0).status(TableStatus.AVAILABLE).build(),
+                    RestaurantTable.builder().code("T3").seats(4).currentOccupancy(0).status(TableStatus.AVAILABLE).build(),
+                    RestaurantTable.builder().code("T4").seats(4).currentOccupancy(0).status(TableStatus.AVAILABLE).build(),
+                    RestaurantTable.builder().code("T5").seats(6).currentOccupancy(0).status(TableStatus.AVAILABLE).build()
+            );
+            tableRepository.saveAll(tables);
+        }
     }
 }

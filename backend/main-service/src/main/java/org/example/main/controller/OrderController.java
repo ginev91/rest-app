@@ -1,23 +1,20 @@
 package org.example.main.controller;
 
+import jakarta.validation.Valid;
 import org.example.main.dto.request.OrderRequestDto;
 import org.example.main.dto.response.OrderDetailsResponseDto;
 import org.example.main.dto.response.OrderResponseDto;
-import org.example.main.model.User;
 import org.example.main.service.IOrderService;
-import org.springframework.http.HttpStatus;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-
-import jakarta.validation.Valid;
-
-import java.util.List;
+import java.util.*;
 import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/orders")
+@Slf4j
 public class OrderController {
 
     private final IOrderService orderService;
@@ -26,68 +23,69 @@ public class OrderController {
         this.orderService = orderService;
     }
 
-    @PostMapping
-    public ResponseEntity<OrderResponseDto> createOrder(@RequestBody @Valid OrderRequestDto request) {
-        UUID id = orderService.placeOrder(request);
-        OrderResponseDto resp = OrderResponseDto.builder().orderId(id).status("preparing").build();
-        return ResponseEntity.ok(resp);
-    }
-
+    /**
+     * GET /api/orders?userId={uuid} - list orders for a user
+     */
     @GetMapping
-    public ResponseEntity<?> getOrdersByUser(@RequestParam(name = "userId", required = false) String userId) {
-        if (userId == null || userId.isBlank()) {
-            return ResponseEntity.badRequest().body("userId query parameter is required");
-        }
-
-        UUID uid;
-        try {
-            uid = UUID.fromString(userId);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body("Invalid userId UUID: " + userId);
-        }
-
-        try {
-            List<OrderResponseDto> orders = orderService.getOrdersForUser(uid);
-            return ResponseEntity.ok(orders);
-        } catch (Exception ex) {
-            org.slf4j.LoggerFactory.getLogger(getClass()).error("Error while getting orders for user {}: ", userId, ex);
-
-            String msg = ex.getClass().getName() + ": " + ex.getMessage();
-            if (ex.getCause() != null) {
-                msg += " Caused by: " + ex.getCause().getClass().getName() + ": " + ex.getCause().getMessage();
-            }
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(msg);
-        }
+    public ResponseEntity<List<OrderResponseDto>> listOrders(@RequestParam(name = "userId", required = false) UUID userId) {
+        List<OrderResponseDto> list = orderService.getOrdersForUser(userId);
+        return ResponseEntity.ok(list);
     }
 
-    @GetMapping("/{id}/summary")
-    public ResponseEntity<OrderResponseDto> getOrderSummary(@PathVariable("id") UUID id) {
-        return ResponseEntity.ok(orderService.getOrderSummary(id));
-    }
-
+    /**
+     * GET /api/orders/{id} - full details
+     */
     @GetMapping("/{id}")
-    public ResponseEntity<OrderDetailsResponseDto> getOrderDetails(@PathVariable("id") UUID id) {
-        return ResponseEntity.ok(orderService.getOrderDetails(id));
+    public ResponseEntity<OrderDetailsResponseDto> getOrder(@PathVariable("id") UUID id) {
+        OrderDetailsResponseDto dto = orderService.getOrderDetails(id);
+        return ResponseEntity.ok(dto);
     }
 
-    @PostMapping("/{id}/call-waiter")
-    public ResponseEntity<Void> callWaiter(@PathVariable("id") UUID id) {
-        orderService.callWaiter(id);
+    /**
+     * POST /api/orders - create order (authenticated users)
+     */
+    @PostMapping
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<OrderResponseDto> createOrder(@Valid @RequestBody OrderRequestDto request) {
+        OrderResponseDto resp = orderService.createOrder(request);
+        return ResponseEntity.status(201).body(resp);
+    }
+
+    /**
+     * PUT /api/orders/{id}/status - change status (restricted to ROLE_WAITER or ROLE_ADMIN)
+     */
+    @PutMapping("/{id}/status")
+    @PreAuthorize("hasAnyRole('WAITER','ADMIN')")
+    public ResponseEntity<Void> updateStatus(@PathVariable("id") UUID id, @RequestBody Map<String, String> body) {
+        String status = body.get("status");
+        if (status == null) {
+            return ResponseEntity.badRequest().build();
+        }
+        orderService.getOrderSummary(id); // throws 404 if not found
+        // For now, call cancel/order-specific methods or set status via a new service method
+        // We'll reuse existing service API: if status == "cancelled" -> cancelOrder, else call a generic update (implement as needed)
+        if ("cancelled".equalsIgnoreCase(status)) {
+            orderService.cancelOrder(id);
+        } else {
+            // Implement a generic updateStatus method on service if you want persisted transitions
+            // For now set via cancel/check methods or create updateStatus in IOrderService
+            // Fallback: call cancel / callWaiter or similar as appropriate
+            // TODO: replace with orderService.updateStatus(id, status);
+            // Example:
+            // orderService.updateStatus(id, status);
+            throw new UnsupportedOperationException("Status update operation not yet implemented in service");
+        }
         return ResponseEntity.noContent().build();
     }
 
-    @PostMapping("/{id}/cancel")
-    public ResponseEntity<Void> cancelOrder(@PathVariable("id") UUID id) {
+    /**
+     * DELETE /api/orders/{id} - cancel order (restricted: owner OR role)
+     * For simplicity require WAITER/ADMIN for cancellation in this example. Adjust if you want to allow owner cancels.
+     */
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('WAITER','ADMIN')")
+    public ResponseEntity<Void> deleteOrder(@PathVariable("id") UUID id) {
         orderService.cancelOrder(id);
         return ResponseEntity.noContent().build();
-    }
-
-    private UUID getCurrentUserId(Authentication authentication) {
-        if (authentication == null || !authentication.isAuthenticated()) {
-            throw new RuntimeException("Unauthenticated");
-        }
-
-        User user = (User) authentication.getPrincipal();
-        return user.getId();
     }
 }
