@@ -10,7 +10,7 @@ import { setAccessToken } from '@/services/api/client';
 
 interface AuthContextType extends AuthState {
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<User | null>;
+  login: (email: string, password: string, tableNumber: number, tablePin: string) => Promise<User | null>;
   register: (email: string, password: string, name: string) => Promise<User | null>;
   logout: () => Promise<void>;
   setUser: (user: User | null) => void;
@@ -19,9 +19,8 @@ interface AuthContextType extends AuthState {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Helper function to clean role (remove leading dot)
 const cleanRole = (role: string | undefined): string => {
-  if (!role) return 'ROLE_USER';
+  if (!role) return 'CUSTOMER';
   return role.startsWith('.') ? role.substring(1) : role;
 };
 
@@ -57,7 +56,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
         }
 
-        // Try to fetch fresh user data if we have a token
         if (storedToken) {
           const user = await fetchCurrentUser();
           if (!mounted) return;
@@ -105,58 +103,70 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const login = async (email: string, password: string): Promise<User | null> => {
-    setIsLoading(true);
-    try {
-      console.log('AuthContext: Starting login...');
-      const resp = await apiLogin(email, password);
-      console.log('AuthContext: Login response:', resp);
-      
-      const token = (resp as any)?.token ?? (resp as any)?.accessToken;
-      if (token) {
-        setAccessToken(token);
-        localStorage.setItem('token', token);
-      }
 
-      // Extract userId, username, and role from response
-      const userId = (resp as any)?.userId;
-      const username = (resp as any)?.username || email;
-      const role = cleanRole((resp as any)?.role);
-
-      if (userId) {
-        const userData: User = {
-          id: userId,
-          username: username,
-          role: role,
-        };
-        console.log('AuthContext: Created user data:', userData);
-        localStorage.setItem('user', JSON.stringify(userData));
-        setAuthState({ user: userData, token: token ?? authState.token, isAuthenticated: true });
-        return userData;
-      }
-
-      // Fallback: fetch from /me endpoint
-      console.log('AuthContext: No userId in response, fetching from /me...');
-      const fetched = await fetchCurrentUser();
-      if (fetched) {
-        if ((fetched as any).role) {
-          (fetched as any).role = cleanRole((fetched as any).role);
-        }
-        console.log('AuthContext: Fetched user:', fetched);
-        localStorage.setItem('user', JSON.stringify(fetched));
-        setAuthState({ user: fetched, token: token ?? authState.token, isAuthenticated: true });
-        return fetched;
-      }
-
-      setAuthState({ user: null, token: null, isAuthenticated: false });
-      return null;
-    } catch (err) {
-      console.error('AuthContext: Login failed:', err);
-      throw err;
-    } finally {
-      setIsLoading(false);
+const login = async (email: string, password: string, tableNumber: number, tablePin: string): Promise<User | null> => {
+  setIsLoading(true);
+  try {
+    console.log('AuthContext: Starting login with table auth...', { tableNumber, tablePin });
+    
+    const resp = await apiLogin(email, password, { tableNumber, tablePin });
+    console.log('AuthContext: Login response:', resp);
+    
+    const token = (resp as any)?.token ?? (resp as any)?.accessToken;
+    if (token) {
+      setAccessToken(token);
+      localStorage.setItem('token', token);
     }
-  };
+
+    const userId = (resp as any)?.userId;
+    const username = (resp as any)?.username || email;
+    const role = cleanRole((resp as any)?.role);
+    const userTableNumber = (resp as any)?.tableNumber;
+    const tableId = (resp as any)?.tableId; // ✅ Get tableId from response
+
+    if (userId) {
+      const userData: User = {
+        id: userId,
+        username: username,
+        role: role,
+        tableNumber: userTableNumber || tableNumber,
+        tableId: tableId 
+      };
+      
+      if (tableId) {
+        localStorage.setItem('tableId', tableId);
+      }
+      
+      console.log('AuthContext: Created user data:', userData);
+      localStorage.setItem('user', JSON.stringify(userData));
+      setAuthState({ user: userData, token: token ?? authState.token, isAuthenticated: true });
+      return userData;
+    }
+
+    console.log('AuthContext: No userId in response, fetching from /me...');
+    const fetched = await fetchCurrentUser();
+    if (fetched) {
+      if ((fetched as any).role) {
+        (fetched as any).role = cleanRole((fetched as any).role);
+      }
+      (fetched as any).tableNumber = tableNumber;
+      (fetched as any).tableId = tableId; // ✅ Add tableId to fetched user
+      
+      console.log('AuthContext: Fetched user:', fetched);
+      localStorage.setItem('user', JSON.stringify(fetched));
+      setAuthState({ user: fetched, token: token ?? authState.token, isAuthenticated: true });
+      return fetched;
+    }
+
+    setAuthState({ user: null, token: null, isAuthenticated: false });
+    return null;
+  } catch (err) {
+    console.error('AuthContext: Login failed:', err);
+    throw err;
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   const register = async (email: string, password: string, name: string): Promise<User | null> => {
     setIsLoading(true);
@@ -165,42 +175,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const resp = await apiRegister(name, email, password);
       console.log('AuthContext: Registration response:', resp);
       
-      const token = (resp as any)?.token ?? (resp as any)?.accessToken;
-      if (token) {
-        setAccessToken(token);
-        localStorage.setItem('token', token);
-      }
-
-      const userId = (resp as any)?.userId;
-      const username = (resp as any)?.username || email;
-      const role = cleanRole((resp as any)?.role);
-
-      if (userId) {
-        const userData: User = {
-          id: userId,
-          username: username,
-          role: role,
-        };
-        console.log('AuthContext: Created user data:', userData);
-        localStorage.setItem('user', JSON.stringify(userData));
-        setAuthState({ user: userData, token: token ?? authState.token, isAuthenticated: true });
-        return userData;
-      }
-
-      console.log('AuthContext: No userId in response, fetching from /me...');
-      const fetched = await fetchCurrentUser();
-      if (fetched) {
-        if ((fetched as any).role) {
-          (fetched as any).role = cleanRole((fetched as any).role);
-        }
-        console.log('AuthContext: Fetched user:', fetched);
-        localStorage.setItem('user', JSON.stringify(fetched));
-        setAuthState({ user: fetched, token: token ?? authState.token, isAuthenticated: true });
-        return fetched;
-      }
-
-      setAuthState({ user: null, token: null, isAuthenticated: false });
-      return null;
+      // Don't auto-login after registration
+      // User needs to login with table PIN
+      return { id: '', username: name, role: 'CUSTOMER' } as User;
     } catch (err) {
       console.error('AuthContext: Registration failed:', err);
       throw err;

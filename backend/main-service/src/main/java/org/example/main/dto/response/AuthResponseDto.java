@@ -16,4 +16,8 @@ public class AuthResponseDto {
     private String username;
     private UUID userId;
     private String role;
+    private Integer tableNumber;
+
+    public AuthResponseDto(String token, String username, UUID id, String role) {
+    }
 }

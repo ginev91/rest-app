@@ -141,11 +141,11 @@ public class DataInitializer implements ApplicationRunner {
     private void seedTablesIfNeeded() {
         if (tableRepository.count() == 0) {
             List<RestaurantTable> tables = List.of(
-                    RestaurantTable.builder().code("T1").seats(2).currentOccupancy(0).status(TableStatus.AVAILABLE).build(),
-                    RestaurantTable.builder().code("T2").seats(2).currentOccupancy(0).status(TableStatus.AVAILABLE).build(),
-                    RestaurantTable.builder().code("T3").seats(4).currentOccupancy(0).status(TableStatus.AVAILABLE).build(),
-                    RestaurantTable.builder().code("T4").seats(4).currentOccupancy(0).status(TableStatus.AVAILABLE).build(),
-                    RestaurantTable.builder().code("T5").seats(6).currentOccupancy(0).status(TableStatus.AVAILABLE).build()
+                    RestaurantTable.builder().code("T1").seats(2).currentOccupancy(0).status(TableStatus.AVAILABLE).pinCode("1111").build(),
+                    RestaurantTable.builder().code("T2").seats(2).currentOccupancy(0).status(TableStatus.AVAILABLE).pinCode("2222").build(),
+                    RestaurantTable.builder().code("T3").seats(4).currentOccupancy(0).status(TableStatus.AVAILABLE).pinCode("3333").build(),
+                    RestaurantTable.builder().code("T4").seats(4).currentOccupancy(0).status(TableStatus.AVAILABLE).pinCode("4444").build(),
+                    RestaurantTable.builder().code("T5").seats(6).currentOccupancy(0).status(TableStatus.AVAILABLE).pinCode("5555").build()
             );
             tableRepository.saveAll(tables);
         }

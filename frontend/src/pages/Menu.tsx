@@ -3,14 +3,13 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { Plus, Minus, ShoppingCart, Loader2, X } from 'lucide-react';
+import { Plus, Minus, ShoppingCart, Loader2, X, Receipt, User } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import Layout from '@/components/Layout';
 import { MenuItem } from '@/types/menu';
+import { Order } from '@/types/order';
 import { useAuth } from '@/contexts/AuthContext';
 import api from '@/services/api/client';
 
@@ -22,11 +21,16 @@ const Menu = () => {
   const [cart, setCart] = useState<Record<string, number>>({});
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [showOrderDialog, setShowOrderDialog] = useState(false);
-  const [tableNumber, setTableNumber] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [activeOrder, setActiveOrder] = useState<Order | null>(null);
+
+  // Get table number from authenticated user or localStorage
+  const tableNumber = user?.tableNumber || parseInt(localStorage.getItem('tableNumber') || '0');
+  const tableId = user?.tableId || localStorage.getItem('tableId') || '';
 
   useEffect(() => {
     fetchMenuItems();
+    fetchActiveOrder();
   }, []);
 
   const fetchMenuItems = async () => {
@@ -39,6 +43,20 @@ const Menu = () => {
       toast.error('Failed to load menu items');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchActiveOrder = async () => {
+    try {
+      const response = await api.get('/api/orders/active');
+      if (response.data) {
+        setActiveOrder(response.data);
+        console.log('Active order found:', response.data);
+      }
+    } catch (error: any) {
+      if (error.response?.status !== 404) {
+        console.error('Failed to fetch active order:', error);
+      }
     }
   };
 
@@ -88,59 +106,117 @@ const Menu = () => {
     }, 0);
   };
 
+  const getActiveOrderTotal = () => {
+    return activeOrder?.totalAmount || 0;
+  };
+
+  const getGrandTotal = () => {
+    return getCartTotal() + getActiveOrderTotal();
+  };
+
+  // Group order items by user for display
+  const getOrderItemsByUser = () => {
+    if (!activeOrder) return {};
+    
+    const grouped: Record<string, { username: string; items: any[]; total: number }> = {};
+    
+    activeOrder.items.forEach((item: any) => {
+      const userId = item.userId || activeOrder.userId;
+      const username = item.username || user?.username || 'Unknown';
+      
+      if (!grouped[userId]) {
+        grouped[userId] = {
+          username,
+          items: [],
+          total: 0
+        };
+      }
+      
+      grouped[userId].items.push(item);
+      grouped[userId].total += item.price * item.quantity;
+    });
+    
+    return grouped;
+  };
+
   const cartItemsCount = Object.values(cart).reduce((sum, qty) => sum + qty, 0);
 
-  const handlePlaceOrder = async () => {
-    if (!user?.id) {
-      toast.error('Please log in to place an order');
-      return;
-    }
 
-    if (cartItemsCount === 0) {
-      toast.error('Your cart is empty');
-      return;
-    }
+const handleAddToOrder = async () => {
+  if (!user?.userId) {
+    toast.error('Please log in to place an order');
+    return;
+  }
 
-    if (!tableNumber.trim()) {
-      toast.error('Please enter a table number');
-      return;
-    }
+  if (cartItemsCount === 0) {
+    toast.error('Your cart is empty');
+    return;
+  }
 
-    setIsSubmitting(true);
-    try {
-      const orderItems = Object.entries(cart).map(([itemId, quantity]) => ({
-        menuItemId: itemId,
-        quantity
-      }));
+  if (!tableNumber) {
+    toast.error('Table number not found. Please login again.');
+    return;
+  }
 
-      const orderData = {
-        userId: user.id,
-        tableNumber: parseInt(tableNumber),
+  setIsSubmitting(true);
+  try {
+    const orderItems = Object.entries(cart).map(([itemId, quantity]) => ({
+      menuItemId: itemId,
+      quantity,
+    }));
+
+    let response;
+    
+    if (activeOrder) {
+      // Add items to existing order
+      console.log('Adding items to existing order:', activeOrder.id);
+      console.log('Request payload:', { items: orderItems });
+      
+      response = await api.post(`/api/orders/${activeOrder.id}/items`, {
         items: orderItems
+      });
+      
+      console.log('Add items response:', response.data);
+      toast.success('Items added to your order!');
+    } else {
+      console.log('Creating new order for table:', tableNumber);
+      
+      const orderData = {
+        tableNumber: tableNumber,
+        tableId: tableId,
+        items: orderItems,
+        customerId: user.userId, 
+        customerName: user.username
       };
-
-      console.log('Placing order:', orderData);
-
-      const response = await api.post('/api/orders', orderData);
       
-      console.log('Order placed successfully:', response.data);
+      console.log('Create order request payload:', orderData);
       
-      toast.success('Order placed successfully!');
-      setCart({});
-      setTableNumber('');
-      setShowOrderDialog(false);
+      response = await api.post('/api/orders', orderData);
       
-      // Navigate to orders page after a brief delay
-      setTimeout(() => {
-        navigate('/orders');
-      }, 1000);
-    } catch (error: any) {
-      console.error('Failed to place order:', error);
-      toast.error(error.response?.data?.message || 'Failed to place order');
-    } finally {
-      setIsSubmitting(false);
+      console.log('Create order response:', response.data);
+      toast.success('Order created successfully!');
     }
-  };
+    
+    // Clear cart and close dialog
+    setCart({});
+    setShowOrderDialog(false);
+    
+    // Refresh active order
+    await fetchActiveOrder();
+    
+    // Navigate to orders page
+    setTimeout(() => {
+      navigate('/orders');
+    }, 1000);
+  } catch (error: any) {
+    console.error('Failed to update order:', error);
+    console.error('Error response:', error.response?.data);
+    toast.error(error.response?.data?.message || 'Failed to update order');
+  } finally {
+    setIsSubmitting(false);
+  }
+};
+
 
   if (isLoading) {
     return (
@@ -152,6 +228,8 @@ const Menu = () => {
     );
   }
 
+  const orderItemsByUser = getOrderItemsByUser();
+
   return (
     <Layout>
       <div className="space-y-6">
@@ -159,13 +237,24 @@ const Menu = () => {
           <div>
             <h2 className="text-3xl font-bold">Our Menu</h2>
             <p className="text-muted-foreground">Browse and order your favorite dishes</p>
+            {tableNumber > 0 && (
+              <p className="text-sm text-muted-foreground mt-1">Table {tableNumber}</p>
+            )}
           </div>
-          {cartItemsCount > 0 && (
-            <Button size="lg" className="gap-2" onClick={() => setShowOrderDialog(true)}>
-              <ShoppingCart className="h-5 w-5" />
-              Order ({cartItemsCount}) - ${getCartTotal().toFixed(2)}
-            </Button>
-          )}
+          <div className="flex gap-3">
+            {activeOrder && (
+              <Button size="lg" variant="outline" className="gap-2" onClick={() => navigate('/orders')}>
+                <Receipt className="h-5 w-5" />
+                Current Order - ${activeOrder.totalAmount.toFixed(2)}
+              </Button>
+            )}
+            {cartItemsCount > 0 && (
+              <Button size="lg" className="gap-2" onClick={() => setShowOrderDialog(true)}>
+                <ShoppingCart className="h-5 w-5" />
+                Order ({cartItemsCount}) - ${getCartTotal().toFixed(2)}
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Category Filter */}
@@ -236,7 +325,7 @@ const Menu = () => {
                       onClick={() => addToCart(item.id)}
                     >
                       <Plus className="h-4 w-4" />
-                      Add to Order
+                      Add to Cart
                     </Button>
                   )}
                 </CardFooter>
@@ -247,85 +336,159 @@ const Menu = () => {
 
         {/* Order Details Dialog */}
         <Dialog open={showOrderDialog} onOpenChange={setShowOrderDialog}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle className="text-2xl">Order Details</DialogTitle>
+              <DialogTitle className="text-2xl">
+                {activeOrder ? 'Add to Existing Order' : 'Create New Order'}
+              </DialogTitle>
               <DialogDescription>
-                Review your order and confirm details
+                {activeOrder 
+                  ? `Adding items to Table ${tableNumber}'s order`
+                  : `Creating order for Table ${tableNumber}`
+                }
               </DialogDescription>
             </DialogHeader>
 
             <div className="space-y-4">
-              {/* Order Items */}
-              <div className="space-y-3">
-                {getCartItems().map(({ item, quantity, subtotal }) => (
-                  <div key={item!.id} className="flex items-start justify-between p-3 rounded-lg bg-muted/50">
-                    <div className="flex-1">
-                      <p className="font-semibold">{item!.name}</p>
-                      <p className="text-sm text-muted-foreground">{item!.category}</p>
-                      <div className="flex items-center gap-2 mt-2">
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="h-7 w-7"
-                          onClick={() => removeFromCart(item!.id)}
-                        >
-                          <Minus className="h-3 w-3" />
-                        </Button>
-                        <span className="text-sm font-medium w-8 text-center">{quantity}</span>
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="h-7 w-7"
-                          onClick={() => addToCart(item!.id)}
-                        >
-                          <Plus className="h-3 w-3" />
-                        </Button>
-                        <span className="text-sm text-muted-foreground ml-2">
-                          ${item!.price.toFixed(2)} each
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex flex-col items-end gap-2">
-                      <p className="font-bold text-lg">${subtotal.toFixed(2)}</p>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7"
-                        onClick={() => {
-                          const newCart = { ...cart };
-                          delete newCart[item!.id];
-                          setCart(newCart);
-                        }}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
+              {/* Table Info Display */}
+              <div className="p-4 rounded-lg bg-primary/10 border border-primary/30">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Receipt className="h-5 w-5 text-primary" />
+                    <div>
+                      <p className="font-semibold">Table {tableNumber}</p>
+                      <p className="text-sm text-muted-foreground">{user?.username}</p>
                     </div>
                   </div>
-                ))}
+                </div>
+              </div>
+
+              {/* Active Order Summary (if exists) - Grouped by User */}
+              {activeOrder && Object.keys(orderItemsByUser).length > 0 && (
+                <>
+                  <div className="space-y-3">
+                    <h3 className="font-semibold flex items-center gap-2">
+                      <Receipt className="h-4 w-4" />
+                      Current Order Items
+                    </h3>
+                    
+                    {Object.entries(orderItemsByUser).map(([userId, data]) => (
+                      <div key={userId} className="p-4 rounded-lg bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <User className="h-4 w-4 text-blue-700 dark:text-blue-300" />
+                            <h4 className="font-semibold text-blue-900 dark:text-blue-100">
+                              {data.username}
+                            </h4>
+                          </div>
+                          <Badge variant="outline" className="bg-blue-100 dark:bg-blue-900">
+                            {data.items.length} items
+                          </Badge>
+                        </div>
+                        <div className="space-y-1 text-sm text-blue-700 dark:text-blue-300 mb-2">
+                          {data.items.map((item: any, idx: number) => (
+                            <div key={idx} className="flex justify-between">
+                              <span>{item.quantity}x {item.menuItemName}</span>
+                              <span>${(item.price * item.quantity).toFixed(2)}</span>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="flex justify-between items-center pt-2 border-t border-blue-200 dark:border-blue-800">
+                          <span className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                            Subtotal
+                          </span>
+                          <span className="text-lg font-bold text-blue-900 dark:text-blue-100">
+                            ${data.total.toFixed(2)}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                    
+                    <div className="flex justify-between items-center p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                      <span className="font-semibold">Current Order Total</span>
+                      <span className="text-xl font-bold text-blue-900 dark:text-blue-100">
+                        ${activeOrder.totalAmount.toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                  <Separator />
+                </>
+              )}
+
+              {/* New Items - Current User */}
+              <div>
+                <h3 className="font-semibold mb-3 flex items-center gap-2">
+                  <User className="h-4 w-4" />
+                  Your New Items ({user?.username})
+                </h3>
+                <div className="space-y-3">
+                  {getCartItems().map(({ item, quantity, subtotal }) => (
+                    <div key={item!.id} className="flex items-start justify-between p-3 rounded-lg bg-muted/50">
+                      <div className="flex-1">
+                        <p className="font-semibold">{item!.name}</p>
+                        <p className="text-sm text-muted-foreground">{item!.category}</p>
+                        <div className="flex items-center gap-2 mt-2">
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={() => removeFromCart(item!.id)}
+                          >
+                            <Minus className="h-3 w-3" />
+                          </Button>
+                          <span className="text-sm font-medium w-8 text-center">{quantity}</span>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={() => addToCart(item!.id)}
+                          >
+                            <Plus className="h-3 w-3" />
+                          </Button>
+                          <span className="text-sm text-muted-foreground ml-2">
+                            ${item!.price.toFixed(2)} each
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-end gap-2">
+                        <p className="font-bold text-lg">${subtotal.toFixed(2)}</p>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={() => {
+                            const newCart = { ...cart };
+                            delete newCart[item!.id];
+                            setCart(newCart);
+                          }}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
 
               <Separator />
 
-              {/* Total */}
-              <div className="flex justify-between items-center text-xl font-bold">
-                <span>Total</span>
-                <span className="text-primary">${getCartTotal().toFixed(2)}</span>
-              </div>
-
-              <Separator />
-
-              {/* Table Number Input */}
+              {/* Totals Breakdown */}
               <div className="space-y-2">
-                <Label htmlFor="tableNumber">Table Number</Label>
-                <Input
-                  id="tableNumber"
-                  type="number"
-                  placeholder="Enter your table number"
-                  value={tableNumber}
-                  onChange={(e) => setTableNumber(e.target.value)}
-                  min="1"
-                />
+                {activeOrder && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Current Order</span>
+                    <span className="font-medium">${getActiveOrderTotal().toFixed(2)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Your New Items</span>
+                  <span className="font-medium">${getCartTotal().toFixed(2)}</span>
+                </div>
+                <Separator />
+                <div className="flex justify-between items-center text-xl font-bold">
+                  <span>New Total</span>
+                  <span className="text-primary">${getGrandTotal().toFixed(2)}</span>
+                </div>
               </div>
             </div>
 
@@ -341,19 +504,19 @@ const Menu = () => {
                 Clear Cart
               </Button>
               <Button
-                onClick={handlePlaceOrder}
-                disabled={isSubmitting || cartItemsCount === 0 || !tableNumber.trim()}
+                onClick={handleAddToOrder}
+                disabled={isSubmitting || cartItemsCount === 0}
                 className="gap-2"
               >
                 {isSubmitting ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Placing Order...
+                    {activeOrder ? 'Adding Items...' : 'Creating Order...'}
                   </>
                 ) : (
                   <>
                     <ShoppingCart className="h-4 w-4" />
-                    Place Order
+                    {activeOrder ? 'Add Items' : 'Create Order'}
                   </>
                 )}
               </Button>

@@ -1,6 +1,6 @@
 import api, { setAccessToken } from "./client";
 
-export interface LoginRequest { username: string; password: string; }
+export interface LoginRequest { username: string; password: string; tableNumber: number; tablePin: string; }
 export interface LoginResponse {
   token?: string;
   accessToken?: string;
@@ -8,8 +8,8 @@ export interface LoginResponse {
   username?: string;
 }
 
-export async function login(username: string, password: string): Promise<LoginResponse> {
-  const resp = await api.post("/api/auth/login", { username, password });
+export async function login(username: string, password: string, tableNumber: number, tablePin: string): Promise<LoginResponse> {
+  const resp = await api.post("/api/auth/login", { username, password, tableNumber, tablePin });
   const data = resp.data as LoginResponse;
   const token = data.token ?? data.accessToken;
   if (token) {

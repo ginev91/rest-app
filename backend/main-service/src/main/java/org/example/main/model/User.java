@@ -33,8 +33,9 @@ public class User {
     @Column
     private String fullName;
 
-    // Single role as string (e.g. "ROLE_USER", "ROLE_ADMIN")
     @Column(nullable = false)
     private String role;
 
+    @Column(name = "session_table_number")
+    private Integer sessionTableNumber;
 }

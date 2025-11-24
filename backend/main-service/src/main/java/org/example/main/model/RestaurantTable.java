@@ -33,4 +33,7 @@ public class RestaurantTable {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private TableStatus status = TableStatus.AVAILABLE;
+
+    @Column(nullable = false)
+    private String pinCode;
 }

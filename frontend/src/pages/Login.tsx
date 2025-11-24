@@ -6,12 +6,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { UtensilsCrossed } from 'lucide-react';
+import { UtensilsCrossed, Loader2 } from 'lucide-react';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [tableNumber, setTableNumber] = useState('');
+  const [tablePin, setTablePin] = useState('');
   const [isRegister, setIsRegister] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { login, register, isAuthenticated, token } = useAuth();
@@ -28,29 +30,44 @@ const Login = () => {
     setIsLoading(true);
 
     try {
-      let user;
       if (isRegister) {
-        user = await register(email, password, name);
+        // Registration flow
+        const user = await register(email, password, name);
         if (user) {
-          toast.success('Account created successfully!');
+          toast.success('Account created successfully! Please login.');
+          // Reset form and switch to login
+          setIsRegister(false);
+          setPassword('');
+          setName('');
+        } else {
+          toast.error('Registration failed. Please try again.');
         }
       } else {
-        user = await login(email, password);
+        // Login flow - requires table authentication for CUSTOMER role
+        if (!tableNumber.trim()) {
+          toast.error('Please enter your table number');
+          setIsLoading(false);
+          return;
+        }
+
+        if (!tablePin.trim() || tablePin.length !== 4) {
+          toast.error('Please enter a valid 4-digit table PIN');
+          setIsLoading(false);
+          return;
+        }
+
+        // Login with table authentication
+        const user = await login(email, password, parseInt(tableNumber), tablePin);
         if (user) {
           toast.success('Welcome back!');
+          window.location.href = '/menu';
+        } else {
+          toast.error('Login failed. Please check your credentials and table PIN.');
         }
       }
-      
-      if (user) {
-        // Wait a brief moment for the token to be set in the API client
-        setTimeout(() => {
-          navigate('/menu');
-        }, 100);
-      } else {
-        toast.error(isRegister ? 'Registration failed. Please try again.' : 'Login failed. Please check your credentials.');
-      }
-    } catch (error) {
-      toast.error(isRegister ? 'Registration failed. Please try again.' : 'Login failed. Please check your credentials.');
+    } catch (error: any) {
+      console.error('Login/Register error:', error);
+      toast.error(error.response?.data?.message || (isRegister ? 'Registration failed. Please try again.' : 'Login failed. Please check your credentials.'));
     } finally {
       setIsLoading(false);
     }
@@ -66,7 +83,7 @@ const Login = () => {
             </div>
           </div>
           <CardTitle className="text-2xl font-bold">Restaurant Manager</CardTitle>
-          <CardDescription>{isRegister ? 'Create a new account' : 'Sign in to access your account'}</CardDescription>
+          <CardDescription>{isRegister ? 'Create a new account' : 'Sign in to access your table'}</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -108,18 +125,65 @@ const Login = () => {
                 className="transition-all"
               />
             </div>
+            
+            {/* Table authentication - only for login */}
+            {!isRegister && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="tableNumber">Table Number</Label>
+                  <Input
+                    id="tableNumber"
+                    type="number"
+                    placeholder="Your table number"
+                    value={tableNumber}
+                    onChange={(e) => setTableNumber(e.target.value)}
+                    required
+                    min="1"
+                    className="transition-all"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="tablePin">Table PIN</Label>
+                  <Input
+                    id="tablePin"
+                    type="password"
+                    placeholder="4-digit PIN"
+                    value={tablePin}
+                    onChange={(e) => setTablePin(e.target.value)}
+                    required
+                    maxLength={4}
+                    className="transition-all"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Enter the PIN provided by your waiter
+                  </p>
+                </div>
+              </>
+            )}
+
             <Button
               type="submit"
               className="w-full"
               disabled={isLoading}
             >
-              {isLoading ? (isRegister ? 'Creating account...' : 'Signing in...') : (isRegister ? 'Create Account' : 'Sign In')}
+              {isLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  {isRegister ? 'Creating account...' : 'Signing in...'}
+                </>
+              ) : (
+                isRegister ? 'Create Account' : 'Sign In'
+              )}
             </Button>
           </form>
           <div className="mt-4 text-center">
             <button
               type="button"
-              onClick={() => setIsRegister(!isRegister)}
+              onClick={() => {
+                setIsRegister(!isRegister);
+                setTableNumber('');
+                setTablePin('');
+              }}
               className="text-sm text-primary hover:underline"
             >
               {isRegister ? 'Already have an account? Sign in' : "Don't have an account? Register"}

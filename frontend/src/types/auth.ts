@@ -3,6 +3,8 @@ export interface User {
   email: string;
   name: string;
   role: 'ROLE_USER' | 'ROLE_EMPLOYEE' | 'ROLE_ADMIN';
+  tableNumber?: number;
+  tableId?: string;
 }
 
 export interface AuthState {

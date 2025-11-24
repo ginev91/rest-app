@@ -42,7 +42,7 @@ const Layout = ({ children }: LayoutProps) => {
               <h1 className="text-lg font-bold">Restaurant Manager</h1>
               {user && (
                 <p className="text-xs text-muted-foreground">
-                  {user.username} • {user.role}
+                  {user.username} • {user.role} • {user.tableNumber}
                 </p>
               )}
             </div>
