@@ -1,19 +1,29 @@
-import api from "./client";
+import api from './client';
 
 export interface RecommendationRequest {
-  maxKcal?: number;
-  preferences?: string; 
-  likes?: string[];
-  dislikes?: string[];
+  prompt: string;
 }
 
-export interface RecommendationDTO {
-  recipe: string;
+export interface RecommendationResponse {
+  recipe?: string;
+  description?: string;
   matchedMenuItemId?: string;
+  menuItemId?: string;
+  menuItemName?: string;
   score?: number;
+  matchPercentage?: number;
+  calories?: number;
+  protein?: number;
 }
 
-export async function recommend(req: RecommendationRequest): Promise<RecommendationDTO> {
-  const r = await api.post("/api/recommendations", req);
-  return r.data as RecommendationDTO;
-}
+export const recommend = async (request: RecommendationRequest): Promise<RecommendationResponse> => {
+  console.log('Sending recommendation request:', request);
+  const response = await api.post('/api/recommendations', request);
+  console.log('Recommendation response:', response.data);
+  return response.data;
+};
+
+export const getRecommendationHistory = async () => {
+  const response = await api.get('/api/recommendations/history');
+  return response.data;
+};

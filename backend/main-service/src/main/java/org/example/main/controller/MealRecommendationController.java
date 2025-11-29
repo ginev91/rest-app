@@ -1,0 +1,40 @@
+package org.example.main.controller;
+
+import org.example.main.dto.request.MealRecommendationRequestDto;
+import org.example.main.dto.response.MealRecommendationResponseDto;
+import org.example.main.service.MealRecommendationService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.*;
+import reactor.core.publisher.Mono;
+
+import jakarta.validation.Valid;
+import java.util.List;
+
+/**
+ * Stateless controller for single-turn recommendations.
+ * Endpoint: POST /recommendations
+ * Body: { "prompt": "Quick low-carb pescatarian dinner, avoid peanuts, about 600 kcal" }
+ *
+ * Returns: JSON array of MealRecommendationResponseDto
+ */
+@RestController
+@RequestMapping
+public class MealRecommendationController {
+
+    private static final Logger log = LoggerFactory.getLogger(MealRecommendationController.class);
+
+    private final MealRecommendationService mealRecommendationService;
+
+    public MealRecommendationController(MealRecommendationService mealRecommendationService) {
+        this.mealRecommendationService = mealRecommendationService;
+    }
+
+    @PostMapping(value = "/recommendations", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+    public Mono<List<MealRecommendationResponseDto>> recommend(@RequestBody @Valid MealRecommendationRequestDto request) {
+        String prompt = request == null ? "" : (request.getPrompt() == null ? "" : request.getPrompt().trim());
+        log.info("Received meal recommendation prompt: {}", prompt);
+        return mealRecommendationService.recommend(request);
+    }
+}

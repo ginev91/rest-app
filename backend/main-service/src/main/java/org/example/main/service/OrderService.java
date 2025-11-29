@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
+import java.time.OffsetDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.UUID;
@@ -239,9 +240,23 @@ public class OrderService implements IOrderService {
     }
 
     private OrderResponseDto mapToOrderResponseDto(OrderEntity e) {
+        List<OrderItemResponseDto> items = (e.getItems() == null) ? Collections.emptyList() :
+                e.getItems().stream()
+                        .map(it -> OrderItemResponseDto.builder()
+                                .menuItemId(it.getMenuItemId() != null ? it.getMenuItemId().toString() : null)
+                                .menuItemName(it.getMenuItemName())
+                                .quantity(it.getQuantity())
+                                .price(it.getPrice())
+                                .build())
+                        .collect(Collectors.toList());
+
         return OrderResponseDto.builder()
                 .orderId(e.getId())
                 .status(e.getStatus())
+                .totalAmount(e.getTotalAmount())
+                .tableNumber(e.getTableNumber())
+                .createdAt(e.getCreatedAt())
+                .items(items)
                 .build();
     }
 }
