@@ -78,7 +78,6 @@ public class LocalModelService {
      */
     private Mono<String> generateMock(String prompt) {
         try {
-            // Build a safe structured response; include prompt in "assumptions" (optional) to avoid corrupting fields
             Map<String, Object> rec = Map.of(
                     "menuItemName", "Simple Grilled Chicken Salad",
                     "description", "High-protein salad with grilled chicken, mixed greens and vinaigrette.",
@@ -86,33 +85,14 @@ public class LocalModelService {
                     "protein", 48,
                     "carbs", 45,
                     "fats", 30,
-                    "ingredients", List.of("chicken breast","mixed greens","tomatoes","cucumber","olive oil","lemon","salt","pepper"),
-                    "recipe", "Grill chicken breast, slice; toss with greens, tomatoes, cucumber, olive oil & lemon."
+                    "ingredients", List.of("chicken breast","mixed greens","tomatoes","cucumber","olive oil","lemon","salt","pepper")
             );
 
-            // If you want the prompt visible to grader, put it in 'assumptions' (properly escaped)
-            Map<String, Object> maybeAssumption = (prompt == null || prompt.isBlank())
-                    ? Map.of()
-                    : Map.of("assumptions", "User prompt: " + prompt.replace("\n", " "));
-
             List<Object> out = List.of(rec);
-            // If we put assumptions, merge it into the first object safely
-            if (!maybeAssumption.isEmpty()) {
-                Map<String, Object> merged = new java.util.HashMap<>(rec);
-                merged.putAll(maybeAssumption);
-                out = List.of(merged);
-            }
-
             String json = objectMapper.writeValueAsString(out);
             return Mono.just(json);
         } catch (Exception e) {
-            // Fallback to the old-safe hand-built JSON but ensure newlines/backslashes are escaped
-            String safePrompt = prompt == null ? "" : prompt.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n");
-            String json = "[{\"menuItemName\":\"Simple Grilled Chicken Salad\",\"description\":\"High-protein salad with grilled chicken, mixed greens and vinaigrette. " +
-                    (safePrompt.isEmpty() ? "" : "User prompt: " + safePrompt + " ") +
-                    "\",\"calories\":750,\"protein\":48,\"carbs\":45,\"fats\":30,\"ingredients\":[\"chicken breast\",\"mixed greens\",\"tomatoes\",\"cucumber\",\"olive oil\",\"lemon\",\"salt\",\"pepper\"]," +
-                    "\"recipe\":\"Grill chicken breast, slice; toss with greens, tomatoes, cucumber, olive oil & lemon.\"}]";
-            return Mono.just(json);
+            return Mono.error(e);
         }
     }
 

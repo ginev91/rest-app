@@ -5,13 +5,13 @@ export interface RecommendationRequest {
 }
 
 export interface RecommendationResponse {
-  name: string;              
-  text: string;              
-  calories: number;          
+  name: string;
+  description: string;
+  calories: number;
   fats: number;
   carbs: number;
   protein: number;
-  ingredients: string[];    
+  ingredients: string[];
 }
 
 export const recommend = async (request: RecommendationRequest): Promise<RecommendationResponse> => {
@@ -23,7 +23,7 @@ export const recommend = async (request: RecommendationRequest): Promise<Recomme
 
   const normalized: RecommendationResponse = {
     name: payload?.name ?? payload?.menuItemName ?? 'Custom Meal Recommendation',
-    text: payload?.text ?? payload?.description ?? payload?.recipe ?? 'No description available',
+    description: payload?.text ?? payload?.description ?? payload?.recipe ?? 'No description available',
     calories: payload?.calories ?? 0,
     protein: payload?.protein ?? 0,
     fats: payload?.fats ?? 0,

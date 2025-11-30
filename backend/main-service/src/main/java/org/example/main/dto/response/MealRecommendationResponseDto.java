@@ -15,14 +15,14 @@ import java.util.List;
 @AllArgsConstructor
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class MealRecommendationResponseDto implements Serializable {
-    private String recipe;
+    private List<String> ingredients;
     private String description;
     private String matchedMenuItemId;
     private String menuItemId;
     private String menuItemName;
     private Integer calories;
     private Integer protein;
-    private Integer fat;
+    private Integer fats;
     private Integer carbs;
     private List<String> assumptions;
 }

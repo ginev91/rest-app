@@ -144,12 +144,12 @@ const Recommendations = () => {
               <div>
                 <h3 className="font-semibold mb-2">Description</h3>
                 <p className="text-muted-foreground leading-relaxed whitespace-pre-line">
-                  {recommendation.text}
+                  {recommendation.description}
                 </p>
               </div>
 
               {/* Allergy Warning */}
-              {recommendation.text && !recommendation.text.includes('allerg') && (
+              {recommendation.description && !recommendation.description.includes('allerg') && (
                 <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
                   <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
                   <p className="text-sm text-amber-900 dark:text-amber-100">
