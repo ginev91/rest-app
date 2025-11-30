@@ -28,7 +28,6 @@ const Orders = () => {
     console.log('Auth loading:', authLoading);
     console.log('User:', user);
     
-    // Wait for auth to finish loading
     if (authLoading) {
       console.log('Waiting for auth to load...');
       return;
@@ -67,7 +66,7 @@ const Orders = () => {
       console.error('Failed to fetch orders:', error);
       console.error('Error details:', error.response?.data || error.message);
       toast.error(`Failed to load orders: ${error.response?.data?.message || error.message}`);
-      setOrders([]); // Set empty array on error
+      setOrders([]);
     } finally {
       setIsLoading(false);
       console.log('Fetch orders completed');

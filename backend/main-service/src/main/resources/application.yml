@@ -45,15 +45,17 @@ management:
 
 logging:
   level:
-    root: INFO
-    org.springframework: INFO
-    org.hibernate: INFO
+    org.springframework.security: DEBUG
+    org.springframework.web: DEBUG
+    org.example: DEBUG
 
 local:
   model:
-  backend: cli          # "cli" or "http"
-  name: llama3          # model name for 'ollama' or local server
-  cli:
-  timeout-ms: 30000
-  http:
-  url: http://localhost:11434/v1/generate   # change to your HTTP server endpoint
+    backend: mock               # mock | cli | http
+    name: llama3
+    cli:
+      path: ollama              # set absolute path if ollama is not in PATH
+      timeout-ms: 30000
+    http:
+      url: http://localhost:11434/v1/generate
+      timeout-ms: 30000

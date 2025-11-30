@@ -33,15 +33,12 @@ const Login = () => {
       if (isRegister) {
         // Registration flow
         const user = await register(email, password, name);
-        if (user) {
-          toast.success('Account created successfully! Please login.');
-          // Reset form and switch to login
-          setIsRegister(false);
-          setPassword('');
-          setName('');
-        } else {
-          toast.error('Registration failed. Please try again.');
-        }
+        // ✅ Registration successful - switch to login and keep email filled
+        toast.success('Account created successfully! Please login with your table PIN.');
+        setIsRegister(false);
+        setPassword(''); // Clear password for security
+        setName(''); // Clear name
+        // Keep email filled so user can easily login
       } else {
         // Login flow - requires table authentication for CUSTOMER role
         if (!tableNumber.trim()) {
@@ -59,6 +56,14 @@ const Login = () => {
         // Login with table authentication
         const user = await login(email, password, parseInt(tableNumber), tablePin);
         if (user) {
+          // Save table info to localStorage
+          localStorage.setItem('tableNumber', tableNumber);
+          
+          if (user.tableId) {
+            localStorage.setItem('tableId', user.tableId);
+            console.log('Saved tableId:', user.tableId);
+          }
+          
           toast.success('Welcome back!');
           window.location.href = '/menu';
         } else {
@@ -183,6 +188,16 @@ const Login = () => {
                 setIsRegister(!isRegister);
                 setTableNumber('');
                 setTablePin('');
+                // ✅ Optionally clear form when switching modes
+                if (isRegister) {
+                  // Switching from register to login - keep email
+                  setPassword('');
+                  setName('');
+                } else {
+                  // Switching from login to register - clear everything
+                  setPassword('');
+                  setName('');
+                }
               }}
               className="text-sm text-primary hover:underline"
             >

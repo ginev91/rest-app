@@ -35,7 +35,6 @@ const TableDetails = () => {
   const fetchTableOrders = async () => {
     try {
       setIsLoading(true);
-      // Fetch all orders for this table
       const response = await api.get(`/api/tables/${tableId}/orders`);
       const data = response.data;
       

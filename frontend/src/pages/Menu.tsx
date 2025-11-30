@@ -24,7 +24,6 @@ const Menu = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeOrder, setActiveOrder] = useState<Order | null>(null);
 
-  // Get table number from authenticated user or localStorage
   const tableNumber = user?.tableNumber || parseInt(localStorage.getItem('tableNumber') || '0');
   const tableId = user?.tableId || localStorage.getItem('tableId') || '';
 
@@ -114,7 +113,6 @@ const Menu = () => {
     return getCartTotal() + getActiveOrderTotal();
   };
 
-  // Group order items by user for display
   const getOrderItemsByUser = () => {
     if (!activeOrder) return {};
     
@@ -168,7 +166,6 @@ const handleAddToOrder = async () => {
     let response;
     
     if (activeOrder) {
-      // Add items to existing order
       console.log('Adding items to existing order:', activeOrder.id);
       console.log('Request payload:', { items: orderItems });
       
@@ -197,14 +194,11 @@ const handleAddToOrder = async () => {
       toast.success('Order created successfully!');
     }
     
-    // Clear cart and close dialog
     setCart({});
     setShowOrderDialog(false);
     
-    // Refresh active order
     await fetchActiveOrder();
     
-    // Navigate to orders page
     setTimeout(() => {
       navigate('/orders');
     }, 1000);

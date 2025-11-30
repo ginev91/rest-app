@@ -10,6 +10,9 @@ import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
 import jakarta.validation.Valid;
+
+import java.time.Duration;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -20,7 +23,7 @@ import java.util.List;
  * Returns: JSON array of MealRecommendationResponseDto
  */
 @RestController
-@RequestMapping
+@RequestMapping("/api/ai")
 public class MealRecommendationController {
 
     private static final Logger log = LoggerFactory.getLogger(MealRecommendationController.class);
@@ -32,9 +35,20 @@ public class MealRecommendationController {
     }
 
     @PostMapping(value = "/recommendations", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
-    public Mono<List<MealRecommendationResponseDto>> recommend(@RequestBody @Valid MealRecommendationRequestDto request) {
+    public List<MealRecommendationResponseDto> recommend(@RequestBody @Valid MealRecommendationRequestDto request) {
         String prompt = request == null ? "" : (request.getPrompt() == null ? "" : request.getPrompt().trim());
-        log.info("Received meal recommendation prompt: {}", prompt);
-        return mealRecommendationService.recommend(request);
+        log.info("Received meal recommendation prompt (blocking): {}", prompt);
+
+        // Block with a timeout to avoid indefinite waits;
+        // TODO: Need to do with Mono WebFlux
+        try {
+            List<MealRecommendationResponseDto> result = mealRecommendationService
+                    .recommend(request)
+                    .block(Duration.ofSeconds(30));
+            return result == null ? Collections.emptyList() : result;
+        } catch (Exception ex) {
+            log.error("Error while generating recommendation (blocking): {}", ex.getMessage(), ex);
+            return Collections.emptyList();
+        }
     }
 }

@@ -6,6 +6,10 @@ export interface LoginResponse {
   accessToken?: string;
   user?: any;
   username?: string;
+  userId?: string;
+  role?: 'ROLE_USER' | 'ROLE_EMPLOYEE' | 'ROLE_ADMIN';
+  tableNumber?: number;
+  tableId?: string;
 }
 
 export async function login(username: string, password: string, tableNumber: number, tablePin: string): Promise<LoginResponse> {
@@ -31,7 +35,6 @@ export interface RegisterResponse {
 }
 
 export async function register(name: string, email: string, password: string): Promise<RegisterResponse> {
-  // Map frontend fields to backend contract
   const payload = {
     username: email,
     password,

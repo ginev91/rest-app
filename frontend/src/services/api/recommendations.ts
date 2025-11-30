@@ -5,22 +5,38 @@ export interface RecommendationRequest {
 }
 
 export interface RecommendationResponse {
-  recipe?: string;
-  description?: string;
-  matchedMenuItemId?: string;
-  menuItemId?: string;
-  menuItemName?: string;
-  score?: number;
-  matchPercentage?: number;
-  calories?: number;
-  protein?: number;
+  name: string;              
+  text: string;              
+  calories: number;          
+  fats: number;
+  carbs: number;
+  protein: number;
+  ingredients: string[];    
 }
 
 export const recommend = async (request: RecommendationRequest): Promise<RecommendationResponse> => {
   console.log('Sending recommendation request:', request);
-  const response = await api.post('/api/recommendations', request);
+  const response = await api.post('/api/ai/recommendations', request);
   console.log('Recommendation response:', response.data);
-  return response.data;
+
+  const payload = Array.isArray(response.data) ? response.data[0] : response.data;
+
+  const normalized: RecommendationResponse = {
+    name: payload?.name ?? payload?.menuItemName ?? 'Custom Meal Recommendation',
+    text: payload?.text ?? payload?.description ?? payload?.recipe ?? 'No description available',
+    calories: payload?.calories ?? 0,
+    protein: payload?.protein ?? 0,
+    fats: payload?.fats ?? 0,
+    carbs: payload?.carbs ?? 0,
+    ingredients: Array.isArray(payload?.products) 
+      ? payload.products 
+      : Array.isArray(payload?.ingredients) 
+      ? payload.ingredients 
+      : [],
+  };
+
+  console.log('Normalized response:', normalized);
+  return normalized;
 };
 
 export const getRecommendationHistory = async () => {
