@@ -51,11 +51,11 @@ logging:
 
 local:
   model:
-    backend: mock               # mock | cli | http
+    backend: http               # mock | cli | http
     name: llama3
     cli:
       path: ollama              # set absolute path if ollama is not in PATH
-      timeout-ms: 30000
+      timeout-ms: 1200000
     http:
-      url: http://localhost:11434/v1/generate
-      timeout-ms: 30000
+      url: http://ollama:11434/api/generate
+      timeout-ms: 1200000

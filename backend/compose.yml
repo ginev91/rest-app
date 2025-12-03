@@ -76,6 +76,7 @@ services:
       - postgres
       - redis
       - kitchen-svc
+      - ollama
     restart: on-failure
     networks:
       - backend-network
@@ -85,8 +86,33 @@ services:
       timeout: 5s
       retries: 8
 
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    volumes:
+      - ~/models:/root/.ollama
+    ports:
+      - "11434:11434"
+    restart: unless-stopped
+    networks:
+      - backend-network
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:11434/api/ping" ]
+      interval: 5s
+      retries: 12
+      timeout: 2s
+    entrypoint: >
+      sh -c "
+        ollama serve & 
+        until ollama list >/dev/null 2>&1; do sleep 1; done
+        ollama list | grep -q llama3 || ollama pull llama3
+        wait
+      "
+
+
 volumes:
   postgres-data:
+  ollama-models:
 
 networks:
   backend-network:

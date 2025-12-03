@@ -35,6 +35,14 @@ spring:
 kitchen:
   cleanup:
     delay-ms: ${KITCHEN_CLEANUP_DELAY_MS:600000}
+  prep:
+    min-seconds: 5 // for demo purposes
+    max-seconds: 20 // for demo purposes
+  callback:
+    enabled: false
+    # Example:
+    # url: "http://main-service:8080/api/internal/orders/{orderId}/kitchen-ready?kitchenOrderId={kitchenOrderId}"
+    url: ""
 
 management:
   endpoints:

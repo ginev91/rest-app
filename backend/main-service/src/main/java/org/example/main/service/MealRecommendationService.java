@@ -97,8 +97,8 @@ public class MealRecommendationService {
         sb.append("Do NOT include any explanation, prompt echo, or surrounding text; do NOT include markdown or code fences. ");
         sb.append("Each object may include fields such as recipe, description, matchedMenuItemId, menuItemId, menuItemName, score, matchPercentage, calories, protein, fats, carbs, ingredients. ");
         sb.append("If you must make assumptions (e.g. about allergies or calorie targets), include an 'assumptions' field in the first object. ");
-        sb.append("Keep the array length to at most 5. Example:\n");
-        sb.append("[{ \"recipe\":\"...\",\"description\":\"...\",\"menuItemName\":\"Grilled Salmon\",\"score\":0.95,\"calories\":550,\"protein\":40 }]\n\n");
+        sb.append("Keep the array length to at most 4. Example:\n");
+        sb.append("[{ \"recipe\":\"...\",\"description\":\"...\",\"menuItemName\":\"Grilled Salmon\",\"score\":0.95,\"calories\":550,\"protein\":40,\"fats\":23,\"carbs:75 }]\n\n");
         sb.append("User request: ").append(userPrompt);
         return sb.toString();
     }

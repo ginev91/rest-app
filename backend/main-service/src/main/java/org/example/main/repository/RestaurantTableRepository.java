@@ -7,4 +7,5 @@ import java.util.UUID;
 
 public interface RestaurantTableRepository extends JpaRepository<RestaurantTable, UUID> {
     Optional<RestaurantTable> findByCode(String code);
+    Optional<RestaurantTable> findByTableNumber(Integer tableNumber);
 }

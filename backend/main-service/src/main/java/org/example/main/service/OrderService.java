@@ -34,15 +34,18 @@ public class OrderService implements IOrderService {
     private final MenuItemRepository menuItemRepository;
     private final UserRepository userRepository;
     private final KitchenClient kitchenClient;
+    private final RestaurantTableService restaurantTableService; // added for occupancy/reservations
 
     public OrderService(OrderRepository orderRepository,
                         MenuItemRepository menuItemRepository,
                         UserRepository userRepository,
-                        KitchenClient kitchenClient) {
+                        KitchenClient kitchenClient,
+                        RestaurantTableService restaurantTableService) {
         this.orderRepository = orderRepository;
         this.menuItemRepository = menuItemRepository;
         this.userRepository = userRepository;
         this.kitchenClient = kitchenClient;
+        this.restaurantTableService = restaurantTableService;
     }
 
     /**
@@ -75,6 +78,7 @@ public class OrderService implements IOrderService {
         order.setCustomerId(request.getCustomerId());
         order.setCustomerName(findUserName(request.getCustomerId()));
         order.setStatus("preparing");
+        order.setCreatedAt(OffsetDateTime.now());
 
         List<OrderItem> items = new ArrayList<>();
         BigDecimal total = BigDecimal.ZERO;
@@ -104,6 +108,14 @@ public class OrderService implements IOrderService {
         OrderEntity saved = orderRepository.save(order);
         log.info("Order created: {} total={} by customer={}", saved.getId(), saved.getTotalAmount(), saved.getCustomerId());
 
+        // Mark table occupied for a reasonable default (e.g. 60 minutes). Safe best-effort.
+        try {
+            if (saved.getTableNumber() != null) {
+                restaurantTableService.occupyTable(saved.getTableNumber(), 60); // occupy for 60 minutes
+            }
+        } catch (Exception ex) {
+            log.warn("Failed to mark table {} occupied: {}", saved.getTableNumber(), ex.getMessage());
+        }
 
         try {
             KitchenClient.KitchenOrderRequest kre = new KitchenClient.KitchenOrderRequest();
@@ -124,6 +136,8 @@ public class OrderService implements IOrderService {
                 saved.setKitchenStatus(kresp.status);
                 orderRepository.save(saved);
                 log.info("Kitchen order created: {} for order {}", kresp.id, saved.getId());
+            } else {
+                log.warn("Kitchen client returned null/empty response for order {}", saved.getId());
             }
         } catch (Exception ex) {
             log.error("Failed to notify kitchen service for order {}: {}", saved.getId(), ex.getMessage());
@@ -204,8 +218,12 @@ public class OrderService implements IOrderService {
     }
 
     @Override
+    @Transactional
     public void updateStatus(UUID orderId, String status) {
-
+        OrderEntity o = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
+        o.setStatus(status);
+        orderRepository.save(o);
     }
 
     private String findUserName(UUID userId) {
@@ -258,5 +276,18 @@ public class OrderService implements IOrderService {
                 .createdAt(e.getCreatedAt())
                 .items(items)
                 .build();
+    }
+
+    @Transactional
+    public void updateKitchenStatus(UUID orderId, String kitchenStatus, UUID kitchenOrderId) {
+        OrderEntity o = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
+        o.setKitchenStatus(kitchenStatus);
+        if (kitchenOrderId != null) {
+            o.setKitchenOrderId(kitchenOrderId);
+        }
+        o.setUpdatedAt(OffsetDateTime.now());
+        orderRepository.save(o);
+        log.info("Order {} kitchenStatus updated to {} (kitchenOrderId={})", orderId, kitchenStatus, kitchenOrderId);
     }
 }

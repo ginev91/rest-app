@@ -6,15 +6,11 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
-import reactor.core.scheduler.Schedulers;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
+import java.util.Objects;
 
 /**
  * Local model adapter supporting three backends:
@@ -28,23 +24,23 @@ import java.util.stream.Collectors;
 @Service
 public class LocalModelService {
 
-    private final String backend;        // "mock", "cli" or "http"
-    private final String model;          // model name used by CLI or HTTP
-    private final String cliPath;        // path to the CLI executable (configurable)
-    private final long cliTimeoutMs;     // timeout for CLI
-    private final WebClient webClient;   // used for HTTP backend
-    private final String httpUrl;        // full URL for HTTP completion endpoint
+    private final String backend;
+    private final String model;
+    private final String cliPath;
+    private final long cliTimeoutMs;
+    private final WebClient webClient;
+    private final String httpUrl;
     private final Duration httpTimeout;
     private final ObjectMapper objectMapper;
 
     public LocalModelService(
             @Value("${local.model.backend:mock}") String backend,
-            @Value("${local.model.name:llama3}") String model,
+            @Value("${local.model.name:llama3.2}") String model,
             @Value("${local.model.cli.path:ollama}") String cliPath,
-            @Value("${local.model.cli.timeout-ms:30000}") long cliTimeoutMs,
+            @Value("${local.model.cli.timeout-ms:120000}") long cliTimeoutMs,
             WebClient.Builder webClientBuilder,
-            @Value("${local.model.http.url:http://localhost:11434/v1/generate}") String httpUrl,
-            @Value("${local.model.http.timeout-ms:30000}") long httpTimeoutMs,
+            @Value("${local.model.http.url:http://localhost:11434/api/generate}") String httpUrl,
+            @Value("${local.model.http.timeout-ms:120000}") long httpTimeoutMs,
             ObjectMapper objectMapper) {
         this.backend = backend;
         this.model = model;
@@ -100,39 +96,41 @@ public class LocalModelService {
      * CLI implementation: runs configured CLI (e.g. 'ollama') via ProcessBuilder.
      */
     private Mono<String> generateViaCli(String prompt) {
-        return Mono.fromCallable(() -> {
-                    ProcessBuilder pb = new ProcessBuilder(cliPath, "run", model, "--prompt", prompt);
-                    pb.redirectErrorStream(true);
-                    Process process;
-                    try {
-                        process = pb.start();
-                    } catch (IOException ioe) {
-                        throw new LocalModelException("Local model CLI '" + cliPath + "' not found or failed to start. Install Ollama or set local.model.cli.path.", ioe);
-                    }
 
-                    try (BufferedReader r = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
-                        String output = r.lines().collect(Collectors.joining("\n"));
-                        boolean exited = process.waitFor(cliTimeoutMs, java.util.concurrent.TimeUnit.MILLISECONDS);
-                        if (!exited) {
-                            process.destroyForcibly();
-                            throw new LocalModelException("Local model process timed out");
-                        }
-                        int code = process.exitValue();
-                        if (code != 0) {
-                            throw new LocalModelException("Local model process exited with code " + code + ". Output: " + output);
-                        }
-                        String normalized = normalizeOutput(output == null ? "" : output.trim());
-                        return normalized;
-                    } catch (IOException | InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                        throw new LocalModelException("Error reading output from local model process", e);
-                    }
-                }).subscribeOn(Schedulers.boundedElastic())
-                .timeout(Duration.ofMillis(cliTimeoutMs + 1000))
-                .onErrorMap(throwable -> {
-                    if (throwable instanceof LocalModelException) return throwable;
-                    return new LocalModelException("Local model CLI invocation failed", throwable);
-                });
+        return null; // still working on this
+//        return Mono.fromCallable(() -> {
+//                    ProcessBuilder pb = new ProcessBuilder(cliPath, "run", model, "--prompt", prompt);
+//                    pb.redirectErrorStream(true);
+//                    Process process;
+//                    try {
+//                        process = pb.start();
+//                    } catch (IOException ioe) {
+//                        throw new LocalModelException("Local model CLI '" + cliPath + "' not found or failed to start. Install Ollama or set local.model.cli.path.", ioe);
+//                    }
+//
+//                    try (BufferedReader r = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+//                        String output = r.lines().collect(Collectors.joining("\n"));
+//                        boolean exited = process.waitFor(cliTimeoutMs, java.util.concurrent.TimeUnit.MILLISECONDS);
+//                        if (!exited) {
+//                            process.destroyForcibly();
+//                            throw new LocalModelException("Local model process timed out");
+//                        }
+//                        int code = process.exitValue();
+//                        if (code != 0) {
+//                            throw new LocalModelException("Local model process exited with code " + code + ". Output: " + output);
+//                        }
+//                        String normalized = normalizeOutput(output == null ? "" : output.trim());
+//                        return normalized;
+//                    } catch (IOException | InterruptedException e) {
+//                        Thread.currentThread().interrupt();
+//                        throw new LocalModelException("Error reading output from local model process", e);
+//                    }
+//                }).subscribeOn(Schedulers.boundedElastic())
+//                .timeout(Duration.ofMillis(cliTimeoutMs + 1000))
+//                .onErrorMap(throwable -> {
+//                    if (throwable instanceof LocalModelException) return throwable;
+//                    return new LocalModelException("Local model CLI invocation failed", throwable);
+//                });
     }
 
     /**
@@ -141,7 +139,8 @@ public class LocalModelService {
     private Mono<String> generateViaHttp(String prompt) {
         Map<String, Object> body = Map.of(
                 "model", model,
-                "prompt", prompt
+                "prompt", prompt,
+                "max_tokens", 50       // lower token count for faster response; adjust as needed
         );
 
         return webClient.post()
@@ -149,95 +148,66 @@ public class LocalModelService {
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(body)
                 .retrieve()
-                .bodyToMono(Map.class)
-                .map(response -> {
-                    try {
-                        Object text = ((Map) response).get("text");
-                        if (text != null) return normalizeOutput(text.toString());
-
-                        Object output = ((Map) response).get("output");
-                        if (output != null) return normalizeOutput(output.toString());
-
-                        Object choices = ((Map) response).get("choices");
-                        if (choices instanceof Iterable) {
-                            for (Object c : (Iterable) choices) {
-                                if (c instanceof Map) {
-                                    Object msg = ((Map) c).get("text");
-                                    if (msg != null) return normalizeOutput(msg.toString());
-                                } else if (c instanceof String) {
-                                    return normalizeOutput(c.toString());
-                                }
-                            }
-                        }
-
-                        String raw = objectMapper.writeValueAsString(response);
-                        return normalizeOutput(raw);
-                    } catch (Exception e) {
-                        try {
-                            return response == null ? "" : response.toString();
-                        } catch (Exception ex) {
-                            return "";
-                        }
-                    }
-                })
+                .bodyToFlux(Map.class)
+                .map(chunk -> chunk.get("response"))
+                .filter(Objects::nonNull)
+                .map(Object::toString)
+                .reduce(new StringBuilder(), StringBuilder::append)
+                .map(StringBuilder::toString)
+                .map(this::normalizeOutput)
+                .defaultIfEmpty("No response from model")
                 .timeout(httpTimeout)
-                .onErrorMap(err -> new LocalModelException("Local model HTTP backend failed: " + err.getMessage(), err));
+                .onErrorMap(err -> new LocalModelException(
+                        "Local model HTTP backend failed: " + err.getMessage(), err));
     }
+
 
     /**
      * Normalize/unquote/unescape raw output from model backends and try to extract inner JSON if present.
      */
     private String normalizeOutput(String raw) {
+
         if (raw == null) return "";
 
         String trimmed = raw.trim();
 
-        // 1) If it's a quoted JSON string like "\"[ {...} ]\"" or "'[ {...} ]'", unquote it using ObjectMapper for correctness.
         if ((trimmed.startsWith("\"") && trimmed.endsWith("\"")) || (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
             try {
                 String unquoted = objectMapper.readValue(trimmed, String.class).trim();
                 if (!unquoted.isEmpty()) trimmed = unquoted;
             } catch (Exception ignored) {
-                // leave trimmed as-is if unquoting fails
             }
         }
 
-        // 2) If the trimmed is a JSON object and contains a "text" field that looks like inner JSON, return that inner JSON.
         if (trimmed.startsWith("{")) {
             try {
                 Map<?, ?> map = objectMapper.readValue(trimmed, Map.class);
                 Object text = map.get("text");
                 if (text instanceof String) {
                     String inner = ((String) text).trim();
-                    // unquote inner if necessary
                     if ((inner.startsWith("\"") && inner.endsWith("\""))) {
                         try {
                             String unquotedInner = objectMapper.readValue(inner, String.class).trim();
                             inner = unquotedInner;
                         } catch (Exception ignored) {}
                     }
-                    // if inner starts with '[' or '{', return the inner JSON
                     if (inner.startsWith("[") || inner.startsWith("{")) {
                         return inner;
                     }
                 }
             } catch (Exception ignored) {
-                // fallthrough
             }
         }
 
-        // 3) If the string contains escaped JSON (\" , \\n), unescape common sequences and try to extract an array
         String unescaped = unescapeCommonJsonEscapes(trimmed);
         String maybeArray = extractFirstJsonArray(unescaped);
         if (maybeArray != null) {
             return maybeArray;
         }
 
-        // 4) If original string contains a clear JSON array substring, extract and return it
         String directArray = extractFirstJsonArray(trimmed);
         if (directArray != null) return directArray;
 
-        // 5) Otherwise return the trimmed (best-effort) string
         return trimmed;
     }
 

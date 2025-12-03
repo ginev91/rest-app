@@ -1,12 +1,12 @@
-// java
 package org.example.main.model;
 
 import jakarta.persistence.*;
+import java.time.OffsetDateTime;
 import java.util.UUID;
-import org.example.main.model.enums.TableStatus;
 
 import lombok.*;
 import org.hibernate.annotations.GenericGenerator;
+import org.example.main.model.enums.TableStatus;
 
 @Entity
 @Table(name = "restaurant_tables")
@@ -36,4 +36,11 @@ public class RestaurantTable {
 
     @Column(nullable = false)
     private String pinCode;
+
+    @Column(name = "table_number", unique = true)
+    private Integer tableNumber;
+
+    // Occupied until; null when not occupied
+    @Column(name = "occupied_until")
+    private OffsetDateTime occupiedUntil;
 }

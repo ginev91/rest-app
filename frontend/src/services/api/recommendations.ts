@@ -14,26 +14,26 @@ export interface RecommendationResponse {
   ingredients: string[];
 }
 
-export const recommend = async (request: RecommendationRequest): Promise<RecommendationResponse> => {
+export const recommend = async (request: RecommendationRequest): Promise<RecommendationResponse[]> => {
   console.log('Sending recommendation request:', request);
   const response = await api.post('/api/ai/recommendations', request);
   console.log('Recommendation response:', response.data);
 
-  const payload = Array.isArray(response.data) ? response.data[0] : response.data;
+  const payload = Array.isArray(response.data) ? response.data : [response.data];
 
-  const normalized: RecommendationResponse = {
-    name: payload?.name ?? payload?.menuItemName ?? 'Custom Meal Recommendation',
-    description: payload?.text ?? payload?.description ?? payload?.recipe ?? 'No description available',
-    calories: payload?.calories ?? 0,
-    protein: payload?.protein ?? 0,
-    fats: payload?.fats ?? 0,
-    carbs: payload?.carbs ?? 0,
-    ingredients: Array.isArray(payload?.products) 
-      ? payload.products 
-      : Array.isArray(payload?.ingredients) 
-      ? payload.ingredients 
+  const normalized: RecommendationResponse[] = payload.map((item: any) => ({
+    name: item?.name ?? item?.menuItemName ?? 'Custom Meal Recommendation',
+    description: item?.text ?? item?.description ?? item?.recipe ?? 'No description available',
+    calories: item?.calories ?? 0,
+    protein: item?.protein ?? 0,
+    fats: item?.fats ?? 0,
+    carbs: item?.carbs ?? 0,
+    ingredients: Array.isArray(item?.products) 
+      ? item.products 
+      : Array.isArray(item?.ingredients) 
+      ? item.ingredients 
       : [],
-  };
+  }));
 
   console.log('Normalized response:', normalized);
   return normalized;

@@ -44,7 +44,7 @@ public class MealRecommendationController {
         try {
             List<MealRecommendationResponseDto> result = mealRecommendationService
                     .recommend(request)
-                    .block(Duration.ofSeconds(30));
+                    .block(Duration.ofSeconds(120));
             return result == null ? Collections.emptyList() : result;
         } catch (Exception ex) {
             log.error("Error while generating recommendation (blocking): {}", ex.getMessage(), ex);
