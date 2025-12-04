@@ -22,10 +22,10 @@ public class KitchenOrder {
     @Column(columnDefinition = "uuid", updatable = false, nullable = false)
     private UUID id;
 
-    @Column(name = "order_id", columnDefinition = "uuid", nullable = false)
+    @Column(name = "order_id", nullable = false)
     private UUID orderId;
 
-    @Column(name = "items", columnDefinition = "text")
+    @Column(name = "items_json", columnDefinition = "text")
     private String itemsJson;
 
     @Enumerated(EnumType.STRING)

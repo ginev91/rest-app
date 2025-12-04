@@ -2,9 +2,11 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Layout from '@/components/Layout';
 import { Order } from '@/types/order';
-import { Clock, CheckCircle2, ChefHat, Utensils, Loader2 } from 'lucide-react';
+import { Clock, CheckCircle2, ChefHat, Utensils, Loader2, User, Table } from 'lucide-react';
 import { getOrders } from '@/services/api/order';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
@@ -20,8 +22,11 @@ const statusConfig = {
 
 const Orders = () => {
   const { user, isLoading: authLoading } = useAuth();
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [myOrders, setMyOrders] = useState<Order[]>([]);
+  const [tableOrders, setTableOrders] = useState<Order[]>([]);
+  const [isLoadingMy, setIsLoadingMy] = useState(true);
+  const [isLoadingTable, setIsLoadingTable] = useState(false);
+  const [activeTab, setActiveTab] = useState<'my' | 'table'>('my');
 
   useEffect(() => {
     console.log('Orders useEffect triggered');
@@ -35,46 +40,77 @@ const Orders = () => {
 
     if (!user) {
       console.warn('No user found after auth loaded');
-      setIsLoading(false);
+      setIsLoadingMy(false);
       return;
     }
 
     if (user?.userId) {
-      console.log('User ID found, fetching orders:', user.userId);
-      fetchOrders();
+      console.log('User ID found, fetching my orders:', user.userId);
+      fetchMyOrders();
     } else {
       console.warn('User exists but no ID:', user);
-      setIsLoading(false);
+      setIsLoadingMy(false);
     }
   }, [user, authLoading]);
 
-  const fetchOrders = async () => {
+  const fetchMyOrders = async () => {
     if (!user?.userId) {
       console.warn('Cannot fetch orders: No user ID');
-      setIsLoading(false);
+      setIsLoadingMy(false);
       return;
     }
 
     try {
-      setIsLoading(true);
-      console.log('Starting fetch orders for user:', user.userId);
+      setIsLoadingMy(true);
+      console.log('Fetching my orders for user:', user.userId);
       
       const data = await getOrders({ userId: user.userId });
-      console.log('Orders fetched successfully:', data);
-      setOrders(data);
+      console.log('My orders fetched successfully:', data);
+      setMyOrders(data);
     } catch (error: any) {
-      console.error('Failed to fetch orders:', error);
-      console.error('Error details:', error.response?.data || error.message);
-      toast.error(`Failed to load orders: ${error.response?.data?.message || error.message}`);
-      setOrders([]);
+      console.error('Failed to fetch my orders:', error);
+      toast.error(`Failed to load your orders: ${error.response?.data?.message || error.message}`);
+      setMyOrders([]);
     } finally {
-      setIsLoading(false);
-      console.log('Fetch orders completed');
+      setIsLoadingMy(false);
     }
   };
 
-  const activeOrders = orders.filter(o => o.status !== 'completed');
-  const completedOrders = orders.filter(o => o.status === 'completed');
+  const fetchTableOrders = async () => {
+    const tableId = user?.tableId || localStorage.getItem('tableId');
+    const tableNumber = user?.tableNumber || localStorage.getItem('tableNumber');
+
+    if (!tableId && !tableNumber) {
+      toast.error('No table information available');
+      return;
+    }
+
+    try {
+      setIsLoadingTable(true);
+      console.log('Fetching table orders:', { tableId, tableNumber });
+      
+      const params = tableId ? { tableId } : { tableNumber: tableNumber };
+      const data = await getOrders(params);
+      
+      console.log('Table orders fetched successfully:', data);
+      setTableOrders(data);
+    } catch (error: any) {
+      console.error('Failed to fetch table orders:', error);
+      toast.error(`Failed to load table orders: ${error.response?.data?.message || error.message}`);
+      setTableOrders([]);
+    } finally {
+      setIsLoadingTable(false);
+    }
+  };
+
+  const handleTabChange = (value: string) => {
+    setActiveTab(value as 'my' | 'table');
+    
+    // Fetch table orders when switching to table tab
+    if (value === 'table' && tableOrders.length === 0) {
+      fetchTableOrders();
+    }
+  };
 
   const OrderCard = ({ order }: { order: Order }) => {
     const config = statusConfig[order.status];
@@ -89,6 +125,7 @@ const Orders = () => {
               <CardDescription>
                 {new Date(order.createdAt).toLocaleString()}
                 {order.tableNumber && ` • Table ${order.tableNumber}`}
+                {order.userName && ` • ${order.userName}`}
               </CardDescription>
             </div>
             <Badge className={config.color} variant="secondary">
@@ -119,21 +156,32 @@ const Orders = () => {
     );
   };
 
-  if (authLoading || isLoading) {
-    return (
-      <Layout>
+  const OrdersList = ({ orders, isLoading }: { orders: Order[], isLoading: boolean }) => {
+    if (isLoading) {
+      return (
         <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-muted-foreground">
-            {authLoading ? 'Loading user information...' : 'Loading orders...'}
-          </p>
+          <p className="text-muted-foreground">Loading orders...</p>
         </div>
-      </Layout>
-    );
-  }
+      );
+    }
 
-  return (
-    <Layout>
+    const activeOrders = orders.filter(o => o.status !== 'completed');
+    const completedOrders = orders.filter(o => o.status === 'completed');
+
+    if (orders.length === 0) {
+      return (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <Utensils className="h-12 w-12 text-muted-foreground mb-4" />
+            <p className="text-lg font-semibold mb-2">No orders yet</p>
+            <p className="text-muted-foreground">Start by browsing our menu</p>
+          </CardContent>
+        </Card>
+      );
+    }
+
+    return (
       <div className="space-y-8">
         {activeOrders.length > 0 && (
           <div className="space-y-4">
@@ -153,7 +201,7 @@ const Orders = () => {
           <div className="space-y-4">
             <div>
               <h2 className="text-2xl font-bold">Order History</h2>
-              <p className="text-muted-foreground">Your past orders</p>
+              <p className="text-muted-foreground">Past orders</p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {completedOrders.map(order => (
@@ -162,17 +210,43 @@ const Orders = () => {
             </div>
           </div>
         )}
-
-        {orders.length === 0 && (
-          <Card>
-            <CardContent className="flex flex-col items-center justify-center py-12">
-              <Utensils className="h-12 w-12 text-muted-foreground mb-4" />
-              <p className="text-lg font-semibold mb-2">No orders yet</p>
-              <p className="text-muted-foreground">Start by browsing our menu</p>
-            </CardContent>
-          </Card>
-        )}
       </div>
+    );
+  };
+
+  if (authLoading || isLoadingMy) {
+    return (
+      <Layout>
+        <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-muted-foreground">Loading user information...</p>
+        </div>
+      </Layout>
+    );
+  }
+
+  return (
+    <Layout>
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
+        <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsTrigger value="my" className="gap-2">
+            <User className="h-4 w-4" />
+            My Orders
+          </TabsTrigger>
+          <TabsTrigger value="table" className="gap-2">
+            <Table className="h-4 w-4" />
+            Table Orders
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="my">
+          <OrdersList orders={myOrders} isLoading={isLoadingMy} />
+        </TabsContent>
+
+        <TabsContent value="table">
+          <OrdersList orders={tableOrders} isLoading={isLoadingTable} />
+        </TabsContent>
+      </Tabs>
     </Layout>
   );
 };

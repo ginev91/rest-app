@@ -2,6 +2,8 @@ package org.example.main.config;
 
 import org.example.main.security.JwtAuthenticationFilter;
 import org.example.main.security.JwtUtils;
+import org.springframework.boot.actuate.health.HealthEndpoint;
+import org.springframework.boot.actuate.autoconfigure.security.servlet.EndpointRequest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -49,7 +51,17 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+
                         .requestMatchers("/api/auth/**").permitAll()
+
+                        .requestMatchers("/actuator/**").permitAll()
+
+                        .requestMatchers(EndpointRequest.toAnyEndpoint()).permitAll()
+
+                        .requestMatchers("/api/public/health").permitAll()
+
+                        .requestMatchers(HttpMethod.POST, "/api/kitchen/notifications").permitAll()
+
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);

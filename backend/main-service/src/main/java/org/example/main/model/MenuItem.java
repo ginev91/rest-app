@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import lombok.*;
+import org.example.main.model.enums.ItemType;
 import org.hibernate.annotations.GenericGenerator;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
@@ -44,4 +45,8 @@ public class MenuItem {
 
     @Column(nullable = false)
     private boolean available;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "item_type", nullable = false)
+    private ItemType itemType;
 }

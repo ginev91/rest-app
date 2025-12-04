@@ -32,6 +32,11 @@ services:
       - backend-network
 
   kitchen-svc:
+    volumes:
+      - ./kitchen-svc:/workspace/kitchen-svc:cached
+      - ~/.m2:/root/.m2:rw
+    working_dir: /workspace/kitchen-svc
+    command: mvn -DskipTests spring-boot:run
     build:
       context: .
       dockerfile: kitchen-svc/Dockerfile
@@ -58,6 +63,11 @@ services:
       retries: 8
 
   main-service:
+    volumes:
+      - ./main-service:/workspace/main-service:cached
+      - ~/.m2:/root/.m2:rw
+    working_dir: /workspace/main-service
+    command: mvn -DskipTests spring-boot:run
     build:
       context: .
       dockerfile: main-service/Dockerfile
@@ -69,7 +79,11 @@ services:
       SPRING_REDIS_HOST: redis
       SPRING_ZIPKIN_BASE_URL: http://zipkin:9411
       KITCHEN_SERVICE_URL: http://kitchen-svc:8081
+      FEIGN_KITCHEN_URL: http://kitchen-svc:8081
       SPRING_PROFILES_ACTIVE: docker
+      SPRING_APPLICATION_JSON: '{"app.reinitialize":false}'
+      MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: "health,info"
+      MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS: "always"
     ports:
       - "8080:8080"
     depends_on:

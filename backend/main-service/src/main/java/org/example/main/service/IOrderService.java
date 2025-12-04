@@ -48,4 +48,8 @@ public interface IOrderService {
      * Update arbitrary status (implement in service if you need generic status transitions)
      */
     void updateStatus(UUID orderId, String status);
+
+    List<OrderResponseDto> getOrdersForTable(UUID tableId);
+
+    List<OrderResponseDto> getAllOrders();
 }

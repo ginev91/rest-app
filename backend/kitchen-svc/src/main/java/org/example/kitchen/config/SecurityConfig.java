@@ -34,6 +34,9 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/public/**", "/actuator/health", "/actuator/info").permitAll()
+
+                        .requestMatchers("/api/kitchen/orders", "/api/kitchen/orders/by-order/**").permitAll()
+
                         .requestMatchers("/api/kitchen/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
@@ -46,13 +49,6 @@ public class SecurityConfig {
         return http.build();
     }
 
-    /**
-     * Build a Converter<Jwt, AbstractAuthenticationToken> that:
-     *  - extracts authorities from a claim using JwtGrantedAuthoritiesConverter
-     *  - post-processes/massages the authorities if necessary (e.g. ensure ROLE_ prefix or uppercase)
-     *
-     * Adjust setAuthoritiesClaimName(...) if your JWT uses a different claim name for roles.
-     */
     private Converter<org.springframework.security.oauth2.jwt.Jwt, JwtAuthenticationToken> jwtAuthenticationConverter() {
         JwtGrantedAuthoritiesConverter grantedAuthoritiesConverter = new JwtGrantedAuthoritiesConverter();
         grantedAuthoritiesConverter.setAuthoritiesClaimName("roles");

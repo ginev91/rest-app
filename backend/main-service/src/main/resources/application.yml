@@ -48,6 +48,13 @@ logging:
     org.springframework.security: DEBUG
     org.springframework.web: DEBUG
     org.example: DEBUG
+    feign: DEBUG
+    org.springframework.cloud.openfeign: DEBUG
+feign:
+  client:
+    config:
+      default:
+        loggerLevel: FULL
 
 local:
   model:

@@ -1,13 +1,13 @@
 package org.example.main.feign;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.*;
 import java.util.UUID;
 import java.util.List;
 
-@FeignClient(name = "kitchen-svc", url = "${feign.kitchen.url:http://localhost:8081}")
+@FeignClient(name = "kitchen-service", url = "${feign.kitchen.url:http://kitchen-svc:8081}")
 public interface KitchenClient {
-
     @PostMapping("/api/kitchen/orders")
     KitchenOrderResponse createKitchenOrder(@RequestBody KitchenOrderRequest request);
 
@@ -17,11 +17,16 @@ public interface KitchenClient {
     @PutMapping("/api/kitchen/orders/{id}/status")
     KitchenOrderResponse updateKitchenOrderStatus(@PathVariable("id") UUID id, @RequestBody KitchenOrderStatusUpdate request);
 
+    /**
+     * Modified to match kitchen service CreateKitchenOrderRequest:
+     * { "orderId": UUID, "itemsJson": "JSON string" }
+     */
     class KitchenOrderRequest {
-        public UUID sourceOrderId;
-        public Integer tableNumber;
-        public String customerName;
-        public List<KitchenOrderItem> items;
+        @JsonProperty("orderId")
+        public UUID orderId;
+
+        @JsonProperty("itemsJson")
+        public String itemsJson;
     }
 
     class KitchenOrderItem {

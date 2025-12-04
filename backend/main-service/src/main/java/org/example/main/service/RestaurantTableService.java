@@ -3,8 +3,10 @@ package org.example.main.service;
 import org.example.main.exception.ResourceNotFoundException;
 import org.example.main.model.RestaurantTable;
 import org.example.main.model.TableReservation;
+import org.example.main.model.enums.TableStatus;
 import org.example.main.repository.RestaurantTableRepository;
 import org.example.main.repository.TableReservationRepository;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -16,13 +18,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * RestaurantTableService: keeps previous behaviour and adds:
- *  - occupyTable(tableNumber, minutes) -> mark table occupied until now + minutes
- *  - reserveTable(tableId, from, to, requestedBy) -> create reservation if no overlap
- *
- * Note: We add tableNumber and occupiedUntil fields to RestaurantTable (DB migration via ddl-auto=update).
- *
- * Keep existing method names used by other code.
+ * RestaurantTableService: resilient occupyTable implementation to avoid duplicate-code inserts.
  */
 @Service
 @Transactional
@@ -73,37 +69,71 @@ public class RestaurantTableService implements IRestaurantTableService {
     }
 
     /**
-     * Mark table with given tableNumber as occupied for a given number of minutes.
-     * If no RestaurantTable exists for the number, creates one (with default values).
+     * Resilient occupyTable implementation:
+     * - tries by tableNumber
+     * - then by code ("T" + tableNumber)
+     * - otherwise creates a new table, but if a unique constraint occurs (concurrent insert),
+     *   reloads the existing row and updates it.
      */
     @Transactional
     public void occupyTable(Integer tableNumber, int forMinutes) {
         if (tableNumber == null) return;
-        RestaurantTable table = tableRepository.findByTableNumber(tableNumber)
-                .orElseGet(() -> {
-                    RestaurantTable t = new RestaurantTable();
-                    t.setCode("T" + tableNumber);
-                    t.setSeats(4);
-                    t.setPinCode(UUID.randomUUID().toString().substring(0, 6));
-                    t.setTableNumber(tableNumber);
-                    return t;
-                });
+
+        String code = "T" + tableNumber;
+        RestaurantTable table = null;
+
+        // 1) Try find by tableNumber
+        Optional<RestaurantTable> byNumber = tableRepository.findByTableNumber(tableNumber);
+        if (byNumber.isPresent()) {
+            table = byNumber.get();
+        } else {
+            // 2) Try find by code (handles older rows with code but no tableNumber)
+            Optional<RestaurantTable> byCode = tableRepository.findByCode(code);
+            if (byCode.isPresent()) {
+                table = byCode.get();
+                if (table.getTableNumber() == null) {
+                    table.setTableNumber(tableNumber);
+                }
+            } else {
+                // 3) Prepare new entity
+                RestaurantTable t = new RestaurantTable();
+                t.setCode(code);
+                t.setSeats(4);
+                t.setPinCode(UUID.randomUUID().toString().substring(0, 6));
+                t.setTableNumber(tableNumber);
+                table = t;
+            }
+        }
 
         table.setOccupiedUntil(OffsetDateTime.now().plusMinutes(forMinutes));
-        table.setStatus(org.example.main.model.enums.TableStatus.OCCUPIED);
-        tableRepository.save(table);
+        table.setStatus(TableStatus.OCCUPIED);
+
+        try {
+            tableRepository.save(table);
+        } catch (DataIntegrityViolationException dive) {
+            // likely concurrent insert with same code; reload by code and update
+            Optional<RestaurantTable> existing = tableRepository.findByCode(code);
+            if (existing.isPresent()) {
+                RestaurantTable e = existing.get();
+                if (e.getTableNumber() == null) e.setTableNumber(tableNumber);
+                e.setOccupiedUntil(table.getOccupiedUntil());
+                e.setStatus(TableStatus.OCCUPIED);
+                tableRepository.save(e);
+            } else {
+                // unexpected: rethrow so caller sees it
+                throw dive;
+            }
+        }
     }
 
     /**
      * Reserve a table for a time window. Rejects overlapping reservations.
-     * Returns the saved TableReservation.
      */
     @Transactional
     public TableReservation reserveTable(UUID tableId, OffsetDateTime from, OffsetDateTime to, UUID requestedBy, UUID userId) {
         if (from == null || to == null || !to.isAfter(from)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid reservation window");
         }
-        // check conflicts
         List<TableReservation> conflicts = reservationRepository.findByTableIdAndEndTimeAfterAndStartTimeBefore(tableId, from, to);
         if (!conflicts.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Table already reserved for this time");

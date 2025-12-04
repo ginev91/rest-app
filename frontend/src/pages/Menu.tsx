@@ -29,7 +29,7 @@ const Menu = () => {
 
   useEffect(() => {
     fetchMenuItems();
-    fetchActiveOrder();
+    //fetchActiveOrder();
   }, []);
 
   const fetchMenuItems = async () => {
@@ -197,7 +197,7 @@ const handleAddToOrder = async () => {
     setCart({});
     setShowOrderDialog(false);
     
-    await fetchActiveOrder();
+    //await fetchActiveOrder();
     
     setTimeout(() => {
       navigate('/orders');

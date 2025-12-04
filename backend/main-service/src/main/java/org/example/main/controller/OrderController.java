@@ -25,10 +25,21 @@ public class OrderController {
 
     /**
      * GET /api/orders?userId={uuid} - list orders for a user
+     * GET /api/orders?tableId={uuid} - list orders for the table
      */
     @GetMapping
-    public ResponseEntity<List<OrderResponseDto>> listOrders(@RequestParam(name = "userId", required = false) UUID userId) {
-        List<OrderResponseDto> list = orderService.getOrdersForUser(userId);
+    public ResponseEntity<List<OrderResponseDto>> listOrders(
+            @RequestParam(name = "userId", required = false) UUID userId,
+            @RequestParam(name = "tableId", required = false) UUID tableId) {
+
+        List<OrderResponseDto> list;
+        if (userId != null) {
+            list = orderService.getOrdersForUser(userId);
+        } else if (tableId != null) {
+            list = orderService.getOrdersForTable(tableId);
+        } else {
+            list = orderService.getAllOrders();
+        }
         return ResponseEntity.ok(list);
     }
 
