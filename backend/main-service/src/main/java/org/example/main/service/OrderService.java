@@ -303,14 +303,42 @@ public class OrderService implements IOrderService {
 
     @Transactional
     public void updateKitchenStatus(UUID orderId, String kitchenStatus, UUID kitchenOrderId) {
-        OrderEntity o = orderRepository.findById(orderId)
+        OrderEntity order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
-        o.setKitchenStatus(kitchenStatus);
+        order.setKitchenStatus(kitchenStatus);
         if (kitchenOrderId != null) {
-            o.setKitchenOrderId(kitchenOrderId);
+            order.setKitchenOrderId(kitchenOrderId);
         }
-        o.setUpdatedAt(OffsetDateTime.now());
-        orderRepository.save(o);
+        order.setUpdatedAt(OffsetDateTime.now());
+
+        if ("READY".equalsIgnoreCase(kitchenStatus)) {
+            boolean allKitchen = true;
+            if (order.getItems() == null || order.getItems().isEmpty()) {
+                allKitchen = false;
+            } else {
+                for (OrderItem item : order.getItems()) {
+
+                    boolean kitchenItem;
+                    try {
+                        kitchenItem = item.isKitchenItem();
+                    } catch (NoSuchMethodError | AbstractMethodError ex) {
+                        kitchenItem = false;
+                    }
+                    if (!kitchenItem) {
+                        allKitchen = false;
+                        break;
+                    }
+                }
+            }
+
+            if (allKitchen) {
+                log.info("All items for order {} are kitchen items — setting overall order status to READY", orderId);
+                order.setStatus("ready");
+            } else {
+                log.debug("Order {} contains non-kitchen items, not changing overall order status", orderId);
+            }
+        }
+        orderRepository.save(order);
         log.info("Order {} kitchenStatus updated to {} (kitchenOrderId={})", orderId, kitchenStatus, kitchenOrderId);
     }
 

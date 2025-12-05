@@ -5,6 +5,7 @@ import lombok.*;
 import java.util.UUID;
 import java.math.BigDecimal;
 
+import org.example.main.model.enums.ItemType;
 import org.hibernate.annotations.GenericGenerator;
 
 @Entity
@@ -57,5 +58,9 @@ public class OrderItem {
 
         if (this.menuItemName == null) this.menuItemName = "";
         if (this.price == null) this.price = BigDecimal.ZERO;
+    }
+
+    public boolean isKitchenItem() {
+        return this.menuItem.getItemType().equals(ItemType.KITCHEN);
     }
 }
