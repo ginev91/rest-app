@@ -15,6 +15,13 @@ frontend:
   origin: ${FRONTEND_ORIGIN:http://localhost:8082}
 
 spring:
+  devtools:
+    # Enable remote restart for DevTools to work inside the container
+    restart:
+      enabled: true
+    # Enable remote debugging/monitoring (optional but often useful)
+    livereload:
+      enabled: true
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:}
 

@@ -6,6 +6,13 @@ jwt:
   expiration-ms: 3600000 # 1 hour in milliseconds
 
 spring:
+  devtools:
+    # Enable remote restart for DevTools to work inside the container
+    restart:
+      enabled: true
+    # Enable remote debugging/monitoring (optional but often useful)
+    livereload:
+      enabled: true
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:}
 
@@ -39,7 +46,7 @@ kitchen:
     min-seconds: 5 # for demo purposes
     max-seconds: 20 # for demo purposes
   callback:
-    enabled: false
+    enabled: true
     url: "http://main-service:8080/api/internal/orders/{orderId}/kitchen-ready?kitchenOrderId={kitchenOrderId}"
 
 management:

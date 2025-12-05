@@ -33,7 +33,8 @@ services:
 
   kitchen-svc:
     volumes:
-      - ./kitchen-svc:/workspace/kitchen-svc:cached
+      # Remove :cached on macOS so file changes propagate into the container immediately
+      - ./kitchen-svc:/workspace/kitchen-svc
       - ~/.m2:/root/.m2:rw
     working_dir: /workspace/kitchen-svc
     command: mvn -DskipTests spring-boot:run
@@ -64,7 +65,7 @@ services:
 
   main-service:
     volumes:
-      - ./main-service:/workspace/main-service:cached
+      - ./main-service:/workspace/main-service
       - ~/.m2:/root/.m2:rw
     working_dir: /workspace/main-service
     command: mvn -DskipTests spring-boot:run
@@ -84,6 +85,8 @@ services:
       SPRING_APPLICATION_JSON: '{"app.reinitialize":false}'
       MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: "health,info"
       MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS: "always"
+      KITCHEN_CALLBACK_ENABLED: "true"
+      KITCHEN_CALLBACK_URL: "http://main-service:8080/api/internal/orders/{orderId}/kitchen-ready?kitchenOrderId={kitchenOrderId}"
     ports:
       - "8080:8080"
     depends_on:

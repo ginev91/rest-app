@@ -24,11 +24,12 @@ import java.util.concurrent.*;
 /**
  * KitchenOrderService — persists kitchen orders and schedules transition to READY after a randomized delay.
  *
- * Configuration (application.yml):
+ * Configuration (application.yml / env):
  *  kitchen.prep.min-seconds
  *  kitchen.prep.max-seconds
  *  kitchen.callback.enabled
  *  kitchen.callback.url   (use placeholders {orderId} and {kitchenOrderId})
+ *  kitchen.callback.secret (optional)
  */
 @Service
 public class KitchenOrderService implements IKitchenOrderService {
@@ -47,6 +48,7 @@ public class KitchenOrderService implements IKitchenOrderService {
     // Optional callback to main service
     private final boolean callbackEnabled;
     private final String callbackUrl;
+    private final String callbackSecret; // optional secret sent as header
 
     private final Random random = new Random();
     private final HttpClient httpClient = HttpClient.newHttpClient();
@@ -54,13 +56,15 @@ public class KitchenOrderService implements IKitchenOrderService {
     public KitchenOrderService(KitchenOrderRepository repository,
                                @Value("${kitchen.prep.min-seconds:5}") int minPrepSeconds,
                                @Value("${kitchen.prep.max-seconds:20}") int maxPrepSeconds,
-                               @Value("${kitchen.callback.enabled:false}") boolean callbackEnabled,
-                               @Value("${kitchen.callback.url:}") String callbackUrl) {
+                               @Value("${kitchen.callback.enabled:true}") boolean callbackEnabled,
+                               @Value("${kitchen.callback.url:}") String callbackUrl,
+                               @Value("${kitchen.callback.secret:}") String callbackSecret) {
         this.repository = repository;
         this.minPrepSeconds = Math.max(1, minPrepSeconds);
         this.maxPrepSeconds = Math.max(this.minPrepSeconds, maxPrepSeconds);
         this.callbackEnabled = callbackEnabled;
         this.callbackUrl = callbackUrl == null ? "" : callbackUrl.trim();
+        this.callbackSecret = callbackSecret == null ? "" : callbackSecret.trim();
     }
 
     @Override
@@ -105,17 +109,22 @@ public class KitchenOrderService implements IKitchenOrderService {
                 repository.save(current);
                 log.info("Kitchen order {} marked READY", current.getId());
 
-                // Optional callback to main service
                 if (callbackEnabled && callbackUrl != null && !callbackUrl.isBlank()) {
                     try {
                         String target = callbackUrl
                                 .replace("{orderId}", current.getOrderId().toString())
                                 .replace("{kitchenOrderId}", current.getId().toString());
-                        HttpRequest req = HttpRequest.newBuilder()
+                        HttpRequest.Builder builder = HttpRequest.newBuilder()
                                 .uri(URI.create(target))
                                 .timeout(java.time.Duration.ofSeconds(10))
-                                .POST(HttpRequest.BodyPublishers.noBody())
-                                .build();
+                                .POST(HttpRequest.BodyPublishers.noBody());
+
+                        // add optional secret header
+                        if (callbackSecret != null && !callbackSecret.isBlank()) {
+                            builder.header("X-Callback-Secret", callbackSecret);
+                        }
+
+                        HttpRequest req = builder.build();
                         HttpResponse<String> resp = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
                         log.info("Callback to main-service returned status {} for kitchenOrder {}", resp.statusCode(), current.getId());
                     } catch (Exception cbEx) {

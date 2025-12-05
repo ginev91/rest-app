@@ -1,5 +1,7 @@
 package org.example.main.controller;
 
+import jakarta.persistence.Table;
+import org.example.main.model.RestaurantTable;
 import org.example.main.model.TableReservation;
 import org.example.main.service.RestaurantTableService;
 import org.slf4j.Logger;
@@ -34,6 +36,12 @@ public class RestaurantTableController {
 
     public RestaurantTableController(RestaurantTableService service) {
         this.service = service;
+    }
+
+    @GetMapping()
+    public ResponseEntity<List<RestaurantTable>> getTables() {
+        List<RestaurantTable> list = service.findAll();
+        return ResponseEntity.ok(list);
     }
 
     @PostMapping("/{tableId}/reserve")

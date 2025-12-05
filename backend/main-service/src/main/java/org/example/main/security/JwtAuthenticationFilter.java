@@ -7,27 +7,20 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
- * Minimal, defensive JWT filter: on token parse/validation failure it returns a clear 401 JSON
- * response and invalidates the HTTP session (if any). This keeps the change small and avoids
- * adding more infrastructure (no new AuthenticationEntryPoint required).
- *
- * Replace/merge with your existing JwtAuthenticationFilter implementation — keep your token
- * parsing and authentication logic but forward to handleAuthFailure(...) on exceptions.
+ * JwtAuthenticationFilter that:
+ * - skips /api/internal/** requests,
+ * - validates JWT when present and sets authentication,
+ * - writes a JSON 401 on failure.
  */
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
@@ -45,12 +38,22 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
+
+        // Early skip for internal callbacks so they are not subject to token validation.
+        String path = request.getRequestURI();
+        if (path != null && path.startsWith("/api/internal/")) {
+            log.debug("Skipping JWT processing for internal request: {}", path);
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         try {
             String jwt = jwtUtils.getTokenFromRequest(request);
-            if (jwt != null && !jwt.isBlank()) {
+
+            if (StringUtils.hasText(jwt)) {
                 // validate token and set authentication
                 if (!jwtUtils.validateToken(jwt)) {
-                    // token invalid/expired
+                    log.debug("JWT present but invalid/expired for request {}: {}", path, jwt);
                     handleAuthFailure(request, response, "invalid_or_expired_token");
                     return;
                 }
@@ -59,31 +62,26 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 UserDetails userDetails = userDetailsService.loadUserByUsername(username);
                 var auth = jwtUtils.buildAuthentication(userDetails, request);
                 SecurityContextHolder.getContext().setAuthentication(auth);
+                log.debug("JWT authentication succeeded for user {}", username);
+            } else {
+                log.trace("No JWT found in request {}", path);
             }
+
             filterChain.doFilter(request, response);
         } catch (Exception ex) {
-            log.info("JWT authentication failed: {}", ex.getMessage());
+            log.info("JWT authentication failed: {}", ex.getMessage(), ex);
             handleAuthFailure(request, response, "invalid_or_expired_token");
-        } finally {
         }
     }
 
-    /**
-     * Write a short JSON body and set HTTP 401, then invalidate session (if present).
-     * Frontend should treat 401 as a signal to remove stored tokens and redirect to login.
-     */
     private void handleAuthFailure(HttpServletRequest request, HttpServletResponse response, String reason) throws IOException {
-        // Clear any existing security context just in case
         SecurityContextHolder.clearContext();
-
-        // Invalidate servlet session if present (best-effort)
         try {
             HttpSession s = request.getSession(false);
             if (s != null) {
                 s.invalidate();
             }
         } catch (Exception ignore) {
-            // ignore
         }
 
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);

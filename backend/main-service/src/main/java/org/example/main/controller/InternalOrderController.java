@@ -10,7 +10,7 @@ import java.util.UUID;
 
 /**
  * Internal endpoints used by other backend services (kitchen). Not intended for public clients.
- * Example callback: POST /api/internal/orders/{orderId}/kitchen-ready?kitchenOrderId={kitchenOrderId}
+ * Minimal: no secrets, no auth required for these endpoints.
  */
 @RestController
 @RequestMapping("/api/internal")
@@ -24,8 +24,9 @@ public class InternalOrderController {
     }
 
     @PostMapping("/orders/{orderId}/kitchen-ready")
-    public ResponseEntity<Void> kitchenReady(@PathVariable UUID orderId,
-                                             @RequestParam(name = "kitchenOrderId", required = false) UUID kitchenOrderId) {
+    public ResponseEntity<Void> kitchenReady(
+            @PathVariable("orderId") UUID orderId,
+            @RequestParam(name = "kitchenOrderId", required = false) UUID kitchenOrderId) {
         log.info("Received kitchen-ready callback for order {} kitchenOrderId={}", orderId, kitchenOrderId);
         try {
             orderService.updateKitchenStatus(orderId, "READY", kitchenOrderId);
@@ -34,5 +35,11 @@ public class InternalOrderController {
             log.error("Failed to update kitchen status for order {}: {}", orderId, ex.getMessage(), ex);
             return ResponseEntity.status(500).build();
         }
+    }
+
+
+    @GetMapping("/ping")
+    public ResponseEntity<String> ping() {
+        return ResponseEntity.ok("pong");
     }
 }
