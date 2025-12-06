@@ -1,6 +1,7 @@
 services:
   postgres:
     image: postgres:15-alpine
+    container_name: postgres
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: canti
@@ -48,7 +49,7 @@ services:
       SPRING_DATASOURCE_PASSWORD: canti
       SPRING_REDIS_HOST: redis
       SPRING_ZIPKIN_BASE_URL: http://zipkin:9411
-      SPRING_PROFILES_ACTIVE: docker
+      SPRING_PROFILES_ACTIVE: docker local
     ports:
       - "8081:8081"
     depends_on:
@@ -81,7 +82,7 @@ services:
       SPRING_ZIPKIN_BASE_URL: http://zipkin:9411
       KITCHEN_SERVICE_URL: http://kitchen-svc:8081
       FEIGN_KITCHEN_URL: http://kitchen-svc:8081
-      SPRING_PROFILES_ACTIVE: docker
+      SPRING_PROFILES_ACTIVE: "docker, local"
       SPRING_APPLICATION_JSON: '{"app.reinitialize":false}'
       MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: "health,info"
       MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS: "always"

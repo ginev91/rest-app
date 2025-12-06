@@ -1,6 +1,14 @@
 server:
   port: 8081
 
+feign:
+  main:
+    url: ${FEIGN_MAIN_URL:${MAIN_SERVICE_URL:http://localhost:8080}}
+
+main:
+  service:
+      url: ${MAIN_SERVICE_URL:http://localhost:8080}
+
 jwt:
   secret: "MySuperSecretTokenKeyForKitchenService"
   expiration-ms: 3600000 # 1 hour in milliseconds
@@ -47,7 +55,7 @@ kitchen:
     max-seconds: 20 # for demo purposes
   callback:
     enabled: true
-    url: "http://main-service:8080/api/internal/orders/{orderId}/kitchen-ready?kitchenOrderId={kitchenOrderId}"
+    url: "http://localhost:8080/api/internal/orders/{orderId}/kitchen-ready?kitchenOrderId={kitchenOrderId}"
 
 management:
   endpoints:

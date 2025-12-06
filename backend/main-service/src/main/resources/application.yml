@@ -1,6 +1,9 @@
 server:
   port: 8080
 
+kitchen:
+  service:
+    url: ${KITCHEN_SERVICE_URL:http://localhost:8081}
 
 jwt:
   # should not commit a real secret into source control; override with env in prod
@@ -58,6 +61,8 @@ logging:
     feign: DEBUG
     org.springframework.cloud.openfeign: DEBUG
 feign:
+  kitchen:
+    url: ${FEIGN_KITCHEN_URL:${KITCHEN_SERVICE_URL:http://localhost:8081}}
   client:
     config:
       default:
