@@ -144,7 +144,7 @@ public class LocalModelService {
         );
 
         return webClient.post()
-                .uri(httpUrl)
+                .uri("http://localhost:11434/api/generate")
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(body)
                 .retrieve()

@@ -16,6 +16,15 @@
           <entry name="$MAVEN_REPOSITORY$/org/projectlombok/lombok/1.18.28/lombok-1.18.28.jar" />
         </processorPath>
         <module name="kitchen-service" />
+      </profile>
+      <profile name="Annotation profile for main-service" enabled="true">
+        <sourceOutputDir name="target/generated-sources/annotations" />
+        <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
+        <outputRelativeToContentRoot value="true" />
+        <processorPath useClasspath="false">
+          <entry name="$MAVEN_REPOSITORY$/org/projectlombok/lombok/1.18.28/lombok-1.18.28.jar" />
+          <entry name="$MAVEN_REPOSITORY$/org/projectlombok/lombok/1.18.28/lombok-1.18.28.jar" />
+        </processorPath>
         <module name="main-service" />
       </profile>
     </annotationProcessing>
@@ -32,6 +41,7 @@
       <module name="gateway" options="-parameters" />
       <module name="gateway.main" options="-parameters" />
       <module name="gateway.test" options="-parameters" />
+      <module name="main-service" options="-parameters" />
     </option>
   </component>
 </project>

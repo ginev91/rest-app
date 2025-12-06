@@ -8,6 +8,7 @@ import java.util.UUID;
 import java.math.BigDecimal;
 
 import lombok.*;
+import org.example.main.model.enums.OrderStatus;
 import org.hibernate.annotations.GenericGenerator;
 
 @Entity
@@ -43,7 +44,7 @@ public class OrderEntity {
     private String customerName;
 
     @Column(nullable = false)
-    private String status; // e.g. "preparing", "completed", "pending"
+    private OrderStatus status;
 
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
@@ -82,7 +83,7 @@ public class OrderEntity {
     public boolean claimByWaiter(UUID newWaiterId) {
         if (this.waiterId == null) {
             this.waiterId = newWaiterId;
-            this.status = "assigned"; // adjust to your status values
+            this.status = OrderStatus.IN_PROGRESS; // adjust to your status values
             return true;
         }
         return false;

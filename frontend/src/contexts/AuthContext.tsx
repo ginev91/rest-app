@@ -118,7 +118,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       const userId = resp.userId;
       const username = resp.username || email;
-      const name = resp.name || username;
+      const name = resp.username || username;
       const role = resp.role;
       const userTableNumber = resp.tableNumber;
       const tableId = resp.tableId;

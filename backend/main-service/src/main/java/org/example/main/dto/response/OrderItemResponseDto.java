@@ -1,6 +1,7 @@
 package org.example.main.dto.response;
 
 import lombok.*;
+import org.example.main.model.enums.OrderItemStatus;
 
 import java.math.BigDecimal;
 
@@ -13,4 +14,5 @@ public class OrderItemResponseDto {
     private String menuItemName;
     private int quantity;
     private BigDecimal price;
+    private OrderItemStatus status;
 }

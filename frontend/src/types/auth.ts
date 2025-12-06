@@ -4,7 +4,7 @@ export interface User {
   id: string;
   email: string;
   name: string;
-  role: 'ROLE_USER' | 'ROLE_EMPLOYEE' | 'ROLE_ADMIN';
+  role: string;
   tableNumber?: number;
   tableId?: string;
   

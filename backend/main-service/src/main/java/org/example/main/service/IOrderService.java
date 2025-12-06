@@ -1,10 +1,13 @@
 package org.example.main.service;
 
+import aj.org.objectweb.asm.commons.Remapper;
 import org.example.main.dto.request.OrderRequestDto;
 import org.example.main.dto.response.OrderDetailsResponseDto;
 import org.example.main.dto.response.OrderResponseDto;
+import org.example.main.model.enums.OrderStatus;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface IOrderService {
@@ -37,7 +40,7 @@ public interface IOrderService {
     /**
      * Request waiter call
      */
-    void callWaiter(UUID orderId);
+//    void callWaiter(UUID orderId);
 
     /**
      * Cancel order
@@ -47,9 +50,11 @@ public interface IOrderService {
     /**
      * Update arbitrary status (implement in service if you need generic status transitions)
      */
-    void updateStatus(UUID orderId, String status);
+    void updateStatus(UUID orderId, OrderStatus status);
 
     List<OrderResponseDto> getOrdersForTable(UUID tableId);
 
     List<OrderResponseDto> getAllOrders();
+
+    Optional <OrderResponseDto> getActiveOrderForUser(UUID userId);
 }

@@ -1,5 +1,6 @@
 package org.example.main.service;
 
+import aj.org.objectweb.asm.commons.Remapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import feign.FeignException;
 import lombok.extern.slf4j.Slf4j;
@@ -14,6 +15,8 @@ import org.example.main.model.OrderEntity;
 import org.example.main.model.OrderItem;
 import org.example.main.model.User;
 import org.example.main.model.enums.ItemType;
+import org.example.main.model.enums.OrderItemStatus;
+import org.example.main.model.enums.OrderStatus;
 import org.example.main.repository.MenuItemRepository;
 import org.example.main.repository.OrderRepository;
 import org.example.main.repository.UserRepository;
@@ -79,7 +82,7 @@ public class OrderService implements IOrderService {
         order.setTableNumber(request.getTableNumber());
         order.setCustomerId(request.getCustomerId());
         order.setCustomerName(findUserName(request.getCustomerId()));
-        order.setStatus("preparing");
+        order.setStatus(OrderStatus.NEW);
         order.setCreatedAt(OffsetDateTime.now());
 
         List<OrderItem> items = new ArrayList<>();
@@ -96,6 +99,7 @@ public class OrderService implements IOrderService {
             oi.setMenuItem(mi);
             oi.setQuantity(itemReq.getQuantity());
             oi.setMenuItemName(mi.getName());
+            oi.setStatus(OrderItemStatus.PENDING);
             oi.setPrice(mi.getPrice() != null ? mi.getPrice() : BigDecimal.ZERO);
             oi.setOrder(order);
             items.add(oi);
@@ -149,7 +153,7 @@ public class OrderService implements IOrderService {
 
         return OrderResponseDto.builder()
                 .orderId(saved.getId())
-                .status(saved.getStatus())
+                .status(String.valueOf(saved.getStatus()))
                 .build();
     }
 
@@ -161,7 +165,7 @@ public class OrderService implements IOrderService {
 
         return OrderResponseDto.builder()
                 .orderId(o.getId())
-                .status(o.getStatus())
+                .status(String.valueOf(o.getStatus()))
                 .build();
     }
 
@@ -202,27 +206,20 @@ public class OrderService implements IOrderService {
         return resp.getOrderId();
     }
 
-    @Override
-    @Transactional
-    public void callWaiter(UUID orderId) {
-        OrderEntity o = orderRepository.findById(orderId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
-        o.setStatus("call_waiter");
-        orderRepository.save(o);
-    }
 
     @Override
     @Transactional
     public void cancelOrder(UUID orderId) {
         OrderEntity o = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
-        o.setStatus("cancelled");
+        o.setStatus(OrderStatus.CANCELLED);
         orderRepository.save(o);
     }
 
+
     @Override
     @Transactional
-    public void updateStatus(UUID orderId, String status) {
+    public void updateStatus(UUID orderId, OrderStatus status) {
         OrderEntity o = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
         o.setStatus(status);
@@ -249,6 +246,15 @@ public class OrderService implements IOrderService {
                 .collect(Collectors.toList());
     }
 
+    @Override
+    public Optional <OrderResponseDto> getActiveOrderForUser(UUID userId) {
+        return orderRepository.findWithItemsByCustomerUserId(userId)
+                .stream()
+                .filter(o -> o.getStatus() != OrderStatus.COMPLETED && o.getStatus() != OrderStatus.CANCELLED)
+                .map(this::mapToOrderResponseDto)
+                .findFirst();
+    }
+
     private String findUserName(UUID userId) {
         if (userId == null) return null;
         Optional<User> u = userRepository.findById(userId);
@@ -270,7 +276,7 @@ public class OrderService implements IOrderService {
                 .userId(o.getCustomerId() != null ? o.getCustomerId().toString() : null)
                 .userName(o.getCustomerName())
                 .tableNumber(o.getTableNumber())
-                .status(o.getStatus())
+                .status(String.valueOf(o.getStatus()))
                 .totalAmount(o.getTotalAmount())
                 .createdAt(o.getCreatedAt())
                 .updatedAt(o.getUpdatedAt())
@@ -287,17 +293,19 @@ public class OrderService implements IOrderService {
                                 .menuItemId(it.getMenuItemId() != null ? it.getMenuItemId().toString() : null)
                                 .menuItemName(it.getMenuItemName())
                                 .quantity(it.getQuantity())
+                                .status(it.getStatus())
                                 .price(it.getPrice())
                                 .build())
                         .collect(Collectors.toList());
 
         return OrderResponseDto.builder()
                 .orderId(e.getId())
-                .status(e.getStatus())
+                .status(String.valueOf(e.getStatus()))
                 .totalAmount(e.getTotalAmount())
                 .tableNumber(e.getTableNumber())
                 .createdAt(e.getCreatedAt())
                 .items(items)
+                .username(e.getCustomerName())
                 .build();
     }
 
@@ -311,34 +319,33 @@ public class OrderService implements IOrderService {
         }
         order.setUpdatedAt(OffsetDateTime.now());
 
-// not proper handling order    set only kitcvhen status
-//        if ("READY".equalsIgnoreCase(kitchenStatus)) {
-//            boolean allKitchen = true;
-//            if (order.getItems() == null || order.getItems().isEmpty()) {
-//                allKitchen = false;
-//            } else {
-//                for (OrderItem item : order.getItems()) {
-//
-//                    boolean kitchenItem;
-//                    try {
-//                        kitchenItem = item.isKitchenItem();
-//                    } catch (NoSuchMethodError | AbstractMethodError ex) {
-//                        kitchenItem = false;
-//                    }
-//                    if (!kitchenItem) {
-//                        allKitchen = false;
-//                        break;
-//                    }
-//                }
-//            }
-//
-//            if (allKitchen) {
-//                log.info("All items for order {} are kitchen items — setting overall order status to READY", orderId);
-//                order.setStatus("ready");
-//            } else {
-//                log.debug("Order {} contains non-kitchen items, not changing overall order status", orderId);
-//            }
-//        }
+       if ("READY".equalsIgnoreCase(kitchenStatus)) {
+           boolean allKitchen = true;
+           if (order.getItems() == null || order.getItems().isEmpty()) {
+               allKitchen = false;
+           } else {
+               for (OrderItem item : order.getItems()) {
+
+                   boolean kitchenItem;
+                   try {
+                       kitchenItem = item.isKitchenItem();
+                   } catch (NoSuchMethodError | AbstractMethodError ex) {
+                       kitchenItem = false;
+                   }
+                   if (!kitchenItem) {
+                       allKitchen = false;
+                       break;
+                   }
+               }
+           }
+
+           if (allKitchen) {
+               log.info("All items for order {} are kitchen items — setting overall order status to READY", orderId);
+               order.setStatus(OrderStatus.READY);
+           } else {
+               log.debug("Order {} contains non-kitchen items, not changing overall order status", orderId);
+           }
+       }
         orderRepository.save(order);
         log.info("Order {} kitchenStatus updated to {} (kitchenOrderId={})", orderId, kitchenStatus, kitchenOrderId);
     }

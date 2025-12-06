@@ -3,5 +3,5 @@ CREATE USER myuser WITH PASSWORD 'canti';
 CREATE DATABASE main_app_db OWNER myuser;
 CREATE DATABASE kitchen_db OWNER myuser;
 
-GRANT ALL PRIVILEGES ON DATABASE main_app_db TO myuser;
+    GRANT ALL PRIVILEGES ON DATABASE main_app_db TO myuser;
 GRANT ALL PRIVILEGES ON DATABASE kitchen_db TO myuser;

@@ -142,7 +142,7 @@
             <groupId>io.netty</groupId>
             <artifactId>netty-resolver-dns-native-macos</artifactId>
             <version>4.1.122.Final</version>
-            <classifier>osx-x86_64</classifier> <!-- mac only not bets solution -->
+            <classifier>osx-x86_64</classifier> <!-- mac only not best solution -->
         </dependency>
 
         <dependency>
@@ -191,6 +191,13 @@
                             <version>${lombok.version}</version>
                         </path>
                     </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <parameters>true</parameters>
                 </configuration>
             </plugin>
         </plugins>

@@ -4,6 +4,8 @@ import jakarta.validation.Valid;
 import org.example.main.dto.request.OrderRequestDto;
 import org.example.main.dto.response.OrderDetailsResponseDto;
 import org.example.main.dto.response.OrderResponseDto;
+import org.example.main.model.OrderEntity;
+import org.example.main.model.enums.OrderStatus;
 import org.example.main.service.IOrderService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -98,5 +100,12 @@ public class OrderController {
     public ResponseEntity<Void> deleteOrder(@PathVariable("id") UUID id) {
         orderService.cancelOrder(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/active")
+    public ResponseEntity<OrderResponseDto> getActiveOrder(@RequestParam UUID userId) {
+        return orderService.getActiveOrderForUser(userId)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.noContent().build());
     }
 }

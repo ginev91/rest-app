@@ -127,7 +127,7 @@ public class UserService implements IUserService {
         if (dto == null || dto.getUsername() == null || dto.getPassword() == null) {
             throw new IllegalArgumentException("username and password are required");
         }
-
+        UUID tableId = null;
         User user = userRepository.findByUsername(dto.getUsername())
                 .orElseThrow(() -> new ResourceNotFoundException("Invalid credentials"));
 
@@ -155,6 +155,7 @@ public class UserService implements IUserService {
             String code = "T" + tableNumber;
             RestaurantTable table = restaurantTableRepository.findByCode(code)
                     .orElseThrow(() -> new IllegalArgumentException("Invalid table number"));
+            tableId = table.getId();
 
             if (!Objects.equals(table.getPinCode(), tablePin)) {
                 throw new IllegalArgumentException("Invalid table pin");
@@ -165,6 +166,7 @@ public class UserService implements IUserService {
 
             if (session != null) {
                 session.setAttribute("tableNumber", tableNumber);
+                session.setAttribute("tableId", table.getId());
                 logger.debug("login: set session.tableNumber={} sessionId={}", tableNumber, session.getId());
             } else {
                 logger.debug("login: no HttpSession available, persisted sessionTableNumber for user={}", user.getUsername());
@@ -172,6 +174,7 @@ public class UserService implements IUserService {
         } else {
             if (session != null) {
                 session.removeAttribute("tableNumber");
+                session.removeAttribute("tableId");
                 logger.debug("login: removed session.tableNumber sessionId={}", session.getId());
             }
             if (user.getSessionTableNumber() != null) {
@@ -188,6 +191,7 @@ public class UserService implements IUserService {
                 .userId(user.getId())
                 .role(user.getRole())
                 .tableNumber(tableNumber)
+                .tableId(tableId)
                 .build();
     }
 

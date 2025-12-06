@@ -4,6 +4,7 @@ import org.example.main.model.MenuItem;
 import org.example.main.model.OrderEntity;
 import org.example.main.model.OrderItem;
 import org.example.main.model.RestaurantTable;
+import org.example.main.model.enums.OrderStatus;
 import org.example.main.repository.MenuItemRepository;
 import org.example.main.repository.OrderRepository;
 import org.example.main.repository.RestaurantTableRepository;
@@ -39,8 +40,24 @@ public class AppScheduler {
     @Scheduled(fixedRateString = "${app.scheduled.rate:300000}")
     public void periodicJob() {
         try {
-            // Adjust statuses to match your domain values
-            List<String> openStatuses = List.of("NEW", "PREPARING", "IN_PROGRESS", "SERVED");
+            List<String> openStatusNames = List.of("NEW", "PREPARING", "IN_PROGRESS", "SERVED", "PAID", "COMPLETED", "CANCELLED");
+
+            List<OrderStatus> openStatuses = openStatusNames.stream()
+                    .map(s -> {
+                        try {
+                            return OrderStatus.valueOf(s.trim().toUpperCase());
+                        } catch (Exception ex) {
+                            log.warn("periodicJob: ignoring unknown OrderStatus '{}'", s);
+                            return null;
+                        }
+                    })
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toList());
+
+            if (openStatuses.isEmpty()) {
+                log.info("periodicJob: no valid OrderStatus values to query; skipping at {}", ZonedDateTime.now());
+                return;
+            }
 
             List<OrderEntity> openOrders = orderRepository.findByStatusIn(openStatuses);
 

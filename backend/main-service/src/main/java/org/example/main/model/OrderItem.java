@@ -6,6 +6,7 @@ import java.util.UUID;
 import java.math.BigDecimal;
 
 import org.example.main.model.enums.ItemType;
+import org.example.main.model.enums.OrderItemStatus;
 import org.hibernate.annotations.GenericGenerator;
 
 @Entity
@@ -35,6 +36,10 @@ public class OrderItem {
 
     @Column(name = "price", nullable = false)
     private BigDecimal price;
+
+    @Column(name = "status", nullable = false)
+    @Enumerated(EnumType.STRING)
+    private OrderItemStatus status;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "order_id", nullable = false)

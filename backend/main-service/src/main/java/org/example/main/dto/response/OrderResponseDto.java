@@ -23,4 +23,5 @@ public class OrderResponseDto {
     private OffsetDateTime createdAt;
     private OffsetDateTime updatedAt;
     private List<OrderItemResponseDto> items;
+    private String username;
 }

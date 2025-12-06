@@ -30,9 +30,9 @@ const Dashboard = () => {
     toast.success(`Order #${orderId} status updated to ${newStatus}`);
   };
 
-  const sendToKitchen = (orderId: string) => {
-    updateOrderStatus(orderId, 'preparing');
-    // TODO: API call to notify kitchen service
+  const chnageOrderStatus = (orderId: string, status: Order['status']) => {
+    updateOrderStatus(orderId, status);
+
   };
 
   const moveToNextStatus = (order: Order) => {
@@ -94,7 +94,7 @@ const Dashboard = () => {
                       <div>
                         <CardTitle>Order #{order.id}</CardTitle>
                         <CardDescription>
-                          {order.userName} • Table {order.tableNumber} • {new Date(order.createdAt).toLocaleTimeString()}
+                          {order.username} • Table {order.tableNumber} • {new Date(order.createdAt).toLocaleTimeString()}
                         </CardDescription>
                       </div>
                       <Badge variant={order.status === 'ready' ? 'default' : 'secondary'}>
@@ -115,7 +115,7 @@ const Dashboard = () => {
                       <span className="font-bold">Total: ${order.totalAmount.toFixed(2)}</span>
                       <div className="flex gap-2">
                         {order.status === 'confirmed' && (
-                          <Button onClick={() => sendToKitchen(order.id)} className="gap-2">
+                          <Button onClick={() => chnageOrderStatus(order.id, 'preparing')} className="gap-2">
                             Send to Kitchen
                             <ArrowRight className="h-4 w-4" />
                           </Button>

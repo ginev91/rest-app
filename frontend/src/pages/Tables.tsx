@@ -115,7 +115,7 @@ const Tables = () => {
                   'cursor-pointer transition-all border-2',
                   config.bgColor
                 )}
-                onClick={() => navigate(`/tables/${table.id}`)}
+                onClick={() => navigate(`/tables/${table.code}`)}
               >
                 <CardContent className="p-6 text-center space-y-3">
                   <div className="text-3xl font-bold">

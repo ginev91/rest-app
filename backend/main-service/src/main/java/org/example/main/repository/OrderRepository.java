@@ -2,6 +2,7 @@ package org.example.main.repository;
 
 import org.example.main.model.MenuItem;
 import org.example.main.model.OrderEntity;
+import org.example.main.model.enums.OrderStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -33,7 +34,7 @@ public interface OrderRepository extends JpaRepository<OrderEntity, UUID> {
     /**
      * Find orders whose status is among the provided list (used for "open" orders in periodic checks).
      */
-    List<OrderEntity> findByStatusIn(List<String> statuses);
+    List<OrderEntity> findByStatusIn(List<OrderStatus> statuses);
 
     @Query("select distinct o from OrderEntity o " +
             "left join fetch o.items oi " +
