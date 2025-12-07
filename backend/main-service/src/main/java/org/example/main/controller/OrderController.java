@@ -96,14 +96,14 @@ public class OrderController {
      * For simplicity require WAITER/ADMIN for cancellation in this example. Adjust if you want to allow owner cancels.
      */
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('WAITER','ADMIN')")
+    @PreAuthorize("hasAnyRole('ROLE_ADMIN')")
     public ResponseEntity<Void> deleteOrder(@PathVariable("id") UUID id) {
         orderService.cancelOrder(id);
         return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/active")
-    public ResponseEntity<OrderResponseDto> getActiveOrder(@RequestParam UUID userId) {
+    public ResponseEntity<OrderResponseDto> getActiveOrder(@RequestParam(name = "userId", required = false) UUID userId) {
         return orderService.getActiveOrderForUser(userId)
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.noContent().build());

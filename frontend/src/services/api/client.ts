@@ -12,6 +12,11 @@ const api: AxiosInstance = axios.create({
 
 let accessToken: string | null = null;
 
+const storedToken = localStorage.getItem('token');
+if (storedToken) {
+  setAccessToken(storedToken);
+}
+
 export function setAccessToken(token: string | null) {
   accessToken = token;
   if (token) {
@@ -30,26 +35,17 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
       try {
-        const r = await axios.post(
-          `${baseURL}/api/auth/refresh`,
-          {},
-          { withCredentials: true, headers: { "Content-Type": "application/json" } }
-        );
-
-        const newToken = r.data?.accessToken;
-        if (newToken) {
-          setAccessToken(newToken);
-        } else {
-          if (accessToken) {
-            api.defaults.headers.common["Authorization"] = `Bearer ${accessToken}`;
-          } else {
-            delete api.defaults.headers.common["Authorization"];
-          }
+        const r = await api.get('/api/auth/me');
+        
+        if (r.status === 200) {
+          return api(originalRequest);
         }
-
-        return api(originalRequest);
       } catch (refreshErr) {
         setAccessToken(null);
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        localStorage.removeItem('tableId');
+        localStorage.removeItem('tableNumber');
         return Promise.reject(refreshErr);
       }
     }

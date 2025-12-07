@@ -217,7 +217,7 @@ const Menu = () => {
             {cartItemsCount > 0 && (
               <Button size="lg" onClick={() => setShowOrderDialog(true)}>
                 <ShoppingCart className="h-5 w-5 mr-2" />
-                Cart ({cartItemsCount}) - ${getCartTotal().toFixed(2)}
+                Add ({cartItemsCount}) - ${getCartTotal().toFixed(2)}
               </Button>
             )}
           </div>

@@ -111,6 +111,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log('AuthContext: Login response:', resp);
       
       const token = resp.token ?? resp.accessToken;
+      console.log('AuthContext: Received token:', resp);
       if (token) {
         setAccessToken(token);
         localStorage.setItem('token', token);

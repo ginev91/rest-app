@@ -55,15 +55,6 @@ export async function logout(): Promise<void> {
 }
 
 /**
- * refresh: calls /api/auth/refresh, handles token in response
- */
-export async function refresh(): Promise<void> {
-  const resp = await api.post("/api/auth/refresh", {}, { withCredentials: true });
-  const token = resp.data?.token ?? resp.data?.accessToken;
-  if (token) setAccessToken(token);
-}
-
-/**
  * Fetch the current authenticated user.
  * Backend endpoint: GET /api/auth/me
  * If backend doesn't provide this endpoint, you can map username from login/register response instead.
