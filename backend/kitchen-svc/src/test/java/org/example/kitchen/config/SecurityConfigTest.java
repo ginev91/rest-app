@@ -11,7 +11,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @ActiveProfiles("integration")
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-class SecurityConfigFilterInvocationTest {
+class SecurityConfigTest {
 
     @Autowired
     private TestRestTemplate rest;
@@ -33,7 +33,7 @@ class SecurityConfigFilterInvocationTest {
                 HttpStatus.INTERNAL_SERVER_ERROR
         );
 
-        
+
         ResponseEntity<String> orders = rest.getForEntity("/api/kitchen/orders", String.class);
         assertThat(orders.getStatusCode()).isIn(
                 HttpStatus.OK,
@@ -45,7 +45,7 @@ class SecurityConfigFilterInvocationTest {
 
     @Test
     void adminEndpoint_requiresAdminRole_anonymousGetsUnauthorizedOrForbidden() {
-        
+
         ResponseEntity<String> admin = rest.getForEntity("/api/kitchen/admin/status", String.class);
         assertThat(admin.getStatusCode()).isIn(
                 HttpStatus.UNAUTHORIZED,
@@ -57,7 +57,7 @@ class SecurityConfigFilterInvocationTest {
 
     @Test
     void otherRequests_triggerAuthenticationRequirement_or_serverError() {
-        
+
         ResponseEntity<String> other = rest.getForEntity("/some/random/protected/path", String.class);
         assertThat(other.getStatusCode()).isIn(
                 HttpStatus.UNAUTHORIZED,
@@ -69,8 +69,8 @@ class SecurityConfigFilterInvocationTest {
 
     @Test
     void postToOrders_endpoint_obeysCsrf_and_auth_rules_or_returnsServerError() {
-        
-        
+
+
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         HttpEntity<String> request = new HttpEntity<>("{\"dummy\":\"data\"}", headers);
