@@ -30,6 +30,8 @@ import java.util.UUID;
  * - Persists sessionTableNumber on the User entity for stateless clients.
  * - Sets HttpSession attribute when a session exists.
  * - /me reads session attribute first and falls back to persisted value.
+ *
+ * Changes: include roles into JWT at generation time so JwtUtils can populate authorities.
  */
 @Service
 @Transactional
@@ -83,10 +85,10 @@ public class UserService implements IUserService {
         user.setPasswordHash(passwordEncoder.encode(rawPassword));
 
         if (user.getRole() == null || user.getRole().isBlank()) {
-            Role defaultRole = roleRepository.findByName("USER")
+            Role defaultRole = roleRepository.findByName("ROLE_USER")
                     .orElseGet(() -> {
                         Role r = new Role();
-                        r.setName("USER");
+                        r.setName("ROLE_USER");
                         return roleRepository.save(r);
                     });
             user.setRole(defaultRole.getName());
@@ -183,7 +185,9 @@ public class UserService implements IUserService {
             }
         }
 
-        String token = jwtUtils.generateToken(user.getUsername());
+        List<String> rolesList = List.of(Optional.ofNullable(user.getRole()).orElse("ROLE_USER"));
+
+        String token = jwtUtils.generateToken(user.getUsername(), rolesList);
 
         return AuthResponseDto.builder()
                 .token(token)
@@ -213,11 +217,19 @@ public class UserService implements IUserService {
         });
         u.setRole(userRole.getName());
 
-        userRepository.save(u);
+        // Persist and use the returned saved entity so id is available
+        User saved = userRepository.save(u);
 
-        String token = jwtUtils.generateToken(u.getUsername());
+        List<String> rolesList = List.of(saved.getRole());
+        String token = jwtUtils.generateToken(saved.getUsername(), rolesList);
 
-        return new AuthResponseDto(token, u.getUsername(), u.getId(), u.getRole());
+        // Build a response containing only the fields you need
+        return AuthResponseDto.builder()
+                .token(token)
+                .username(saved.getUsername())
+                .userId(saved.getId())
+                .role(saved.getRole())
+                .build();
     }
 
     @Override

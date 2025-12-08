@@ -1,0 +1,35 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://${TEST_DB_HOST:localhost}:${TEST_DB_PORT:5432}/${TEST_DB_NAME:main_app_db}
+    driver-class-name: org.postgresql.Driver
+    username: ${TEST_DB_USER:postgres}
+    password: ${TEST_DB_PASSWORD:canti}
+
+  jpa:
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+
+  main:
+    allow-bean-definition-overriding: true
+
+jwt:
+  secret: "0123456789abcdefghijklmnopqrstuv"
+  expirationMs: 3600000
+
+app:
+  jwt:
+    secret: "test-jwt-secret-change-me"
+    expirationMs: 3600000
+
+logging:
+  level:
+    org.springframework.security: DEBUG
+    org.springframework.web: INFO
+    org.hibernate.SQL: DEBUG
+
+flyway:
+  enabled: false

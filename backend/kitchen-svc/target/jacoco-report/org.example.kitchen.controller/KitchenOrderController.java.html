@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>KitchenOrderController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">kitchen-svc</a> &gt; <a href="index.source.html" class="el_package">org.example.kitchen.controller</a> &gt; <span class="el_source">KitchenOrderController.java</span></div><h1>KitchenOrderController.java</h1><pre class="source lang-java linenums">package org.example.kitchen.controller;
+
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.example.kitchen.dto.request.CreateKitchenOrderRequest;
+import org.example.kitchen.dto.request.UpdateStatusRequest;
+import org.example.kitchen.dto.response.KitchenOrderResponse;
+import org.example.kitchen.mapper.KitchenOrderMapper;
+import org.example.kitchen.model.KitchenOrder;
+import org.example.kitchen.service.IKitchenOrderService;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.net.URI;
+import java.util.List;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
+@RestController
+@RequestMapping(&quot;/api/kitchen/orders&quot;)
+@RequiredArgsConstructor
+public class KitchenOrderController {
+
+    private final IKitchenOrderService service;
+
+    @PostMapping
+    public ResponseEntity&lt;KitchenOrderResponse&gt; create(@Valid @RequestBody CreateKitchenOrderRequest req) {
+<span class="fc" id="L28">        KitchenOrder created = service.createOrder(req.getOrderId(), req.getItemsJson());</span>
+<span class="fc" id="L29">        KitchenOrderResponse resp = KitchenOrderMapper.toResponse(created);</span>
+<span class="fc" id="L30">        return ResponseEntity.created(URI.create(&quot;/api/kitchen/orders/&quot; + created.getId())).body(resp);</span>
+    }
+
+    @GetMapping(&quot;/by-order/{orderId}&quot;)
+    public ResponseEntity&lt;List&lt;KitchenOrderResponse&gt;&gt; getByOrder(@PathVariable(&quot;orderId&quot;) UUID orderId) {
+<span class="fc" id="L35">        List&lt;KitchenOrderResponse&gt; list = service.findByOrderId(orderId)</span>
+<span class="fc" id="L36">                .stream().map(KitchenOrderMapper::toResponse).collect(Collectors.toList());</span>
+<span class="fc" id="L37">        return ResponseEntity.ok(list);</span>
+    }
+
+    @PutMapping(&quot;/{id}/status&quot;)
+    public ResponseEntity&lt;KitchenOrderResponse&gt; updateStatus(@PathVariable(&quot;id&quot;) UUID id, @Valid @RequestBody UpdateStatusRequest req) {
+<span class="fc" id="L42">        KitchenOrder updated = service.updateStatus(id, req.getStatus());</span>
+<span class="fc" id="L43">        return ResponseEntity.ok(KitchenOrderMapper.toResponse(updated));</span>
+    }
+
+    /**
+     * Dedicated cancel endpoint for convenience and clearer intent.
+     * Enforces domain rules in the service (cancellation irreversibility).
+     */
+    @PostMapping(&quot;/{id}/cancel&quot;)
+    public ResponseEntity&lt;Void&gt; cancel(@PathVariable(&quot;id&quot;) UUID id) {
+<span class="fc" id="L52">        service.cancelOrder(id);</span>
+<span class="fc" id="L53">        return ResponseEntity.ok().build();</span>
+    }
+
+    @DeleteMapping(&quot;/{id}&quot;)
+    public ResponseEntity&lt;Void&gt; delete(@PathVariable(&quot;id&quot;) UUID id) {
+<span class="fc" id="L58">        service.delete(id);</span>
+<span class="fc" id="L59">        return ResponseEntity.noContent().build();</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

@@ -5,8 +5,7 @@ import com.fasterxml.jackson.annotation.JsonValue;
 
 public enum OrderStatus {
     NEW("New"),
-    PENDING("Pending"),
-    IN_PROGRESS("In Progress"),
+    PROCESSING("Processing"),
     READY("Ready"),
     COMPLETED("Completed"),
     PAID("Paid"),

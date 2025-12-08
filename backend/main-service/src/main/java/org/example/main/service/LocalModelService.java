@@ -1,6 +1,7 @@
 package org.example.main.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.example.main.exception.LocalModelException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;

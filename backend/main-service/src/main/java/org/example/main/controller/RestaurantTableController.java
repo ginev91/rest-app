@@ -1,8 +1,8 @@
 package org.example.main.controller;
 
-import jakarta.persistence.Table;
+import org.example.main.dto.request.ReservationRequestDto;
 import org.example.main.model.RestaurantTable;
-import org.example.main.model.TableReservation;
+import org.example.main.model.TableReservationEntity;
 import org.example.main.service.RestaurantTableService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,18 +10,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import org.example.main.dto.request.OccupyRequest;
-import org.example.main.dto.request.ReserveRequest;
 
 import java.util.List;
 import java.util.UUID;
 
 /**
  * Controller exposing reservation and occupancy endpoints.
- *
- * Notes for frontend:
- * - POST /api/tables/{tableId}/reserve
- *   Body: { "from":"2025-12-03T12:00:00+02:00", "to":"2025-12-03T13:00:00+02:00", "userId":"<uuid>" }
- *   Requires ROLE_ADMIN or ROLE_EMPLOYEE (configure @PreAuthorize as needed).
  *
  * - POST /api/tables/occupy
  *   Body: { "tableNumber": 5, "minutes": 60 }
@@ -45,19 +39,19 @@ public class RestaurantTableController {
     }
 
     @PostMapping("/{tableId}/reserve")
-    public ResponseEntity<TableReservation> reserve(
+    public ResponseEntity<TableReservationEntity> reserve(
             @PathVariable UUID tableId,
-            @RequestBody ReserveRequest req,
+            @RequestBody ReservationRequestDto req,
             @RequestHeader(value = "X-User-Id", required = false) UUID requesterId) {
 
         // TODO: Add @PreAuthorize("hasAnyRole('ADMIN','EMPLOYEE')") if security is configured.
-        TableReservation saved = service.reserveTable(tableId, req.from, req.to, requesterId, req.userId);
+        TableReservationEntity saved = service.reserveTable(tableId, req.getFrom(), req.getTo(), requesterId, req.getUserId());
         return ResponseEntity.ok(saved);
     }
 
     @GetMapping("/{tableId}/reservations")
-    public ResponseEntity<List<TableReservation>> getReservations(@PathVariable UUID tableId) {
-        List<TableReservation> list = service.findReservationsForTable(tableId);
+    public ResponseEntity<List<TableReservationEntity>> getReservations(@PathVariable UUID tableId) {
+        List<TableReservationEntity> list = service.findReservationsForTable(tableId);
         return ResponseEntity.ok(list);
     }
 

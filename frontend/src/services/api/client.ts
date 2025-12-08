@@ -32,20 +32,29 @@ api.interceptors.response.use(
     const originalRequest = error.config;
     if (!originalRequest) return Promise.reject(error);
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // Don't retry /me endpoint itself
+    if (error.response?.status === 401 && !originalRequest._retry && !originalRequest.url?.includes('/api/auth/me')) {
       originalRequest._retry = true;
       try {
+        // Try to verify session with /me
         const r = await api.get('/api/auth/me');
         
         if (r.status === 200) {
           return api(originalRequest);
         }
       } catch (refreshErr) {
+        // /me failed (401 or 403), logout and clear
         setAccessToken(null);
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         localStorage.removeItem('tableId');
         localStorage.removeItem('tableNumber');
+        
+        // Redirect to login
+        if (!window.location.pathname.includes('/login')) {
+          window.location.href = '/login';
+        }
+        
         return Promise.reject(refreshErr);
       }
     }

@@ -1,0 +1,224 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>KitchenOrderService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">kitchen-svc</a> &gt; <a href="index.source.html" class="el_package">org.example.kitchen.service</a> &gt; <span class="el_source">KitchenOrderService.java</span></div><h1>KitchenOrderService.java</h1><pre class="source lang-java linenums">package org.example.kitchen.service;
+
+import lombok.RequiredArgsConstructor;
+import org.example.kitchen.exception.KitchenOrderOperationException;
+import org.example.kitchen.model.KitchenOrder;
+import org.example.kitchen.model.enums.KitchenOrderStatus;
+import org.example.kitchen.repository.KitchenOrderRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import jakarta.annotation.PreDestroy;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Instant;
+import java.util.List;
+import java.util.Random;
+import java.util.UUID;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+
+/**
+ * KitchenOrderService — persists kitchen orders and schedules transition to READY after a randomized delay.
+ * Enhanced with validation and a cancel() operation that makes CANCELLED irreversible.
+ */
+@Service
+public class KitchenOrderService implements IKitchenOrderService {
+
+<span class="fc" id="L34">    private static final Logger log = LoggerFactory.getLogger(KitchenOrderService.class);</span>
+
+    private final KitchenOrderRepository repository;
+
+    // Scheduler
+<span class="fc" id="L39">    private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(2);</span>
+
+    // Random delay bounds (seconds)
+    private final int minPrepSeconds;
+    private final int maxPrepSeconds;
+
+    private final boolean callbackEnabled;
+    private final String callbackUrl;
+    private final String callbackSecret; // optional secret sent as header
+
+    private final boolean prepSchedulingEnabled;
+
+<span class="fc" id="L51">    private final Random random = new Random();</span>
+<span class="fc" id="L52">    private final HttpClient httpClient = HttpClient.newHttpClient();</span>
+
+<span class="fc" id="L54">    public KitchenOrderService(KitchenOrderRepository repository,</span>
+                               @Value(&quot;${kitchen.prep.min-seconds:5}&quot;) int minPrepSeconds,
+                               @Value(&quot;${kitchen.prep.max-seconds:20}&quot;) int maxPrepSeconds,
+                               @Value(&quot;${kitchen.callback.enabled:true}&quot;) boolean callbackEnabled,
+                               @Value(&quot;${kitchen.callback.url:}&quot;) String callbackUrl,
+                               @Value(&quot;${kitchen.callback.secret:}&quot;) String callbackSecret,
+                               @Value(&quot;${kitchen.prep.enabled:true}&quot;) boolean prepSchedulingEnabled)
+ {
+<span class="fc" id="L62">        this.repository = repository;</span>
+<span class="fc" id="L63">        this.minPrepSeconds = Math.max(1, minPrepSeconds);</span>
+<span class="fc" id="L64">        this.maxPrepSeconds = Math.max(this.minPrepSeconds, maxPrepSeconds);</span>
+<span class="fc" id="L65">        this.callbackEnabled = callbackEnabled;</span>
+<span class="pc bpc" id="L66" title="1 of 2 branches missed.">        this.callbackUrl = callbackUrl == null ? &quot;&quot; : callbackUrl.trim();</span>
+<span class="pc bpc" id="L67" title="1 of 2 branches missed.">        this.callbackSecret = callbackSecret == null ? &quot;&quot; : callbackSecret.trim();</span>
+<span class="fc" id="L68">        this.prepSchedulingEnabled = prepSchedulingEnabled;</span>
+
+<span class="fc" id="L70">    }</span>
+
+    @Override
+    @Transactional
+    public KitchenOrder createOrder(UUID orderId, String itemsJson) {
+<span class="fc" id="L75">        KitchenOrder o = KitchenOrder.builder()</span>
+<span class="fc" id="L76">                .orderId(orderId)</span>
+<span class="fc" id="L77">                .itemsJson(itemsJson)</span>
+<span class="fc" id="L78">                .status(KitchenOrderStatus.PREPARING)</span>
+<span class="fc" id="L79">                .createdAt(Instant.now())</span>
+<span class="fc" id="L80">                .build();</span>
+
+<span class="fc" id="L82">        KitchenOrder saved = repository.save(o);</span>
+<span class="fc" id="L83">        log.info(&quot;Kitchen order created: {} for source order {}&quot;, saved.getId(), orderId);</span>
+
+<span class="pc bpc" id="L85" title="1 of 2 branches missed.">        if (prepSchedulingEnabled) {</span>
+<span class="nc" id="L86">            scheduleCompletion(saved);</span>
+<span class="nc" id="L87">        } else {</span>
+<span class="fc" id="L88">            log.debug(&quot;Prep scheduling disabled; not scheduling completion for kitchen order {}&quot;, saved.getId());</span>
+        }
+
+<span class="fc" id="L91">        return saved;</span>
+    }
+
+    @Override
+    @Transactional
+    public KitchenOrder updateStatus(UUID id, KitchenOrderStatus newStatus) {
+<span class="fc" id="L97">        KitchenOrder o = repository.findById(id).orElseThrow(() -&gt; new KitchenOrderOperationException(&quot;Kitchen order not found: &quot; + id));</span>
+<span class="fc" id="L98">        KitchenOrderStatus current = o.getStatus();</span>
+
+        // If already CANCELLED, reject any further updates
+<span class="pc bpc" id="L101" title="1 of 2 branches missed.">        if (current == KitchenOrderStatus.CANCELLED) {</span>
+<span class="nc" id="L102">            throw new KitchenOrderOperationException(&quot;Kitchen order &quot; + id + &quot; is cancelled and cannot be modified.&quot;);</span>
+        }
+
+        // Optionally validate allowed transitions (simple rules shown here)
+<span class="fc bfc" id="L106" title="All 2 branches covered.">        if (!isValidTransition(current, newStatus)) {</span>
+<span class="fc" id="L107">            throw new KitchenOrderOperationException(&quot;Invalid status transition from &quot; + current + &quot; to &quot; + newStatus);</span>
+        }
+
+<span class="fc" id="L110">        o.setStatus(newStatus);</span>
+<span class="fc" id="L111">        o.setUpdatedAt(Instant.now());</span>
+<span class="fc" id="L112">        KitchenOrder saved = repository.save(o);</span>
+<span class="fc" id="L113">        log.info(&quot;Kitchen order {} status changed {} -&gt; {}&quot;, id, current, newStatus);</span>
+<span class="fc" id="L114">        return saved;</span>
+    }
+
+    @Override
+    @Transactional
+    public void cancelOrder(UUID id) {
+<span class="fc" id="L120">        KitchenOrder o = repository.findById(id).orElseThrow(() -&gt; new KitchenOrderOperationException(&quot;Kitchen order not found: &quot; + id));</span>
+<span class="fc" id="L121">        KitchenOrderStatus current = o.getStatus();</span>
+<span class="fc bfc" id="L122" title="All 2 branches covered.">        if (current == KitchenOrderStatus.CANCELLED) {</span>
+<span class="fc" id="L123">            throw new KitchenOrderOperationException(&quot;Kitchen order &quot; + id + &quot; is already cancelled&quot;);</span>
+        }
+
+        // allow cancelling from NEW, PREPARING, IN_PROGRESS, but disallow if READY/COMPLETED/SERVED
+<span class="pc bpc" id="L127" title="3 of 6 branches missed.">        if (current == KitchenOrderStatus.READY || current == KitchenOrderStatus.SERVED || current == KitchenOrderStatus.COMPLETED) {</span>
+<span class="nc" id="L128">            throw new KitchenOrderOperationException(&quot;Kitchen order &quot; + id + &quot; cannot be cancelled in state &quot; + current);</span>
+        }
+
+<span class="fc" id="L131">        o.setStatus(KitchenOrderStatus.CANCELLED);</span>
+<span class="fc" id="L132">        o.setUpdatedAt(Instant.now());</span>
+<span class="fc" id="L133">        repository.save(o);</span>
+<span class="fc" id="L134">        log.info(&quot;Kitchen order {} cancelled (was {})&quot;, id, current);</span>
+<span class="fc" id="L135">    }</span>
+
+    private boolean isValidTransition(KitchenOrderStatus from, KitchenOrderStatus to) {
+<span class="fc bfc" id="L138" title="All 2 branches covered.">        if (to == KitchenOrderStatus.CANCELLED) return true; // allow cancellation from many states (subject to cancelOrder checks)</span>
+<span class="pc bpc" id="L139" title="1 of 5 branches missed.">        switch (from) {</span>
+<span class="pc bpc" id="L140" title="3 of 4 branches missed.">            case NEW: return to == KitchenOrderStatus.PREPARING || to == KitchenOrderStatus.CANCELLED;</span>
+<span class="pc bpc" id="L141" title="1 of 6 branches missed.">            case PREPARING: return to == KitchenOrderStatus.IN_PROGRESS || to == KitchenOrderStatus.READY || to == KitchenOrderStatus.CANCELLED;</span>
+<span class="pc bpc" id="L142" title="1 of 4 branches missed.">            case IN_PROGRESS: return to == KitchenOrderStatus.READY || to == KitchenOrderStatus.CANCELLED;</span>
+<span class="pc bpc" id="L143" title="1 of 4 branches missed.">            case READY: return to == KitchenOrderStatus.SERVED || to == KitchenOrderStatus.COMPLETED;</span>
+<span class="nc" id="L144">            default: return false;</span>
+        }
+    }
+
+    private void scheduleCompletion(KitchenOrder ko) {
+<span class="nc" id="L149">        int delay = minPrepSeconds + random.nextInt(maxPrepSeconds - minPrepSeconds + 1);</span>
+<span class="nc" id="L150">        log.info(&quot;Scheduling kitchen order {} to become READY in {}s&quot;, ko.getId(), delay);</span>
+
+<span class="nc" id="L152">        scheduler.schedule(() -&gt; {</span>
+            try {
+<span class="nc" id="L154">                KitchenOrder current = repository.findById(ko.getId()).orElse(null);</span>
+<span class="nc bnc" id="L155" title="All 2 branches missed.">                if (current == null) {</span>
+<span class="nc" id="L156">                    log.warn(&quot;Kitchen order {} not found when completing&quot;, ko.getId());</span>
+<span class="nc" id="L157">                    return;</span>
+                }
+
+                // If already CANCELLED/COMPLETED/READY/SERVED, skip updating
+<span class="nc bnc" id="L161" title="All 2 branches missed.">                if (current.getStatus() == KitchenOrderStatus.CANCELLED</span>
+<span class="nc bnc" id="L162" title="All 2 branches missed.">                        || current.getStatus() == KitchenOrderStatus.READY</span>
+<span class="nc bnc" id="L163" title="All 2 branches missed.">                        || current.getStatus() == KitchenOrderStatus.COMPLETED</span>
+<span class="nc bnc" id="L164" title="All 2 branches missed.">                        || current.getStatus() == KitchenOrderStatus.SERVED) {</span>
+<span class="nc" id="L165">                    log.info(&quot;Kitchen order {} in status {}, skipping completion&quot;, ko.getId(), current.getStatus());</span>
+<span class="nc" id="L166">                    return;</span>
+                }
+
+<span class="nc" id="L169">                current.setStatus(KitchenOrderStatus.READY);</span>
+<span class="nc" id="L170">                current.setUpdatedAt(Instant.now());</span>
+<span class="nc" id="L171">                repository.save(current);</span>
+<span class="nc" id="L172">                log.info(&quot;Kitchen order {} marked READY&quot;, current.getId());</span>
+
+<span class="nc bnc" id="L174" title="All 6 branches missed.">                if (callbackEnabled &amp;&amp; callbackUrl != null &amp;&amp; !callbackUrl.isBlank()) {</span>
+                    try {
+<span class="nc" id="L176">                        String target = callbackUrl</span>
+<span class="nc" id="L177">                                .replace(&quot;{orderId}&quot;, current.getOrderId().toString())</span>
+<span class="nc" id="L178">                                .replace(&quot;{kitchenOrderId}&quot;, current.getId().toString());</span>
+<span class="nc" id="L179">                        HttpRequest.Builder builder = HttpRequest.newBuilder()</span>
+<span class="nc" id="L180">                                .uri(URI.create(target))</span>
+<span class="nc" id="L181">                                .timeout(java.time.Duration.ofSeconds(10))</span>
+<span class="nc" id="L182">                                .POST(HttpRequest.BodyPublishers.noBody());</span>
+
+                        // add optional secret header
+<span class="nc bnc" id="L185" title="All 4 branches missed.">                        if (callbackSecret != null &amp;&amp; !callbackSecret.isBlank()) {</span>
+<span class="nc" id="L186">                            builder.header(&quot;X-Callback-Secret&quot;, callbackSecret);</span>
+                        }
+
+<span class="nc" id="L189">                        HttpRequest req = builder.build();</span>
+<span class="nc" id="L190">                        HttpResponse&lt;String&gt; resp = httpClient.send(req, HttpResponse.BodyHandlers.ofString());</span>
+<span class="nc" id="L191">                        log.info(&quot;Callback to main-service returned status {} for kitchenOrder {}&quot;, resp.statusCode(), current.getId());</span>
+<span class="nc" id="L192">                    } catch (Exception cbEx) {</span>
+<span class="nc" id="L193">                        log.warn(&quot;Callback to main-service failed for kitchenOrder {}: {}&quot;, current.getId(), cbEx.getMessage());</span>
+                    }
+                }
+
+<span class="nc" id="L197">            } catch (Exception e) {</span>
+<span class="nc" id="L198">                log.error(&quot;Error while completing kitchen order {}: {}&quot;, ko.getId(), e.getMessage(), e);</span>
+            }
+<span class="nc" id="L200">        }, delay, TimeUnit.SECONDS);</span>
+<span class="nc" id="L201">    }</span>
+
+    @Override
+    @Transactional(readOnly = true)
+    public List&lt;KitchenOrder&gt; findByOrderId(UUID orderId) {
+<span class="fc" id="L206">        return repository.findByOrderId(orderId);</span>
+    }
+
+    @Override
+    @Transactional
+    public void delete(UUID id) {
+<span class="fc" id="L212">        repository.deleteById(id);</span>
+<span class="fc" id="L213">    }</span>
+
+    @PreDestroy
+    public void shutdown() {
+        try {
+<span class="fc" id="L218">            scheduler.shutdownNow();</span>
+<span class="pc" id="L219">        } catch (Exception e) {</span>
+<span class="nc" id="L220">            log.warn(&quot;Error shutting down kitchen scheduler: {}&quot;, e.getMessage());</span>
+        }
+<span class="fc" id="L222">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

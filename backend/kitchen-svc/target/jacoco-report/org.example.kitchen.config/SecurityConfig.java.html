@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SecurityConfig.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">kitchen-svc</a> &gt; <a href="index.source.html" class="el_package">org.example.kitchen.config</a> &gt; <span class="el_source">SecurityConfig.java</span></div><h1>SecurityConfig.java</h1><pre class="source lang-java linenums">package org.example.kitchen.config;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
+import org.springframework.core.convert.converter.Converter;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
+import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
+import org.springframework.security.web.SecurityFilterChain;
+
+import javax.crypto.spec.SecretKeySpec;
+import java.nio.charset.StandardCharsets;
+import java.util.Collection;
+import java.util.stream.Collectors;
+
+/**
+ * Security configuration for kitchen service (resource server).
+ */
+@Profile(&quot;!test&quot;)
+@Configuration
+@EnableMethodSecurity
+<span class="nc" id="L28">public class SecurityConfig {</span>
+
+    @Value(&quot;${security.jwt.secret:}&quot;)
+    private String jwtSecret;
+
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+<span class="nc" id="L35">        http</span>
+<span class="nc" id="L36">                .csrf(csrf -&gt; csrf.disable())</span>
+<span class="nc" id="L37">                .authorizeHttpRequests(auth -&gt; auth</span>
+<span class="nc" id="L38">                        .requestMatchers(&quot;/api/public/**&quot;, &quot;/actuator/health&quot;, &quot;/actuator/info&quot;).permitAll()</span>
+
+<span class="nc" id="L40">                        .requestMatchers(&quot;/api/kitchen/orders&quot;, &quot;/api/kitchen/orders/by-order/**&quot;).permitAll()</span>
+
+<span class="nc" id="L42">                        .requestMatchers(&quot;/api/kitchen/admin/**&quot;).hasRole(&quot;ADMIN&quot;)</span>
+<span class="nc" id="L43">                        .anyRequest().authenticated()</span>
+                )
+<span class="nc" id="L45">                .oauth2ResourceServer(oauth2 -&gt; oauth2</span>
+<span class="nc" id="L46">                        .jwt(jwt -&gt; jwt</span>
+<span class="nc" id="L47">                                .jwtAuthenticationConverter(jwtAuthenticationConverter())</span>
+<span class="nc" id="L48">                        )</span>
+                );
+
+<span class="nc" id="L51">        return http.build();</span>
+    }
+
+    private Converter&lt;org.springframework.security.oauth2.jwt.Jwt, JwtAuthenticationToken&gt; jwtAuthenticationConverter() {
+<span class="nc" id="L55">        JwtGrantedAuthoritiesConverter grantedAuthoritiesConverter = new JwtGrantedAuthoritiesConverter();</span>
+<span class="nc" id="L56">        grantedAuthoritiesConverter.setAuthoritiesClaimName(&quot;roles&quot;);</span>
+<span class="nc" id="L57">        grantedAuthoritiesConverter.setAuthorityPrefix(&quot;ROLE_&quot;);</span>
+
+<span class="nc" id="L59">        return jwt -&gt; {</span>
+<span class="nc" id="L60">            Collection&lt;GrantedAuthority&gt; authorities = grantedAuthoritiesConverter.convert(jwt);</span>
+<span class="nc" id="L61">            Collection&lt;GrantedAuthority&gt; mapped = authorities.stream()</span>
+<span class="nc" id="L62">                    .map(a -&gt; (GrantedAuthority) () -&gt; a.getAuthority().trim())</span>
+<span class="nc" id="L63">                    .collect(Collectors.toList());</span>
+
+<span class="nc" id="L65">            return new JwtAuthenticationToken(jwt, mapped);</span>
+        };
+    }
+
+    @Bean
+    public JwtDecoder jwtDecoder() {
+<span class="nc bnc" id="L71" title="All 4 branches missed.">        if (jwtSecret == null || jwtSecret.isBlank()) {</span>
+<span class="nc" id="L72">            return NimbusJwtDecoder.withJwkSetUri(&quot;https://example.com/.well-known/jwks.json&quot;).build();</span>
+        }
+<span class="nc" id="L74">        byte[] keyBytes = jwtSecret.getBytes(StandardCharsets.UTF_8);</span>
+<span class="nc" id="L75">        SecretKeySpec secretKey = new SecretKeySpec(keyBytes, &quot;HmacSHA256&quot;);</span>
+<span class="nc" id="L76">        return NimbusJwtDecoder.withSecretKey(secretKey).build();</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

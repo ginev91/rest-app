@@ -18,7 +18,7 @@
 
     <properties>
         <java.version>17</java.version>
-        <lombok.version>1.18.28</lombok.version>
+        <lombok.version>1.18.32</lombok.version>
         <maven.compiler.plugin.version>3.11.0</maven.compiler.plugin.version>
     </properties>
 
@@ -98,6 +98,11 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>org.springframework.security</groupId>
             <artifactId>spring-security-test</artifactId>
             <scope>test</scope>
@@ -115,6 +120,10 @@
 
     <build>
         <plugins>
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+            </plugin>
             <!-- Spring Boot plugin -->
             <plugin>
                 <groupId>org.springframework.boot</groupId>
@@ -125,6 +134,22 @@
                         <goals>
                             <goal>repackage</goal>
                         </goals>
+                        <configuration>
+                            <!-- Only consider these packages for the coverage calculation -->
+                            <includes>
+                                <include>org/example/kitchen/service/**</include>
+                                <include>org/example/kitchen/controller/**</include>
+                                <include>org/example/kitchen/mapper/**</include>
+                                <include>org/example/kitchen/model/**</include>
+                                <include>org/example/kitchen/dto/**</include>
+                            </includes>
+
+                            <!-- Make sure excluded packages don't lower the measured coverage -->
+                            <excludes>
+                                <exclude>org/example/kitchen/config/**</exclude>
+                                <exclude>org/example/kitchen/scheduler/**</exclude>
+                            </excludes>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>

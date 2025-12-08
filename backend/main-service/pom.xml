@@ -150,6 +150,11 @@
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
         <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-devtools</artifactId>
             <scope>runtime</scope>
@@ -165,6 +170,10 @@
         <plugins>
             <!-- Spring Boot plugin -->
             <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+            </plugin>
+            <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <version>3.5.3</version>
@@ -173,6 +182,22 @@
                         <goals>
                             <goal>repackage</goal>
                         </goals>
+                        <configuration>
+                            <!-- Only consider these packages for the coverage calculation -->
+                            <includes>
+                                <include>org/example/main/service/**</include>
+                                <include>org/example/main/controller/**</include>
+                                <include>org/example/main/mapper/**</include>
+                                <include>org/example/main/model/**</include>
+                                <include>org/example/main/dto/**</include>
+                            </includes>
+
+                            <!-- Make sure excluded packages don't lower the measured coverage -->
+                            <excludes>
+                                <exclude>org/example/main/config/**</exclude>
+                                <exclude>org/example/main/scheduler/**</exclude>
+                            </excludes>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>

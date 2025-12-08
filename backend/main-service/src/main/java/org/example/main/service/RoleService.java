@@ -38,9 +38,4 @@ public class RoleService implements IRoleService {
         return roleRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Role not found: " + id));
     }
-
-    @Override
-    public Role create(Role role) {
-        return roleRepository.save(role);
-    }
 }

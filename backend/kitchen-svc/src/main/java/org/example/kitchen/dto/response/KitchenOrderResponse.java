@@ -1,7 +1,7 @@
 package org.example.kitchen.dto.response;
 
 import lombok.Data;
-import org.example.kitchen.model.KitchenOrderStatus;
+import org.example.kitchen.model.enums.KitchenOrderStatus;
 
 import java.time.Instant;
 import java.util.UUID;

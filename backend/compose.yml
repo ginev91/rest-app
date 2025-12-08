@@ -32,77 +32,79 @@ services:
     networks:
       - backend-network
 
-  kitchen-svc:
-    volumes:
-      # Remove :cached on macOS so file changes propagate into the container immediately
-      - ./kitchen-svc:/workspace/kitchen-svc
-      - ~/.m2:/root/.m2:rw
-    working_dir: /workspace/kitchen-svc
-    command: mvn -DskipTests spring-boot:run
-    build:
-      context: .
-      dockerfile: kitchen-svc/Dockerfile
-    container_name: kitchen-svc
-    environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/kitchen_db
-      SPRING_DATASOURCE_USERNAME: myuser
-      SPRING_DATASOURCE_PASSWORD: canti
-      SPRING_REDIS_HOST: redis
-      SPRING_ZIPKIN_BASE_URL: http://zipkin:9411
-      SPRING_PROFILES_ACTIVE: docker local
-    ports:
-      - "8081:8081"
-    depends_on:
-      - redis
-      - postgres
-    restart: on-failure
-    networks:
-      - backend-network
-    healthcheck:
-      test: [ "CMD-SHELL", "curl -f http://localhost:8081/actuator/health || exit 1" ]
-      interval: 10s
-      timeout: 5s
-      retries: 8
+# develop in local env
+#  kitchen-svc:
+#    volumes:
+#      # Remove :cached on macOS so file changes propagate into the container immediately
+#      - ./kitchen-svc:/workspace/kitchen-svc
+#      - ~/.m2:/root/.m2:rw
+#    working_dir: /workspace/kitchen-svc
+#    command: mvn -DskipTests spring-boot:run
+#    build:
+#      context: .
+#      dockerfile: kitchen-svc/Dockerfile
+#    container_name: kitchen-svc
+#    environment:
+#      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/kitchen_db
+#      SPRING_DATASOURCE_USERNAME: myuser
+#      SPRING_DATASOURCE_PASSWORD: canti
+#      SPRING_REDIS_HOST: redis
+#      SPRING_ZIPKIN_BASE_URL: http://zipkin:9411
+#      SPRING_PROFILES_ACTIVE: docker local
+#    ports:
+#      - "8081:8081"
+#    depends_on:
+#      - redis
+#      - postgres
+#    restart: on-failure
+#    networks:
+#      - backend-network
+#    healthcheck:
+#      test: [ "CMD-SHELL", "curl -f http://localhost:8081/actuator/health || exit 1" ]
+#      interval: 10s
+#      timeout: 5s
+#      retries: 8
 
-  main-service:
-    volumes:
-      - ./main-service:/workspace/main-service
-      - ~/.m2:/root/.m2:rw
-    working_dir: /workspace/main-service
-    command: mvn -DskipTests spring-boot:run
-    build:
-      context: .
-      dockerfile: main-service/Dockerfile
-    container_name: main-service
-    environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/main_app_db
-      SPRING_DATASOURCE_USERNAME: myuser
-      SPRING_DATASOURCE_PASSWORD: canti
-      SPRING_REDIS_HOST: redis
-      SPRING_ZIPKIN_BASE_URL: http://zipkin:9411
-      KITCHEN_SERVICE_URL: http://kitchen-svc:8081
-      FEIGN_KITCHEN_URL: http://kitchen-svc:8081
-      SPRING_PROFILES_ACTIVE: "docker, local"
-      SPRING_APPLICATION_JSON: '{"app.reinitialize":false}'
-      MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: "health,info"
-      MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS: "always"
-      KITCHEN_CALLBACK_ENABLED: "true"
-      KITCHEN_CALLBACK_URL: "http://main-service:8080/api/internal/orders/{orderId}/kitchen-ready?kitchenOrderId={kitchenOrderId}"
-    ports:
-      - "8080:8080"
-    depends_on:
-      - postgres
-      - redis
-      - kitchen-svc
-      - ollama
-    restart: on-failure
-    networks:
-      - backend-network
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 8
+# develop in local env
+#  main-service:
+#    volumes:
+#      - ./main-service:/workspace/main-service
+#      - ~/.m2:/root/.m2:rw
+#    working_dir: /workspace/main-service
+#    command: mvn -DskipTests spring-boot:run
+#    build:
+#      context: .
+#      dockerfile: main-service/Dockerfile
+#    container_name: main-service
+#    environment:
+#      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/main_app_db
+#      SPRING_DATASOURCE_USERNAME: myuser
+#      SPRING_DATASOURCE_PASSWORD: canti
+#      SPRING_REDIS_HOST: redis
+#      SPRING_ZIPKIN_BASE_URL: http://zipkin:9411
+#      KITCHEN_SERVICE_URL: http://kitchen-svc:8081
+#      FEIGN_KITCHEN_URL: http://kitchen-svc:8081
+#      SPRING_PROFILES_ACTIVE: "docker, local"
+#      SPRING_APPLICATION_JSON: '{"app.reinitialize":false}'
+#      MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: "health,info"
+#      MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS: "always"
+#      KITCHEN_CALLBACK_ENABLED: "true"
+#      KITCHEN_CALLBACK_URL: "http://main-service:8080/api/internal/orders/{orderId}/kitchen-ready?kitchenOrderId={kitchenOrderId}"
+#    ports:
+#      - "8080:8080"
+#    depends_on:
+#      - postgres
+#      - redis
+#      - kitchen-svc
+#      - ollama
+#    restart: on-failure
+#    networks:
+#      - backend-network
+#    healthcheck:
+#      test: ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]
+#      interval: 10s
+#      timeout: 5s
+#      retries: 8
 
   ollama:
     image: ollama/ollama:latest

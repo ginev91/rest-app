@@ -10,5 +10,4 @@ public interface IRoleService {
     List<Role> findAll();
     Optional<Role> findByName(String name);
     Role findById(UUID id);
-    Role create(Role role);
 }

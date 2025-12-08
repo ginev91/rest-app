@@ -1,0 +1,9 @@
+GROUP,PACKAGE,CLASS,INSTRUCTION_MISSED,INSTRUCTION_COVERED,BRANCH_MISSED,BRANCH_COVERED,LINE_MISSED,LINE_COVERED,COMPLEXITY_MISSED,COMPLEXITY_COVERED,METHOD_MISSED,METHOD_COVERED
+kitchen-svc,org.example.kitchen.service,KitchenOrderService,220,270,34,29,42,56,25,21,2,11
+kitchen-svc,org.example.kitchen.controller,KitchenOrderController,0,59,0,0,0,12,0,5,0,5
+kitchen-svc,org.example.kitchen.model.enums,KitchenOrderStatus,12,74,2,0,4,8,2,1,1,1
+kitchen-svc,org.example.kitchen,KitchenServiceApplication,5,3,0,0,2,1,1,1,1,1
+kitchen-svc,org.example.kitchen.config,SecurityConfig,138,0,4,0,27,0,13,0,11,0
+kitchen-svc,org.example.kitchen.mapper,KitchenOrderMapper,2,32,1,1,0,9,1,1,0,1
+kitchen-svc,org.example.kitchen.exception,KitchenOrderOperationException,5,4,0,0,2,2,1,1,1,1
+kitchen-svc,org.example.kitchen.exception,RestExceptionHandler,16,3,0,0,2,1,2,1,2,1

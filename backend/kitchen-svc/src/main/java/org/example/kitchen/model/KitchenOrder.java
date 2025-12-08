@@ -2,6 +2,7 @@ package org.example.kitchen.model;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.example.kitchen.model.enums.KitchenOrderStatus;
 import org.hibernate.annotations.GenericGenerator;
 
 import java.time.Instant;

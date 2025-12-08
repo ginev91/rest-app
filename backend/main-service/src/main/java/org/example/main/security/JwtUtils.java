@@ -19,15 +19,10 @@ import java.util.Date;
 import java.util.List;
 
 /**
- * Utility for JWT generation/validation. Reads properties with fallbacks:
- * - jwt.secret
- * - app.jwtSecret
- * - environment APP_JWT_SECRET
+ * Utility for JWT generation/validation.
+ * Token retrieval is cookie-first (cookie name "access_token").
  *
- * and for expiration:
- * - jwt.expiration-ms
- * - app.jwtExpirationMs
- * - environment APP_JWT_EXPIRATION_MS
+ * This version includes roles in the generated token under the "roles" claim.
  */
 @Component
 public class JwtUtils {
@@ -45,7 +40,6 @@ public class JwtUtils {
             );
         }
 
-
         if (jwtSecret.length() < 32) {
             throw new IllegalArgumentException("JWT secret must be at least 32 characters for HS256");
         }
@@ -55,31 +49,36 @@ public class JwtUtils {
     }
 
     /**
-     * Generate JWT for a username (convenience for login/register).
+     * Generate token for a username with roles included in the "roles" claim.
      */
-    public String generateToken(String username) {
+    public String generateToken(String username, List<String> roles) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + jwtExpirationMs);
-        return Jwts.builder()
+        JwtBuilder builder = Jwts.builder()
                 .setSubject(username)
                 .setIssuedAt(now)
                 .setExpiration(expiry)
-                .signWith(signingKey, SignatureAlgorithm.HS256)
-                .compact();
+                .signWith(signingKey, SignatureAlgorithm.HS256);
+
+        if (roles != null && !roles.isEmpty()) {
+            builder.claim("roles", roles);
+        }
+
+        return builder.compact();
     }
 
     /**
-     * Extract username/subject from token.
+     * Backward-compatible token generation without roles (delegates).
      */
+    public String generateToken(String username) {
+        return generateToken(username, List.of());
+    }
+
     public String getUsernameFromToken(String token) {
         Claims claims = parseClaims(token);
         return claims.getSubject();
     }
 
-    /**
-     * Validate token signature and expiration. Returns true if valid, false otherwise.
-     * Does not throw (caller can react).
-     */
     public boolean validateToken(String token) {
         try {
             parseClaims(token);
@@ -99,25 +98,13 @@ public class JwtUtils {
                 .getBody();
     }
 
+    /**
+     * Retrieve token from the HttpServletRequest.
+     * Prefers cookie-based token (cookie name "access_token").
+     */
     public String getTokenFromRequest(HttpServletRequest request) {
         if (request == null) return null;
 
-        // 1) Authorization header
-        String header = request.getHeader("Authorization");
-        if (header != null && !header.isBlank()) {
-            header = header.trim();
-            if (header.length() > 7 && header.substring(0, 7).equalsIgnoreCase("Bearer ")) {
-                return header.substring(7).trim();
-            }
-        }
-
-        // 2) query parameter or form param
-        String param = request.getParameter("access_token");
-        if (param != null && !param.isBlank()) {
-            return param.trim();
-        }
-
-        // 3) cookie (optional)
         try {
             Cookie[] cookies = request.getCookies();
             if (cookies != null) {
@@ -128,7 +115,11 @@ public class JwtUtils {
                 }
             }
         } catch (Exception ignored) {
-            // ignore cookie parsing issues
+        }
+
+        String param = request.getParameter("access_token");
+        if (param != null && !param.isBlank()) {
+            return param.trim();
         }
 
         return null;
@@ -138,11 +129,10 @@ public class JwtUtils {
         if (userDetails == null) return null;
 
         List<SimpleGrantedAuthority> authorities = new ArrayList<>();
-
         try {
             String token = getTokenFromRequest(request);
             if (token != null && !token.isBlank() && validateToken(token)) {
-                io.jsonwebtoken.Claims claims = parseClaims(token);
+                Claims claims = parseClaims(token);
                 Object rolesClaim = claims.get("roles");
                 if (rolesClaim instanceof List<?>) {
                     for (Object r : (List<?>) rolesClaim) {
@@ -155,7 +145,6 @@ public class JwtUtils {
                 }
             }
         } catch (Exception ignored) {
-            // fall back to userDetails authorities below
         }
 
         if (authorities.isEmpty()) {
@@ -167,5 +156,9 @@ public class JwtUtils {
             auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
         }
         return auth;
+    }
+
+    public long getJwtExpirationMs() {
+        return jwtExpirationMs;
     }
 }

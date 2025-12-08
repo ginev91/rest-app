@@ -83,7 +83,7 @@ public class OrderEntity {
     public boolean claimByWaiter(UUID newWaiterId) {
         if (this.waiterId == null) {
             this.waiterId = newWaiterId;
-            this.status = OrderStatus.IN_PROGRESS; // adjust to your status values
+            this.status = OrderStatus.PROCESSING; // adjust to your status values
             return true;
         }
         return false;

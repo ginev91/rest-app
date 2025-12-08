@@ -2,7 +2,7 @@ package org.example.main.service;
 
 import org.example.main.exception.ResourceNotFoundException;
 import org.example.main.model.RestaurantTable;
-import org.example.main.model.TableReservation;
+import org.example.main.model.TableReservationEntity;
 import org.example.main.model.enums.TableStatus;
 import org.example.main.repository.RestaurantTableRepository;
 import org.example.main.repository.TableReservationRepository;
@@ -130,15 +130,15 @@ public class RestaurantTableService implements IRestaurantTableService {
      * Reserve a table for a time window. Rejects overlapping reservations.
      */
     @Transactional
-    public TableReservation reserveTable(UUID tableId, OffsetDateTime from, OffsetDateTime to, UUID requestedBy, UUID userId) {
+    public TableReservationEntity reserveTable(UUID tableId, OffsetDateTime from, OffsetDateTime to, UUID requestedBy, UUID userId) {
         if (from == null || to == null || !to.isAfter(from)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid reservation window");
         }
-        List<TableReservation> conflicts = reservationRepository.findByTableIdAndEndTimeAfterAndStartTimeBefore(tableId, from, to);
+        List<TableReservationEntity> conflicts = reservationRepository.findByTableIdAndEndTimeAfterAndStartTimeBefore(tableId, from, to);
         if (!conflicts.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Table already reserved for this time");
         }
-        TableReservation r = TableReservation.builder()
+        TableReservationEntity r = TableReservationEntity.builder()
                 .tableId(tableId)
                 .userId(userId)
                 .startTime(from)
@@ -152,7 +152,7 @@ public class RestaurantTableService implements IRestaurantTableService {
         return tableRepository.findByTableNumber(tableNumber);
     }
 
-    public List<TableReservation> findReservationsForTable(UUID tableId) {
+    public List<TableReservationEntity> findReservationsForTable(UUID tableId) {
         return reservationRepository.findByTableId(tableId);
     }
 }

@@ -31,20 +31,30 @@ public class KitchenOrderController {
     }
 
     @GetMapping("/by-order/{orderId}")
-    public ResponseEntity<List<KitchenOrderResponse>> getByOrder(@PathVariable UUID orderId) {
+    public ResponseEntity<List<KitchenOrderResponse>> getByOrder(@PathVariable("orderId") UUID orderId) {
         List<KitchenOrderResponse> list = service.findByOrderId(orderId)
                 .stream().map(KitchenOrderMapper::toResponse).collect(Collectors.toList());
         return ResponseEntity.ok(list);
     }
 
     @PutMapping("/{id}/status")
-    public ResponseEntity<KitchenOrderResponse> updateStatus(@PathVariable UUID id, @Valid @RequestBody UpdateStatusRequest req) {
+    public ResponseEntity<KitchenOrderResponse> updateStatus(@PathVariable("id") UUID id, @Valid @RequestBody UpdateStatusRequest req) {
         KitchenOrder updated = service.updateStatus(id, req.getStatus());
         return ResponseEntity.ok(KitchenOrderMapper.toResponse(updated));
     }
 
+    /**
+     * Dedicated cancel endpoint for convenience and clearer intent.
+     * Enforces domain rules in the service (cancellation irreversibility).
+     */
+    @PostMapping("/{id}/cancel")
+    public ResponseEntity<Void> cancel(@PathVariable("id") UUID id) {
+        service.cancelOrder(id);
+        return ResponseEntity.ok().build();
+    }
+
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+    public ResponseEntity<Void> delete(@PathVariable("id") UUID id) {
         service.delete(id);
         return ResponseEntity.noContent().build();
     }
