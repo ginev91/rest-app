@@ -17,15 +17,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-/**
- * Global exception handler for the Main application.
- * Handles:
- *  - validation errors (MethodArgumentNotValidException, ConstraintViolationException)
- *  - ResponseStatusException (preserves status and reason)
- *  - ResourceNotFoundException -> 404
- *  - FeignException -> 502 Bad Gateway (upstream failure)
- *  - generic Exception -> 500 Internal Server Error
- */
 @ControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -71,7 +62,7 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(body, ex.getStatusCode());
     }
 
-    // Custom application exception handler -> ensures there's at least one custom exception handler in Main
+    
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<Object> handleResourceNotFound(ResourceNotFoundException ex) {
         Map<String, Object> body = Map.of(
@@ -82,7 +73,7 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(body, HttpStatus.NOT_FOUND);
     }
 
-    // Handle Feign client errors (upstream microservice failures)
+    
     @ExceptionHandler(FeignException.class)
     public ResponseEntity<Object> handleFeignException(FeignException ex) {
         String details = "";
@@ -98,7 +89,7 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(body, HttpStatus.BAD_GATEWAY);
     }
 
-    // Generic fallback - avoids white-label pages
+    
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Object> handleOther(Exception ex) {
         log.error("Unhandled exception", ex);

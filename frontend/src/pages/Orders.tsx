@@ -116,7 +116,7 @@ const Orders = () => {
   };
 
   const OrderCard = ({ order }: { order: Order }) => {
-    // Fallback to Pending if status not found
+    
     const config = statusConfig[order.status] || statusConfig['Pending'];
     const Icon = config?.icon || Clock;
     const userName = order.username;
@@ -221,7 +221,7 @@ const Orders = () => {
       );
     }
 
-    // Case-insensitive filtering
+    
     const activeOrders = orders.filter(o => 
       o.status.toLowerCase() !== 'completed' && 
       o.status.toLowerCase() !== 'cancelled'

@@ -7,9 +7,6 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 import java.util.stream.Collectors;
 
-/**
- * Simple hand-written mapper for Role <-> RoleResponseDto.
- */
 @Component
 public class RoleMapper {
 

@@ -61,7 +61,7 @@ public class TableReservationService implements ITableReservationService {
     @Override
     @Transactional(readOnly = true)
     public List<TableReservationEntity> findReservationHistoryForTable(UUID tableId) {
-        // return all reservations (including deleted/cancelled) for a table — you can implement a custom query if needed
-        return reservationRepository.findByTableIdAndDeletedFalse(tableId); // placeholder: if you want history including deleted, add repository method
+        
+        return reservationRepository.findByTableIdAndDeletedFalse(tableId); 
     }
 }

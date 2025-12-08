@@ -51,7 +51,7 @@ public class MenuItemController {
     @PutMapping("/{id}")
     public ResponseEntity<MenuItemResponseDto> update(@PathVariable UUID id,
                                                    @Valid @RequestBody MenuItemRequestDto changes) {
-        // fetch existing, copy allowed fields from DTO, save through service
+        
         MenuItem existing = menuItemService.findById(id);
         MenuItemMapper.copyToEntity(changes, existing);
         MenuItem updated = menuItemService.update(id, existing);

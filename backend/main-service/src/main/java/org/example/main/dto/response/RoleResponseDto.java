@@ -4,9 +4,6 @@ import lombok.*;
 
 import java.util.UUID;
 
-/**
- * Simple response DTO for Role returned by controllers.
- */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

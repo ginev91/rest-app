@@ -25,13 +25,6 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-/**
- * Pure-unit test for KitchenOrderController using MockMvc standalone setup.
- * No Spring context is started — fast and isolated.
- *
- * Note: This test uses Mockito.mockStatic for KitchenOrderMapper; if you don't want
- * static mocking, adapt the mapper to be an injectable bean and mock it normally.
- */
 @ExtendWith(MockitoExtension.class)
 class KitchenOrderControllerUnitTest {
 
@@ -150,7 +143,7 @@ class KitchenOrderControllerUnitTest {
                     .andExpect(jsonPath("$.status").value("IN_PROGRESS"));
         }
 
-        // cancel endpoint (void): verify the service is called
+        
         mvc.perform(post("/api/kitchen/orders/{id}/cancel", id.toString()))
                 .andExpect(status().isOk());
         Mockito.verify(service).cancelOrder(id);

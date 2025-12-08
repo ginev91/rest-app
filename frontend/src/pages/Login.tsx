@@ -31,16 +31,16 @@ const Login = () => {
 
     try {
       if (isRegister) {
-        // Registration flow
+        
         const user = await register(email, password, name);
-        // ✅ Registration successful - switch to login and keep email filled
+        
         toast.success('Account created successfully! Please login with your table PIN.');
         setIsRegister(false);
-        setPassword(''); // Clear password for security
-        setName(''); // Clear name
-        // Keep email filled so user can easily login
+        setPassword(''); 
+        setName(''); 
+        
       } else {
-        // Login flow - requires table authentication for CUSTOMER role
+        
         if (!tableNumber.trim()) {
           toast.error('Please enter your table number');
           setIsLoading(false);
@@ -53,10 +53,10 @@ const Login = () => {
           return;
         }
 
-        // Login with table authentication
+        
         const user = await login(email, password, parseInt(tableNumber), tablePin);
         if (user) {
-          // Save table info to localStorage
+          
           localStorage.setItem('tableNumber', tableNumber);
           
           if (user.tableId) {
@@ -188,13 +188,13 @@ const Login = () => {
                 setIsRegister(!isRegister);
                 setTableNumber('');
                 setTablePin('');
-                // ✅ Optionally clear form when switching modes
+                
                 if (isRegister) {
-                  // Switching from register to login - keep email
+                  
                   setPassword('');
                   setName('');
                 } else {
-                  // Switching from login to register - clear everything
+                  
                   setPassword('');
                   setName('');
                 }

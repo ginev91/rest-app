@@ -36,7 +36,6 @@ public class AppScheduler {
         this.menuItemRepository = menuItemRepository;
     }
 
-    // Periodic: every 5 minutes - log active tables with brief details
     @Scheduled(fixedRateString = "${app.scheduled.rate:300000}")
     public void periodicJob() {
         try {
@@ -89,7 +88,7 @@ public class AppScheduler {
         }
     }
 
-    // Daily: run at 01:05 to report on previous day
+    
     @Scheduled(cron = "0 5 1 * * ?")
     public void dailyReportJob() {
         try {
@@ -105,16 +104,16 @@ public class AppScheduler {
 
             int ordersCount = orders.size();
 
-            // compute total revenue safely: flatMap items -> map to BigDecimal total -> reduce
+            
             BigDecimal totalRevenue = orders.stream()
-                    .flatMap(o -> safeStream(o.getItems()).map(this::itemTotal)) // Stream<BigDecimal>
+                    .flatMap(o -> safeStream(o.getItems()).map(this::itemTotal)) 
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
 
             BigDecimal avgPerOrder = (ordersCount == 0)
                     ? BigDecimal.ZERO
                     : totalRevenue.divide(BigDecimal.valueOf(ordersCount), 2, BigDecimal.ROUND_HALF_UP);
 
-            // Build per-item aggregates (quantity and revenue)
+            
             Map<UUID, ItemAgg> agg = new HashMap<>();
             for (OrderEntity o : orders) {
                 for (OrderItem oi : safeCollection(o.getItems())) {

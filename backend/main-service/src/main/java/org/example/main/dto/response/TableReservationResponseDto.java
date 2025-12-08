@@ -15,7 +15,7 @@ public class TableReservationResponseDto {
     private UUID userId;
     private OffsetDateTime startTime;
     private OffsetDateTime endTime;
-    private String status; // use enum.name()
+    private String status;
     private boolean deleted;
     private OffsetDateTime createdAt;
     private OffsetDateTime updatedAt;

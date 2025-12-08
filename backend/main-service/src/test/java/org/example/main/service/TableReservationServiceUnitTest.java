@@ -20,9 +20,6 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
-/**
- * Unit tests for TableReservationService.
- */
 @ExtendWith(MockitoExtension.class)
 class TableReservationServiceUnitTest {
 
@@ -34,14 +31,14 @@ class TableReservationServiceUnitTest {
 
     @BeforeEach
     void setUp() {
-        // Mockito injects mocks
+        
     }
 
     @Test
     void reserveTable_throwsBadRequest_forInvalidWindow() {
         UUID tableId = UUID.randomUUID();
         OffsetDateTime from = OffsetDateTime.now();
-        OffsetDateTime to = from.minusMinutes(5); // invalid
+        OffsetDateTime to = from.minusMinutes(5); 
 
         assertThatThrownBy(() -> service.reserveTable(tableId, from, to, UUID.randomUUID(), UUID.randomUUID()))
                 .isInstanceOf(ResponseStatusException.class)

@@ -6,9 +6,6 @@ import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.List;
 
-/**
- * Full order DTO returned by GET /api/orders/{id}
- */
 @Getter
 @Setter
 @NoArgsConstructor

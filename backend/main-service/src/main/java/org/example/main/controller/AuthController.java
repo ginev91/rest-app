@@ -43,15 +43,6 @@ public class AuthController {
         }
     }
 
-    /**
-     * Login: returns AuthResponseDto in the body and sets an HttpOnly cookie with the JWT.
-     * Cookie name: access_token
-     *
-     * Notes:
-     * - For ROLE_USER clients the service requires tableNumber and tablePin; the service will
-     *   validate them and throw IllegalArgumentException when missing/invalid.
-     * - For ROLE_EMPLOYEE and ROLE_ADMIN those fields are ignored by the service.
-     */
     @PostMapping("/login")
     public ResponseEntity<AuthResponseDto> login(@Valid @RequestBody LoginRequestDto dto, HttpSession session) {
         AuthResponseDto resp = (AuthResponseDto) userService.login(dto, session);
@@ -60,7 +51,7 @@ public class AuthController {
 
         ResponseCookie cookie = ResponseCookie.from("access_token", resp.getToken())
                 .httpOnly(true)
-                .secure(false) // set to true in production (requires HTTPS)
+                .secure(false) 
                 .path("/")
                 .sameSite("Lax")
                 .maxAge(Duration.ofSeconds(maxAgeSeconds))
@@ -71,14 +62,11 @@ public class AuthController {
                 .body(resp);
     }
 
-    /**
-     * Clear the access_token cookie
-     */
     @PostMapping("/logout")
     public ResponseEntity<Void> logout() {
         ResponseCookie cookie = ResponseCookie.from("access_token", "")
                 .httpOnly(true)
-                .secure(false) // set to true in production
+                .secure(false) 
                 .path("/")
                 .sameSite("Lax")
                 .maxAge(Duration.ZERO)

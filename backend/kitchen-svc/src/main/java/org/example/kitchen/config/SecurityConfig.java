@@ -19,9 +19,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.stream.Collectors;
 
-/**
- * Security configuration for kitchen service (resource server).
- */
 @Profile("!test")
 @Configuration
 @EnableMethodSecurity

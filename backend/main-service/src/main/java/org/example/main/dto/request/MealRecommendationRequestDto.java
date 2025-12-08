@@ -7,10 +7,6 @@ import lombok.NoArgsConstructor;
 
 import jakarta.validation.constraints.NotBlank;
 
-/**
- * Simple request DTO that matches the frontend:
- * export interface RecommendationRequest { prompt: string }
- */
 @Data
 @Builder
 @NoArgsConstructor

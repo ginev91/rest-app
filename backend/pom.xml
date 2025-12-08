@@ -14,7 +14,6 @@
         <java.version>17</java.version>
         <spring.boot.version>3.5.3</spring.boot.version>
         <spring.cloud.version>2025.0.0</spring.cloud.version>
-        <lombok.version>1.18.28</lombok.version>
         <maven.compiler.plugin.version>3.11.0</maven.compiler.plugin.version>
         <jacoco.version>0.8.12</jacoco.version>
         <code.coverage.minimum>0.90</code.coverage.minimum>
@@ -27,7 +26,7 @@
 
     <dependencyManagement>
         <dependencies>
-            <!-- Spring Boot BOM -->
+            
             <dependency>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-dependencies</artifactId>
@@ -36,7 +35,7 @@
                 <scope>import</scope>
             </dependency>
 
-            <!-- Spring Cloud BOM -->
+            
             <dependency>
                 <groupId>org.springframework.cloud</groupId>
                 <artifactId>spring-cloud-dependencies</artifactId>
@@ -104,7 +103,7 @@
                         </execution>
                     </executions>
 
-                    <!-- Important: exclude bootstrap / JDK internals from instrumentation -->
+                    
                     <configuration>
                         <outputDirectory>${project.build.directory}/jacoco-report</outputDirectory>
                         <excludes>

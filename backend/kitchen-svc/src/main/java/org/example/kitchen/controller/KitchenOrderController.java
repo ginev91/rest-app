@@ -43,10 +43,6 @@ public class KitchenOrderController {
         return ResponseEntity.ok(KitchenOrderMapper.toResponse(updated));
     }
 
-    /**
-     * Dedicated cancel endpoint for convenience and clearer intent.
-     * Enforces domain rules in the service (cancellation irreversibility).
-     */
     @PostMapping("/{id}/cancel")
     public ResponseEntity<Void> cancel(@PathVariable("id") UUID id) {
         service.cancelOrder(id);

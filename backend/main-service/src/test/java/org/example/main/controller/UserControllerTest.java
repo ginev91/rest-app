@@ -23,19 +23,6 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
-/**
- * Unit tests for UserController covering all endpoints:
- * - list()
- * - get(id)
- * - create(request)
- * - update(id, changes)
- * - delete(id)
- * - assignRole(id, roleName) (success and role-not-found)
- *
- * NOTE: The UserProfileResponseDto in your project does not expose a getRole() accessor,
- * so assertions that previously called body.getRole() were failing. This version avoids
- * calling getRole() and instead asserts on other visible fields (id/username/fullName).
- */
 @ExtendWith(MockitoExtension.class)
 class UserControllerTest {
 
@@ -101,8 +88,8 @@ class UserControllerTest {
         req.setPassword("pw");
         req.setFullName("New User");
 
-        // The controller transforms request -> entity via UserMapper.toEntity(request).
-        // We mock the service create(...) to return a User with an id.
+        
+        
         User created = new User();
         UUID createdId = UUID.randomUUID();
         created.setId(createdId);
@@ -151,7 +138,7 @@ class UserControllerTest {
     @Test
     void delete_callsService_and_returnsNoContent() {
         UUID id = id1;
-        // ensure no exception is thrown by mocked service
+        
         doNothing().when(userService).delete(id);
 
         ResponseEntity<Void> resp = userController.delete(id);
@@ -183,7 +170,7 @@ class UserControllerTest {
         assertThat(body).isNotNull();
         assertThat(body.getId()).isEqualTo(id);
         assertThat(body.getUsername()).isEqualTo("emp@example.com");
-        // Don't call getRole() — UserProfileResponseDto does not expose role in this codebase
+        
         verify(roleService).findByName(roleName);
         verify(userService).assignRole(id, roleName);
     }

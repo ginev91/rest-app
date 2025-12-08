@@ -32,7 +32,7 @@ public class ReservationMapper {
     public TableReservationEntity requestToEntity(ReservationRequestDto req) {
         if (req == null) return null;
 
-        // Use builder so defaults from the entity class (@Builder.Default or @PrePersist) are preserved where appropriate.
+        
         TableReservationEntity tr = TableReservationEntity.builder()
                 .tableId(req.getTableId())
                 .userId(req.getUserId())

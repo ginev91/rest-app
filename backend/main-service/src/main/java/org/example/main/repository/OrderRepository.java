@@ -31,9 +31,7 @@ public interface OrderRepository extends JpaRepository<OrderEntity, UUID> {
     List<MenuItem> findMenuItemsByCreatedAtBetweenNative(@Param("from") OffsetDateTime from,
                                                          @Param("to") OffsetDateTime to);
 
-    /**
-     * Find orders whose status is among the provided list (used for "open" orders in periodic checks).
-     */
+
     List<OrderEntity> findByStatusIn(List<OrderStatus> statuses);
 
     @Query("select distinct o from OrderEntity o " +

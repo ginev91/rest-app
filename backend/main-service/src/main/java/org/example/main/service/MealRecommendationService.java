@@ -25,9 +25,6 @@ public class MealRecommendationService {
         this.objectMapper = objectMapper;
     }
 
-    /**
-     * Main entrypoint: single-input -> list-of-recommendations.
-     */
     public Mono<List<MealRecommendationResponseDto>> recommend(MealRecommendationRequestDto request) {
         String prompt = defaultPrompt(request);
 
@@ -54,9 +51,6 @@ public class MealRecommendationService {
                 });
     }
 
-    /**
-     * Removes common markdown/code-fence wrappers from model output.
-     */
     private String stripCodeFences(String s) {
         if (s == null) return null;
         String trimmed = s.trim();
@@ -73,9 +67,6 @@ public class MealRecommendationService {
         return trimmed;
     }
 
-    /**
-     * Remove wrapping quotes if JSON is double-encoded.
-     */
     private String stripQuotes(String s) {
         if ((s.startsWith("\"") && s.endsWith("\"")) || (s.startsWith("'") && s.endsWith("'"))) {
             try {
@@ -85,9 +76,6 @@ public class MealRecommendationService {
         return s;
     }
 
-    /**
-     * Compose a prompt for the local model from the request.
-     */
     private String defaultPrompt(MealRecommendationRequestDto request) {
         String userPrompt = request == null || request.getPrompt() == null ? "" : request.getPrompt().trim();
 

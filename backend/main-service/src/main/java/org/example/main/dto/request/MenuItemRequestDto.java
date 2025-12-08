@@ -11,9 +11,6 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 
-/**
- * DTO used for creating/updating MenuItem via REST API.
- */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

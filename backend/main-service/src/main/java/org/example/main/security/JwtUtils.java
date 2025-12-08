@@ -18,12 +18,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
-/**
- * Utility for JWT generation/validation.
- * Token retrieval is cookie-first (cookie name "access_token").
- *
- * This version includes roles in the generated token under the "roles" claim.
- */
+
 @Component
 public class JwtUtils {
 
@@ -48,9 +43,6 @@ public class JwtUtils {
         this.jwtExpirationMs = jwtExpirationMs;
     }
 
-    /**
-     * Generate token for a username with roles included in the "roles" claim.
-     */
     public String generateToken(String username, List<String> roles) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + jwtExpirationMs);
@@ -67,9 +59,6 @@ public class JwtUtils {
         return builder.compact();
     }
 
-    /**
-     * Backward-compatible token generation without roles (delegates).
-     */
     public String generateToken(String username) {
         return generateToken(username, List.of());
     }
@@ -98,10 +87,6 @@ public class JwtUtils {
                 .getBody();
     }
 
-    /**
-     * Retrieve token from the HttpServletRequest.
-     * Prefers cookie-based token (cookie name "access_token").
-     */
     public String getTokenFromRequest(HttpServletRequest request) {
         if (request == null) return null;
 

@@ -40,7 +40,7 @@ class RoleControllerTest {
     void setUp() {
         controller = new RoleController(roleService, mapper);
 
-        // Register Jackson converter so MockMvc can serialize DTOs -> JSON and set Content-Type.
+        
         mvc = MockMvcBuilders
                 .standaloneSetup(controller)
                 .setMessageConverters(new MappingJackson2HttpMessageConverter(objectMapper))

@@ -14,13 +14,6 @@ import org.example.main.dto.request.OccupyRequest;
 import java.util.List;
 import java.util.UUID;
 
-/**
- * Controller exposing reservation and occupancy endpoints.
- *
- * - POST /api/tables/occupy
- *   Body: { "tableNumber": 5, "minutes": 60 }
- *   This is used by backend OrderService after order creation; frontend does not need to call it.
- */
 @RestController
 @RequestMapping("/api/tables")
 public class RestaurantTableController {
@@ -44,7 +37,7 @@ public class RestaurantTableController {
             @RequestBody ReservationRequestDto req,
             @RequestHeader(value = "X-User-Id", required = false) UUID requesterId) {
 
-        // TODO: Add @PreAuthorize("hasAnyRole('ADMIN','EMPLOYEE')") if security is configured.
+        
         TableReservationEntity saved = service.reserveTable(tableId, req.getFrom(), req.getTo(), requesterId, req.getUserId());
         return ResponseEntity.ok(saved);
     }
@@ -57,7 +50,7 @@ public class RestaurantTableController {
 
     @PostMapping("/occupy")
     public ResponseEntity<Void> occupy(@RequestBody OccupyRequest req) {
-        // Used by backend order flow; kept open for convenience (no auth here; secure in prod)
+        
         service.occupyTable(req.tableNumber, req.minutes);
         return ResponseEntity.ok().build();
     }

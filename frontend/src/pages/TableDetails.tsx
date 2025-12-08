@@ -108,7 +108,7 @@ const TableDetails = () => {
       
       await api.patch(`/api/orders/${orderId}/status`, { status: newStatus });
       
-      // Update local state
+      
       setOrders(prevOrders =>
         prevOrders.map(order =>
           (order.id || order.id) === orderId
@@ -135,7 +135,7 @@ const TableDetails = () => {
       
       await api.patch(`/api/orders/${orderId}/items/${itemId}/status`, { status: newStatus });
       
-      // Update local state
+      
       setOrders(prevOrders =>
         prevOrders.map(order => {
           if ((order.id || order.id) === orderId) {

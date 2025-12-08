@@ -13,15 +13,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-/**
- * Local model adapter supporting three backends:
- *  - "mock"  : returns a small canned JSON response (ideal for homework/demo/teacher)
- *  - "cli"   : runs the 'ollama' CLI (configurable path)
- *  - "http"  : calls a local model HTTP server (ollama serve or another local server)
- *
- * This implementation ensures mock output is valid JSON and normalizes/unwraps nested/escaped JSON
- * returned by real model backends so downstream parsing is robust.
- */
 @Service
 public class LocalModelService {
 
@@ -53,10 +44,7 @@ public class LocalModelService {
         this.objectMapper = objectMapper;
     }
 
-    /**
-     * Generate text for the prompt using the configured backend.
-     * Returns a Mono that emits the model's text output (expected to be a JSON array string).
-     */
+
     public Mono<String> generate(String prompt) {
         switch (backend.toLowerCase()) {
             case "http":
@@ -69,10 +57,6 @@ public class LocalModelService {
         }
     }
 
-    /**
-     * Simple mock response useful for demos and grading.
-     * Uses ObjectMapper to produce safe JSON (no unescaped newlines).
-     */
     private Mono<String> generateMock(String prompt) {
         try {
             Map<String, Object> rec = Map.of(
@@ -93,55 +77,49 @@ public class LocalModelService {
         }
     }
 
-    /**
-     * CLI implementation: runs configured CLI (e.g. 'ollama') via ProcessBuilder.
-     */
     private Mono<String> generateViaCli(String prompt) {
 
-        return null; // still working on this
-//        return Mono.fromCallable(() -> {
-//                    ProcessBuilder pb = new ProcessBuilder(cliPath, "run", model, "--prompt", prompt);
-//                    pb.redirectErrorStream(true);
-//                    Process process;
-//                    try {
-//                        process = pb.start();
-//                    } catch (IOException ioe) {
-//                        throw new LocalModelException("Local model CLI '" + cliPath + "' not found or failed to start. Install Ollama or set local.model.cli.path.", ioe);
-//                    }
+        return null; 
+
+
+
+
+
+
+
+
+
 //
-//                    try (BufferedReader r = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
-//                        String output = r.lines().collect(Collectors.joining("\n"));
-//                        boolean exited = process.waitFor(cliTimeoutMs, java.util.concurrent.TimeUnit.MILLISECONDS);
-//                        if (!exited) {
-//                            process.destroyForcibly();
-//                            throw new LocalModelException("Local model process timed out");
-//                        }
-//                        int code = process.exitValue();
-//                        if (code != 0) {
-//                            throw new LocalModelException("Local model process exited with code " + code + ". Output: " + output);
-//                        }
-//                        String normalized = normalizeOutput(output == null ? "" : output.trim());
-//                        return normalized;
-//                    } catch (IOException | InterruptedException e) {
-//                        Thread.currentThread().interrupt();
-//                        throw new LocalModelException("Error reading output from local model process", e);
-//                    }
-//                }).subscribeOn(Schedulers.boundedElastic())
-//                .timeout(Duration.ofMillis(cliTimeoutMs + 1000))
-//                .onErrorMap(throwable -> {
-//                    if (throwable instanceof LocalModelException) return throwable;
-//                    return new LocalModelException("Local model CLI invocation failed", throwable);
-//                });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     }
 
-    /**
-     * HTTP implementation: POST to the configured httpUrl.
-     */
     private Mono<String> generateViaHttp(String prompt) {
         Map<String, Object> body = Map.of(
                 "model", model,
                 "prompt", prompt,
-                "max_tokens", 50       // lower token count for faster response; adjust as needed
+                "max_tokens", 50       
         );
 
         return webClient.post()
@@ -163,9 +141,6 @@ public class LocalModelService {
     }
 
 
-    /**
-     * Normalize/unquote/unescape raw output from model backends and try to extract inner JSON if present.
-     */
     private String normalizeOutput(String raw) {
 
         if (raw == null) return "";
@@ -212,9 +187,6 @@ public class LocalModelService {
         return trimmed;
     }
 
-    /**
-     * Very small unescape helper: handle common escaped sequences produced by models.
-     */
     private String unescapeCommonJsonEscapes(String s) {
         if (s == null) return null;
         return s.replace("\\\"", "\"")
@@ -224,11 +196,6 @@ public class LocalModelService {
                 .replace("\\\\", "\\");
     }
 
-    /**
-     * Attempts to locate the first top-level JSON array in the string and return it
-     * (substring from first '[' to the matching ']' inclusive). Returns null if none found
-     * or balancing fails.
-     */
     private String extractFirstJsonArray(String s) {
         if (s == null) return null;
         int start = s.indexOf('[');

@@ -17,9 +17,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-/**
- * RestaurantTableService: resilient occupyTable implementation to avoid duplicate-code inserts.
- */
 @Service
 @Transactional
 public class RestaurantTableService implements IRestaurantTableService {
@@ -68,13 +65,6 @@ public class RestaurantTableService implements IRestaurantTableService {
         tableRepository.deleteById(id);
     }
 
-    /**
-     * Resilient occupyTable implementation:
-     * - tries by tableNumber
-     * - then by code ("T" + tableNumber)
-     * - otherwise creates a new table, but if a unique constraint occurs (concurrent insert),
-     *   reloads the existing row and updates it.
-     */
     @Transactional
     public void occupyTable(Integer tableNumber, int forMinutes) {
         if (tableNumber == null) return;
@@ -82,12 +72,12 @@ public class RestaurantTableService implements IRestaurantTableService {
         String code = "T" + tableNumber;
         RestaurantTable table = null;
 
-        // 1) Try find by tableNumber
+        
         Optional<RestaurantTable> byNumber = tableRepository.findByTableNumber(tableNumber);
         if (byNumber.isPresent()) {
             table = byNumber.get();
         } else {
-            // 2) Try find by code (handles older rows with code but no tableNumber)
+            
             Optional<RestaurantTable> byCode = tableRepository.findByCode(code);
             if (byCode.isPresent()) {
                 table = byCode.get();
@@ -95,7 +85,7 @@ public class RestaurantTableService implements IRestaurantTableService {
                     table.setTableNumber(tableNumber);
                 }
             } else {
-                // 3) Prepare new entity
+                
                 RestaurantTable t = new RestaurantTable();
                 t.setCode(code);
                 t.setSeats(4);
@@ -111,7 +101,7 @@ public class RestaurantTableService implements IRestaurantTableService {
         try {
             tableRepository.save(table);
         } catch (DataIntegrityViolationException dive) {
-            // likely concurrent insert with same code; reload by code and update
+            
             Optional<RestaurantTable> existing = tableRepository.findByCode(code);
             if (existing.isPresent()) {
                 RestaurantTable e = existing.get();
@@ -120,15 +110,12 @@ public class RestaurantTableService implements IRestaurantTableService {
                 e.setStatus(TableStatus.OCCUPIED);
                 tableRepository.save(e);
             } else {
-                // unexpected: rethrow so caller sees it
+                
                 throw dive;
             }
         }
     }
 
-    /**
-     * Reserve a table for a time window. Rejects overlapping reservations.
-     */
     @Transactional
     public TableReservationEntity reserveTable(UUID tableId, OffsetDateTime from, OffsetDateTime to, UUID requestedBy, UUID userId) {
         if (from == null || to == null || !to.isAfter(from)) {

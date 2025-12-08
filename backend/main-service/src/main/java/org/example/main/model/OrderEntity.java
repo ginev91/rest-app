@@ -83,18 +83,16 @@ public class OrderEntity {
     public boolean claimByWaiter(UUID newWaiterId) {
         if (this.waiterId == null) {
             this.waiterId = newWaiterId;
-            this.status = OrderStatus.PROCESSING; // adjust to your status values
+            this.status = OrderStatus.PROCESSING; 
             return true;
         }
         return false;
     }
 
-    /** Force-assign a waiter (use with caution). */
     public void assignWaiter(UUID newWaiterId) {
         this.waiterId = newWaiterId;
     }
 
-    /** Unassign waiter (e.g., when order is cancelled or released). */
     public void unassignWaiter() {
         this.waiterId = null;
     }

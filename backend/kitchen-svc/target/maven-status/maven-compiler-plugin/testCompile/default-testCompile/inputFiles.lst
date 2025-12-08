@@ -1,5 +1,11 @@
 /Users/aleksandarginev/Desktop/code/rest-app/backend/kitchen-svc/src/test/java/org/example/kitchen/config/TestSecurityConfig.java
+/Users/aleksandarginev/Desktop/code/rest-app/backend/kitchen-svc/src/test/java/org/example/kitchen/mapper/KitchenOrderMapperTest.java
+/Users/aleksandarginev/Desktop/code/rest-app/backend/kitchen-svc/src/test/java/org/example/kitchen/exception/KitchenOrderOperationExceptionTest.java
+/Users/aleksandarginev/Desktop/code/rest-app/backend/kitchen-svc/src/test/java/org/example/kitchen/config/SecurityConfigTest.java
+/Users/aleksandarginev/Desktop/code/rest-app/backend/kitchen-svc/src/test/java/org/example/kitchen/model/enums/KitchenOrderStatus.java
+/Users/aleksandarginev/Desktop/code/rest-app/backend/kitchen-svc/src/test/java/org/example/kitchen/exception/RestExceptionHandlerTest.java
 /Users/aleksandarginev/Desktop/code/rest-app/backend/kitchen-svc/src/test/java/org/example/kitchen/integration/KitchenOrderServiceIntegrationTest.java
 /Users/aleksandarginev/Desktop/code/rest-app/backend/kitchen-svc/src/test/java/org/example/kitchen/integration/KitchenOrderApiE2ETest.java
 /Users/aleksandarginev/Desktop/code/rest-app/backend/kitchen-svc/src/test/java/org/example/kitchen/service/KitchenOrderServiceUnitTest.java
 /Users/aleksandarginev/Desktop/code/rest-app/backend/kitchen-svc/src/test/java/org/example/kitchen/controller/KitchenOrderControllerUnitTest.java
+/Users/aleksandarginev/Desktop/code/rest-app/backend/kitchen-svc/src/test/java/org/example/kitchen/model/KitchenOrderEntityTest.java

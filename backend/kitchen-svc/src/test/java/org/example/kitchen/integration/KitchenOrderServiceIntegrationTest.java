@@ -15,11 +15,6 @@ import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.*;
 
-/**
- * Integration tests for KitchenOrderService that exercise repository + service logic.
- * - Avoids createOrder() since it schedules background tasks; instead saves entities directly in the repository
- *   and exercises updateStatus() and cancelOrder() rules.
- */
 @SpringBootTest(properties = {
         "kitchen.callback.enabled=false",
         "kitchen.prep.enabled=false",

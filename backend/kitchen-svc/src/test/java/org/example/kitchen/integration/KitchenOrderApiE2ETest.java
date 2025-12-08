@@ -22,10 +22,6 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.fail;
 
-/**
- * End-to-end test that starts the server and exercises HTTP endpoints.
- * Security is provided by TestSecurityConfig (permitAll). Callback HTTP to main-service is disabled.
- */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         properties = {
                 "kitchen.callback.enabled=false",
@@ -55,7 +51,7 @@ class KitchenOrderApiE2ETest {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
 
-        // CREATE -> 201 Created
+
         ResponseEntity<KitchenOrderResponse> createResp = restTemplate.postForEntity(
                 "/api/kitchen/orders", new HttpEntity<>(createReq, headers), KitchenOrderResponse.class);
 
@@ -64,7 +60,6 @@ class KitchenOrderApiE2ETest {
         assertThat(created).isNotNull();
         assertThat(created.getOrderId()).isEqualTo(orderId);
 
-        // GET by order -> read as a List via ParameterizedTypeReference (safer than array class)
         ResponseEntity<List<KitchenOrderResponse>> listResp;
         try {
             listResp = restTemplate.exchange(
@@ -74,7 +69,6 @@ class KitchenOrderApiE2ETest {
                     new ParameterizedTypeReference<>() {}
             );
         } catch (Exception ex) {
-            // If deserialization fails, fetch raw String for debugging and fail with the body
             ResponseEntity<String> raw = restTemplate.getForEntity(
                     "/api/kitchen/orders/by-order/" + orderId, String.class);
             String body = raw == null ? "<null response>" : raw.getBody();
@@ -89,7 +83,6 @@ class KitchenOrderApiE2ETest {
 
         UUID kitchenOrderId = created.getId();
 
-        // UPDATE status
         UpdateStatusRequest statusReq = new UpdateStatusRequest();
         statusReq.setStatus(KitchenOrderStatus.IN_PROGRESS);
         ResponseEntity<KitchenOrderResponse> updateResp = restTemplate.exchange(
@@ -102,12 +95,10 @@ class KitchenOrderApiE2ETest {
         assertThat(updated).isNotNull();
         assertThat(updated.getStatus()).isEqualTo(KitchenOrderStatus.IN_PROGRESS);
 
-        // CANCEL (allowed from IN_PROGRESS)
         ResponseEntity<Void> cancelResp = restTemplate.postForEntity(
                 "/api/kitchen/orders/" + kitchenOrderId + "/cancel", new HttpEntity<>(headers), Void.class);
         assertThat(cancelResp.getStatusCode()).isEqualTo(HttpStatus.OK);
 
-        // DELETE
         ResponseEntity<Void> deleteResp = restTemplate.exchange(
                 "/api/kitchen/orders/" + kitchenOrderId, HttpMethod.DELETE, new HttpEntity<>(headers), Void.class);
         assertThat(deleteResp.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);

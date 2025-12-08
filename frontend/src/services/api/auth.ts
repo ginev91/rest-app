@@ -22,11 +22,6 @@ export async function login(username: string, password: string, tableNumber: num
   return data;
 }
 
-/**
- * Register on backend.
- * Backend expects: { username, password, fullName } (example you showed via curl).
- * Frontend API convenience: call register(name, email, password)
- */
 export interface RegisterResponse {
   token?: string;
   accessToken?: string;
@@ -54,11 +49,6 @@ export async function logout(): Promise<void> {
   setAccessToken(null);
 }
 
-/**
- * Fetch the current authenticated user.
- * Backend endpoint: GET /api/auth/me
- * If backend doesn't provide this endpoint, you can map username from login/register response instead.
- */
 export async function fetchCurrentUser(): Promise<any | null> {
   try {
     const r = await api.get("/api/auth/me");

@@ -50,7 +50,7 @@ class TableReservationApiE2ETest {
     private TableReservationRepository reservationRepository;
 
     @Autowired
-    private ReservationMapper mapper; // mocked
+    private ReservationMapper mapper; 
 
     @Test
     @Transactional
@@ -96,7 +96,7 @@ class TableReservationApiE2ETest {
         assertThat(created.getTableId()).isEqualTo(tableId);
         assertThat(created.getStatus()).isEqualTo(ReservationStatus.ACTIVE.name());
 
-        // quick sanity GET
+        
         ResponseEntity<List<TableReservationResponseDto>> listResp = restTemplate.exchange(
                 "/api/reservations/table/" + tableId,
                 HttpMethod.GET,

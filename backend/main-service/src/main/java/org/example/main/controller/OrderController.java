@@ -25,10 +25,6 @@ public class OrderController {
         this.orderService = orderService;
     }
 
-    /**
-     * GET /api/orders?userId={uuid} - list orders for a user
-     * GET /api/orders?tableId={uuid} - list orders for the table
-     */
     @GetMapping
     public ResponseEntity<List<OrderResponseDto>> listOrders(
             @RequestParam(name = "userId", required = false) UUID userId,
@@ -45,18 +41,12 @@ public class OrderController {
         return ResponseEntity.ok(list);
     }
 
-    /**
-     * GET /api/orders/{id} - full details
-     */
     @GetMapping("/{id}")
     public ResponseEntity<OrderDetailsResponseDto> getOrder(@PathVariable("id") UUID id) {
         OrderDetailsResponseDto dto = orderService.getOrderDetails(id);
         return ResponseEntity.ok(dto);
     }
 
-    /**
-     * POST /api/orders - create order (authenticated users)
-     */
     @PostMapping
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<OrderResponseDto> createOrder(@Valid @RequestBody OrderRequestDto request) {
@@ -64,9 +54,6 @@ public class OrderController {
         return ResponseEntity.status(201).body(resp);
     }
 
-    /**
-     * PUT /api/orders/{id}/status - change status (restricted to ROLE_WAITER or ROLE_ADMIN)
-     */
     @PutMapping("/{id}/status")
     @PreAuthorize("hasAnyRole('WAITER','ADMIN')")
     public ResponseEntity<Void> updateStatus(@PathVariable("id") UUID id, @RequestBody Map<String, String> body) {
@@ -74,27 +61,23 @@ public class OrderController {
         if (status == null) {
             return ResponseEntity.badRequest().build();
         }
-        orderService.getOrderSummary(id); // throws 404 if not found
-        // For now, call cancel/order-specific methods or set status via a new service method
-        // We'll reuse existing service API: if status == "cancelled" -> cancelOrder, else call a generic update (implement as needed)
+        orderService.getOrderSummary(id); 
+        
+        
         if ("cancelled".equalsIgnoreCase(status)) {
             orderService.cancelOrder(id);
         } else {
-            // Implement a generic updateStatus method on service if you want persisted transitions
-            // For now set via cancel/check methods or create updateStatus in IOrderService
-            // Fallback: call cancel / callWaiter or similar as appropriate
-            // TODO: replace with orderService.updateStatus(id, status);
-            // Example:
-            // orderService.updateStatus(id, status);
+            
+            
+            
+            
+            
+            
             throw new UnsupportedOperationException("Status update operation not yet implemented in service");
         }
         return ResponseEntity.noContent().build();
     }
 
-    /**
-     * DELETE /api/orders/{id} - cancel order (restricted: owner OR role)
-     * For simplicity require WAITER/ADMIN for cancellation in this example. Adjust if you want to allow owner cancels.
-     */
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAnyRole('ROLE_ADMIN')")
     public ResponseEntity<Void> deleteOrder(@PathVariable("id") UUID id) {

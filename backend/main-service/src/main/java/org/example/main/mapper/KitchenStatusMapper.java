@@ -6,10 +6,6 @@ import org.example.main.model.enums.OrderStatus;
 import java.util.Locale;
 import java.util.Objects;
 
-/**
- * Map kitchen-service status values (strings) into Main application enums.
- * Place this class in the Main application: src/main/java/org/example/main/mapper
- */
 public final class KitchenStatusMapper {
 
     private KitchenStatusMapper() { }

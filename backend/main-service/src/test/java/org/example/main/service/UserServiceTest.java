@@ -1,4 +1,4 @@
-// java
+
 package org.example.main.service;
 
 import jakarta.servlet.http.HttpSession;
@@ -158,7 +158,7 @@ class UserServiceTest {
     void me_userdetails_and_session_and_tableResolution() {
         String username = "user@test.com";
 
-        // Authentication mock
+        
         Authentication auth = mock(Authentication.class);
         when(auth.isAuthenticated()).thenReturn(true);
 
@@ -172,7 +172,7 @@ class UserServiceTest {
 
         when(auth.getPrincipal()).thenReturn(ud);
 
-        // User in DB
+        
         User u = new User();
         u.setId(UUID.randomUUID());
         u.setUsername(username);
@@ -181,24 +181,24 @@ class UserServiceTest {
 
         when(userRepository.findByUsername(username)).thenReturn(Optional.of(u));
 
-        // HttpSession mock
+        
         HttpSession session = mock(HttpSession.class);
         when(session.getId()).thenReturn("sess-1");
         when(session.getAttribute("tableNumber")).thenReturn("2");
         when(session.getAttributeNames())
                 .thenReturn(Collections.enumeration(Collections.emptyList()));
 
-        // RestaurantTable lookup
+        
         RestaurantTable t = new RestaurantTable();
         t.setId(UUID.randomUUID());
         t.setCode("T2");
 
         when(restaurantTableRepository.findByCode("T2")).thenReturn(Optional.of(t));
 
-        // Perform call
+        
         Map<String, Object> dto = userService.me(auth, session);
 
-        // Assertions
+        
         assertThat(dto).containsEntry("username", username);
         assertThat(dto).containsEntry("role", "ROLE_USER");
 

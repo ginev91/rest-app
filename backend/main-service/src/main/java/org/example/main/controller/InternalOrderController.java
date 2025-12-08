@@ -8,10 +8,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
 
-/**
- * Internal endpoints used by other backend services (kitchen). Not intended for public clients.
- * Minimal: no secrets, no auth required for these endpoints.
- */
 @RestController
 @RequestMapping("/api/internal")
 public class InternalOrderController {

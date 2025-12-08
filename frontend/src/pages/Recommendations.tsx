@@ -28,7 +28,7 @@ const Recommendations = () => {
       
       console.log('Recommendation received:', response);
       
-      // Handle both single object and array responses
+      
       const items = Array.isArray(response) ? response : [response];
       setRecommendations(items);
       

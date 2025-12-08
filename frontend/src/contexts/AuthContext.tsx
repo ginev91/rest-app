@@ -176,8 +176,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const resp: RegisterResponse = await apiRegister(name, email, password);
       console.log('AuthContext: Registration response:', resp);
       
-      // Don't auto-login after registration - return null
-      // User needs to login with table PIN
+      
+      
       return null;
     } catch (err) {
       console.error('AuthContext: Registration failed:', err);
@@ -192,7 +192,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await apiLogout();
     } catch {
-      // no error needed
+      
     } finally {
       setAccessToken(null);
       localStorage.removeItem('token');

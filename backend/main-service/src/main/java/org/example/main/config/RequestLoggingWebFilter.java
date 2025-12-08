@@ -8,10 +8,6 @@ import org.springframework.web.server.WebFilter;
 import org.springframework.web.server.WebFilterChain;
 import reactor.core.publisher.Mono;
 
-/**
- * Logs incoming request method/path and all headers at DEBUG level
- * and a single summary line at INFO level.
- */
 @Component
 public class RequestLoggingWebFilter implements WebFilter {
 

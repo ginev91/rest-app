@@ -18,14 +18,6 @@ import org.springframework.security.web.SecurityFilterChain;
 
 import java.io.IOException;
 
-/**
- * Test security configuration:
- * - Highest precedence SecurityFilterChain that permits all requests
- * - Header-dump filter logs Authorization header and authentication for debugging
- *
- * Import this into tests with @Import(TestSecurityConfig.class).
- * Make sure your production SecurityConfig is not active in tests (e.g. annotate it with @Profile("!test")).
- */
 @TestConfiguration
 public class TestSecurityConfig {
 
@@ -37,13 +29,13 @@ public class TestSecurityConfig {
         http
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
-                .httpBasic(Customizer.withDefaults()); // no-op when permitAll
+                .httpBasic(Customizer.withDefaults()); 
         return http.build();
     }
 
-    // Simple filter that logs Authorization header and current authentication (if any).
-    // This helps confirm whether the Authorization header reached the server and whether
-    // a SecurityContext was populated.
+    
+    
+    
     @Bean
     @Order(Ordered.HIGHEST_PRECEDENCE + 1)
     public Filter headerDumpFilter() {

@@ -23,9 +23,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
-/**
- * AuthControllerTest - strengthened assertions and added logout test.
- */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 class AuthControllerTest {
@@ -41,7 +38,7 @@ class AuthControllerTest {
 
     @BeforeEach
     void setUp() {
-        // make jwt expiration deterministic (1 hour -> 3600 seconds)
+        
         lenient().when(jwtUtils.getJwtExpirationMs()).thenReturn(3600000L);
     }
 
@@ -61,7 +58,7 @@ class AuthControllerTest {
                 .role("ROLE_USER")
                 .build();
 
-        // ensure userService.login is called and returns our DTO
+        
         doAnswer(invocation -> respDto)
                 .when(userService).login(any(LoginRequestDto.class), any());
 
@@ -74,9 +71,9 @@ class AuthControllerTest {
         assertThat(resp).isNotNull();
         String setCookie = resp.getHeaders().getFirst("Set-Cookie");
         assertThat(setCookie).isNotNull();
-        // basic cookie properties we expect from ResponseCookie.toString()
+        
         assertThat(setCookie).contains("access_token=");
-        // jwt expiration was stubbed to 3600000 ms -> maxAgeSeconds = 3600
+        
         assertThat(setCookie).contains("Max-Age=3600").contains("HttpOnly").contains("SameSite=Lax");
         assertThat(resp.getBody()).isEqualTo(respDto);
     }
@@ -88,7 +85,7 @@ class AuthControllerTest {
         assertThat(resp).isNotNull();
         String setCookie = resp.getHeaders().getFirst("Set-Cookie");
         assertThat(setCookie).isNotNull();
-        // Cookie should be cleared (empty value) and have Max-Age=0
+        
         assertThat(setCookie).contains("access_token=").contains("Max-Age=0").contains("HttpOnly");
     }
 

@@ -6,10 +6,6 @@ import lombok.NoArgsConstructor;
 
 import java.util.UUID;
 
-/**
- * Lightweight DTO used in the Main app to represent kitchen order info returned by kitchen-service.
- * This is NOT a JPA entity and will NOT create a DB table.
- */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

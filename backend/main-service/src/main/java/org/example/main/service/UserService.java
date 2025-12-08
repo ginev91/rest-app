@@ -25,14 +25,6 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.UUID;
 
-/**
- * UserService manages user creation, authentication and session table handling.
- * - Persists sessionTableNumber on the User entity for stateless clients.
- * - Sets HttpSession attribute when a session exists.
- * - /me reads session attribute first and falls back to persisted value.
- *
- * Changes: include roles into JWT at generation time so JwtUtils can populate authorities.
- */
 @Service
 @Transactional
 public class UserService implements IUserService {
@@ -217,13 +209,13 @@ public class UserService implements IUserService {
         });
         u.setRole(userRole.getName());
 
-        // Persist and use the returned saved entity so id is available
+        
         User saved = userRepository.save(u);
 
         List<String> rolesList = List.of(saved.getRole());
         String token = jwtUtils.generateToken(saved.getUsername(), rolesList);
 
-        // Build a response containing only the fields you need
+        
         return AuthResponseDto.builder()
                 .token(token)
                 .username(saved.getUsername())

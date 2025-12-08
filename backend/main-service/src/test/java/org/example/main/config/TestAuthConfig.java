@@ -7,16 +7,13 @@ import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 
-/**
- * Provides a simple in-memory user for tests.
- */
 @TestConfiguration
 public class TestAuthConfig {
 
     @Bean
     @Primary
     public InMemoryUserDetailsManager userDetailsService() {
-        UserDetails employee = User.withDefaultPasswordEncoder() // OK for tests only
+        UserDetails employee = User.withDefaultPasswordEncoder() 
                 .username("employee@test.bg")
                 .password("emppass")
                 .roles("EMPLOYEE")

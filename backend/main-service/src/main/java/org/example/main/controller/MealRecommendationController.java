@@ -15,13 +15,6 @@ import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
 
-/**
- * Stateless controller for single-turn recommendations.
- * Endpoint: POST /recommendations
- * Body: { "prompt": "Quick low-carb pescatarian dinner, avoid peanuts, about 600 kcal" }
- *
- * Returns: JSON array of MealRecommendationResponseDto
- */
 @RestController
 @RequestMapping("/api/ai")
 public class MealRecommendationController {
@@ -39,8 +32,8 @@ public class MealRecommendationController {
         String prompt = request == null ? "" : (request.getPrompt() == null ? "" : request.getPrompt().trim());
         log.info("Received meal recommendation prompt (blocking): {}", prompt);
 
-        // Block with a timeout to avoid indefinite waits;
-        // TODO: Need to do with Mono WebFlux
+        
+        
         try {
             List<MealRecommendationResponseDto> result = mealRecommendationService
                     .recommend(request)

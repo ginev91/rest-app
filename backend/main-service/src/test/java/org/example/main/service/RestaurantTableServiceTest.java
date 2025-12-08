@@ -37,7 +37,7 @@ class RestaurantTableServiceTest {
 
     @BeforeEach
     void setUp() {
-        // no-op
+        
     }
 
     @Test
@@ -75,7 +75,7 @@ class RestaurantTableServiceTest {
         RestaurantTable existing = new RestaurantTable();
         existing.setId(UUID.randomUUID());
         existing.setCode(code);
-        existing.setTableNumber(null); // simulates older row
+        existing.setTableNumber(null); 
         existing.setStatus(TableStatus.AVAILABLE);
 
         when(tableRepository.findByTableNumber(tableNumber)).thenReturn(Optional.empty());
@@ -136,19 +136,19 @@ class RestaurantTableServiceTest {
         RestaurantTable existing = new RestaurantTable();
         existing.setId(UUID.randomUUID());
         existing.setCode(code);
-        existing.setTableNumber(null); // existing without tableNumber
+        existing.setTableNumber(null); 
 
-        // first save throws DataIntegrityViolationException (simulate concurrent insert)
+        
         when(tableRepository.findByTableNumber(tableNumber)).thenReturn(Optional.empty());
-        when(tableRepository.findByCode(code)).thenReturn(Optional.empty(), Optional.of(existing)); // second time return existing
+        when(tableRepository.findByCode(code)).thenReturn(Optional.empty(), Optional.of(existing)); 
         when(tableRepository.save(any(RestaurantTable.class)))
                 .thenThrow(new DataIntegrityViolationException("unique constraint"))
                 .thenAnswer(inv -> inv.getArgument(0));
 
-        // Call - should not throw; should reload and save existing
+        
         service.occupyTable(tableNumber, 25);
 
-        // verify save was attempted at least twice (first failed, second for existing)
+        
         verify(tableRepository, atLeast(2)).save(any(RestaurantTable.class));
         verify(tableRepository, atLeastOnce()).findByCode(code);
     }
@@ -174,7 +174,7 @@ class RestaurantTableServiceTest {
     void reserveTable_validatesWindow_andThrowsBadRequest() {
         UUID tableId = UUID.randomUUID();
         OffsetDateTime from = OffsetDateTime.now();
-        OffsetDateTime to = from.minusMinutes(5); // invalid: to is before from
+        OffsetDateTime to = from.minusMinutes(5); 
 
         assertThatThrownBy(() -> service.reserveTable(tableId, from, to, UUID.randomUUID(), UUID.randomUUID()))
                 .isInstanceOf(ResponseStatusException.class)
@@ -235,28 +235,28 @@ class RestaurantTableServiceTest {
 
     @Test
     void findAll_and_findById_and_crud_behaviour() {
-        // findAll delegation
+        
         RestaurantTable one = new RestaurantTable();
         one.setId(UUID.randomUUID());
         when(tableRepository.findAll()).thenReturn(List.of(one));
         assertThat(service.findAll()).containsExactly(one);
 
-        // findById existing
+        
         when(tableRepository.findById(one.getId())).thenReturn(Optional.of(one));
         assertThat(service.findById(one.getId())).isEqualTo(one);
 
-        // findById missing -> ResourceNotFoundException
+        
         UUID missing = UUID.randomUUID();
         when(tableRepository.findById(missing)).thenReturn(Optional.empty());
         assertThatThrownBy(() -> service.findById(missing)).isInstanceOf(ResourceNotFoundException.class);
 
-        // create & update & delete flows (basic)
+        
         RestaurantTable toCreate = new RestaurantTable();
         toCreate.setTableNumber(10);
         when(tableRepository.save(toCreate)).thenReturn(toCreate);
         assertThat(service.create(toCreate)).isEqualTo(toCreate);
 
-        // update: change seats and code
+        
         RestaurantTable existing2 = new RestaurantTable();
         existing2.setId(UUID.randomUUID());
         existing2.setSeats(2);
@@ -269,12 +269,12 @@ class RestaurantTableServiceTest {
         assertThat(updated.getSeats()).isEqualTo(6);
         assertThat(updated.getCode()).isEqualTo("C1");
 
-        // delete missing -> ResourceNotFoundException
+        
         UUID del = UUID.randomUUID();
         when(tableRepository.existsById(del)).thenReturn(false);
         assertThatThrownBy(() -> service.delete(del)).isInstanceOf(ResourceNotFoundException.class);
 
-        // delete existing -> call repository.deleteById
+        
         when(tableRepository.existsById(existing2.getId())).thenReturn(true);
         doNothing().when(tableRepository).deleteById(existing2.getId());
         service.delete(existing2.getId());

@@ -22,13 +22,13 @@ public class RestaurantTable {
     private UUID id;
 
     @Column(nullable = false, unique = true)
-    private String code; // T1, T2
+    private String code; 
 
     @Column(nullable = false)
-    private Integer seats; // how many people it fits
+    private Integer seats; 
 
     @Column(nullable = false)
-    private Integer currentOccupancy = 0; // how many people currently seated
+    private Integer currentOccupancy = 0; 
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -40,7 +40,7 @@ public class RestaurantTable {
     @Column(name = "table_number", unique = true)
     private Integer tableNumber;
 
-    // Occupied until; null when not occupied
+    
     @Column(name = "occupied_until")
     private OffsetDateTime occupiedUntil;
 }

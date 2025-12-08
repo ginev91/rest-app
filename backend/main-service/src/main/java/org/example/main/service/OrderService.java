@@ -62,7 +62,7 @@ public class OrderService implements IOrderService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Order must contain at least one item");
         }
 
-        // Validate menu items exist
+        
         List<UUID> menuIds = request.getItems().stream()
                 .map(OrderItemRequest::getMenuItemId)
                 .collect(Collectors.toList());
@@ -79,7 +79,7 @@ public class OrderService implements IOrderService {
 
         UUID customerId = request.getCustomerId();
 
-        // Build items for the incoming request (detached)
+        
         List<OrderItem> newItems = new ArrayList<>();
         BigDecimal newItemsTotal = BigDecimal.ZERO;
         for (OrderItemRequest itemReq : request.getItems()) {
@@ -94,52 +94,52 @@ public class OrderService implements IOrderService {
             oi.setMenuItemName(mi.getName());
             oi.setStatus(OrderItemStatus.PENDING);
             oi.setPrice(mi.getPrice() != null ? mi.getPrice() : BigDecimal.ZERO);
-            // order is set later when attaching to an order entity
+            
             newItems.add(oi);
 
             BigDecimal line = oi.getPrice().multiply(BigDecimal.valueOf(oi.getQuantity()));
             newItemsTotal = newItemsTotal.add(line);
         }
 
-        // Check for an existing active order for this customer.
-        // NOTE: Active = any order that is NOT CANCELLED. (COMPLETED orders are eligible to receive new items.)
+        
+        
         Optional<OrderEntity> activeOpt = Optional.empty();
         if (customerId != null) {
             activeOpt = orderRepository.findWithItemsByCustomerUserId(customerId)
                     .stream()
-                    .filter(o -> o.getStatus() != OrderStatus.CANCELLED) // only exclude CANCELLED
+                    .filter(o -> o.getStatus() != OrderStatus.CANCELLED) 
                     .findFirst();
         }
 
         if (activeOpt.isPresent()) {
-            // Merge into existing active order
+            
             OrderEntity existing = activeOpt.get();
             if (existing.getItems() == null) existing.setItems(new ArrayList<>());
 
-            // Attach each new item to the existing order
+            
             for (OrderItem ni : newItems) {
                 ni.setOrder(existing);
                 existing.getItems().add(ni);
             }
 
-            // Update totals and timestamps
+            
             existing.setTotalAmount(existing.getTotalAmount() == null ? newItemsTotal : existing.getTotalAmount().add(newItemsTotal));
             existing.setUpdatedAt(OffsetDateTime.now());
 
-            // If the existing order was in a terminal-not-cancelled state (e.g., COMPLETED or READY),
-            // moving it to PROCESSING reflects that new kitchen work is required.
+            
+            
             if (existing.getStatus() == OrderStatus.COMPLETED || existing.getStatus() == OrderStatus.READY || existing.getStatus() == OrderStatus.NEW) {
                 existing.setStatus(OrderStatus.PROCESSING);
             } else {
-                // For other statuses (e.g., PROCESSING), keep as-is (still in-progress).
+                
                 existing.setStatus(OrderStatus.PROCESSING);
             }
 
-            // Persist merged order
+            
             OrderEntity saved = orderRepository.save(existing);
             log.info("Merged {} new items into existing active order {} for customer={}", newItems.size(), saved.getId(), customerId);
 
-            // Notify kitchen only for the newly added kitchen items
+            
             List<OrderItem> kitchenItems = newItems.stream()
                     .filter(it -> {
                         MenuItem mi = it.getMenuItem();
@@ -159,7 +159,7 @@ public class OrderService implements IOrderService {
                     .build();
         }
 
-        // No active order -> create a new one (existing behavior)
+        
         OrderEntity order = new OrderEntity();
         order.setTableId(request.getTableId());
         order.setTableNumber(request.getTableNumber());
@@ -169,7 +169,7 @@ public class OrderService implements IOrderService {
         order.setCreatedAt(OffsetDateTime.now());
         order.setUpdatedAt(OffsetDateTime.now());
 
-        // Attach items to the new order
+        
         for (OrderItem it : newItems) {
             it.setOrder(order);
         }
@@ -181,13 +181,13 @@ public class OrderService implements IOrderService {
 
         try {
             if (saved.getTableNumber() != null) {
-                restaurantTableService.occupyTable(saved.getTableNumber(), 60); // occupy for 60 minutes
+                restaurantTableService.occupyTable(saved.getTableNumber(), 60); 
             }
         } catch (Exception ex) {
             log.warn("Failed to mark table {} occupied: {}", saved.getTableNumber(), ex.getMessage());
         }
 
-        // Partition items by ItemType and notify kitchen only for KITCHEN items
+        
         try {
             List<OrderItem> allSavedItems = saved.getItems() == null ? Collections.emptyList() : saved.getItems();
 
@@ -236,11 +236,11 @@ public class OrderService implements IOrderService {
     @Override
     @Transactional(readOnly = true)
     public OrderDetailsResponseDto getOrderDetails(UUID orderId) {
-        // Load from DB
+        
         OrderEntity o = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
 
-        // Enrich with kitchen service data if available
+        
         try {
             List<org.example.main.feign.KitchenClient.KitchenOrderResponse> kitchenOrders = kitchenClient.getByOrder(orderId);
             if (kitchenOrders != null && !kitchenOrders.isEmpty()) {
@@ -254,7 +254,7 @@ public class OrderService implements IOrderService {
                     o.setKitchenOrderId(ki.getKitchenOrderId());
                     o.setKitchenStatus(ki.getStatus());
 
-                    // map kitchen status to item statuses using KitchenStatusMapper
+                    
                     OrderItemStatus mapped = KitchenStatusMapper.toOrderItemStatus(ki.getStatus());
                     if (mapped != null && o.getItems() != null) {
                         for (OrderItem it : o.getItems()) {
@@ -309,7 +309,7 @@ public class OrderService implements IOrderService {
         OrderEntity o = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
 
-        // local cancellation first for immediate user feedback
+        
         o.setStatus(OrderStatus.CANCELLED);
         o.setUpdatedAt(OffsetDateTime.now());
         orderRepository.save(o);
@@ -317,7 +317,7 @@ public class OrderService implements IOrderService {
         UUID kitchenOrderId = o.getKitchenOrderId();
         if (kitchenOrderId != null) {
             try {
-                // prefer dedicated cancel endpoint on kitchen service
+                
                 kitchenClient.cancelKitchenOrder(kitchenOrderId);
                 o.setKitchenStatus("CANCELLED");
                 orderRepository.save(o);
@@ -518,7 +518,7 @@ public class OrderService implements IOrderService {
             String payloadJson = objectMapper.writeValueAsString(payloadMap);
             log.debug("Kitchen request JSON for order {}: {}", saved.getId(), payloadJson);
         } catch (Exception e) {
-            // fallback, but map serialization should never fail
+            
             log.debug("Kitchen request values for order {}: orderId={}, itemsJson={}", saved.getId(), req.orderId, req.itemsJson);
         }
 

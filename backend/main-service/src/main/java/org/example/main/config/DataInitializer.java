@@ -100,7 +100,7 @@ public class DataInitializer implements ApplicationRunner {
                     log.warn("DataInitializer: menuItemRepository.deleteAll() failed: {}", ex.getMessage());
                 }
 
-                // Delete categories last if present
+                
                 if (tableExists("categories")) {
                     try {
                         categoryRepository.deleteAll();
@@ -114,7 +114,7 @@ public class DataInitializer implements ApplicationRunner {
             }
         }
 
-        // Verify required columns exist before seeding
+        
         try {
             Integer cols = jdbcTemplate.queryForObject(
                     "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'menu_items' AND column_name = 'item_type'",
@@ -128,7 +128,7 @@ public class DataInitializer implements ApplicationRunner {
             return;
         }
 
-        // Run seeding (guarded so exceptions don't abort startup)
+        
         try {
             seedCategoriesAndMenuItems();
             seedRolesAndUsers();
@@ -148,7 +148,7 @@ public class DataInitializer implements ApplicationRunner {
 
             if (menuItemRepository.count() == 0) {
                 List<MenuItem> items = List.of(
-                        // 10 Main Dishes (KITCHEN)
+                        
                         MenuItem.builder()
                                 .name("Grilled Chicken Breast")
                                 .description("Tender grilled chicken with herbs and lemon")
@@ -250,7 +250,7 @@ public class DataInitializer implements ApplicationRunner {
                                 .itemType(ItemType.KITCHEN)
                                 .build(),
 
-                        // 10 Salads (KITCHEN)
+                        
                         MenuItem.builder()
                                 .name("Caesar Salad")
                                 .description("Fresh romaine lettuce, parmesan, croutons")
@@ -352,7 +352,7 @@ public class DataInitializer implements ApplicationRunner {
                                 .itemType(ItemType.KITCHEN)
                                 .build(),
 
-                        // 10 Drinks (BAR)
+                        
                         MenuItem.builder()
                                 .name("Fresh Lemonade")
                                 .description("House-made lemonade with fresh lemons")
@@ -472,13 +472,13 @@ public class DataInitializer implements ApplicationRunner {
         Role userRole = roleRepository.findByName("ROLE_USER")
                 .orElseGet(() -> roleRepository.save(Role.builder().name("ROLE_USER").build()));
 
-        // Use the same username when checking and creating the user
+        
         userRepository.findByUsername("admin@test.com").orElseGet(() -> {
             User u = new User();
             u.setUsername("admin@test.com");
             u.setPasswordHash(passwordEncoder.encode("adminpass"));
             u.setFullName("System Administrator");
-            // store role as a single String (role name)
+            
             u.setRole(adminRole.getName());
             return userRepository.save(u);
         });

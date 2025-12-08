@@ -16,10 +16,7 @@ import org.springframework.security.web.SecurityFilterChain;
 
 import java.io.IOException;
 
-/**
- * Test security config used by E2E tests: disables CSRF and permits all requests.
- * Import into tests with @Import(TestSecurityConfig.class).
- */
+
 @TestConfiguration
 public class TestSecurityConfig {
 
@@ -35,7 +32,7 @@ public class TestSecurityConfig {
         return http.build();
     }
 
-    // optional header dump filter to help debug failing auth during development
+    
     @Bean
     @Order(Ordered.HIGHEST_PRECEDENCE + 1)
     public Filter headerDumpFilter() {

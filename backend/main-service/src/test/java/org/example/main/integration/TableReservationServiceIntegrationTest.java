@@ -14,9 +14,6 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-/**
- * Integration test for the service layer using your Postgres test DB.
- */
 @SpringBootTest(properties = {
         "jwt.secret=0123456789abcdefghijklmnopqrstuv"
 })

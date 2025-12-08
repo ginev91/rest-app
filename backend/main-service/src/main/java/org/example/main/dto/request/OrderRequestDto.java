@@ -9,9 +9,6 @@ import lombok.*;
 import java.util.List;
 import java.util.UUID;
 
-/**
- * DTO used by POST /api/orders
- */
 @Getter
 @Setter
 @NoArgsConstructor

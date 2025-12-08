@@ -16,12 +16,6 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.io.PrintWriter;
 
-/**
- * JwtAuthenticationFilter that:
- * - skips /api/internal/** requests,
- * - validates JWT when present and sets authentication,
- * - writes a JSON 401 on failure.
- */
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private static final Logger log = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
@@ -39,7 +33,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
 
-        // Early skip for internal callbacks so they are not subject to token validation.
+        
         String path = request.getRequestURI();
         if (path != null && path.startsWith("/api/internal/")) {
             log.debug("Skipping JWT processing for internal request: {}", path);
@@ -51,7 +45,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             String jwt = jwtUtils.getTokenFromRequest(request);
 
             if (StringUtils.hasText(jwt)) {
-                // validate token and set authentication
+                
                 if (!jwtUtils.validateToken(jwt)) {
                     log.debug("JWT present but invalid/expired for request {}: {}", path, jwt);
                     handleAuthFailure(request, response, "invalid_or_expired_token");

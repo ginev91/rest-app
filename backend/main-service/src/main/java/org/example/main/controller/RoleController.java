@@ -18,7 +18,7 @@ public class RoleController {
     private final IRoleService roleService;
     private final RoleMapper mapper;
 
-    // Fixed: accept RoleMapper and assign it so 'mapper' is initialized
+    
     public RoleController(IRoleService roleService, RoleMapper mapper) {
         this.roleService = roleService;
         this.mapper = mapper;
