@@ -1,229 +1,219 @@
-<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>KitchenOrderService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">kitchen-svc</a> &gt; <a href="index.source.html" class="el_package">org.example.kitchen.service</a> &gt; <span class="el_source">KitchenOrderService.java</span></div><h1>KitchenOrderService.java</h1><pre class="source lang-java linenums">package org.example.kitchen.service;
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>KitchenOrderService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">kitchen-svc</a> &gt; <a href="index.source.html" class="el_package">org.example.kitchen.service</a> &gt; <span class="el_source">KitchenOrderService.java</span></div><h1>KitchenOrderService.java</h1><pre class="source lang-java linenums">    package org.example.kitchen.service;
 
-import lombok.RequiredArgsConstructor;
-import org.example.kitchen.exception.KitchenOrderOperationException;
-import org.example.kitchen.model.KitchenOrder;
-import org.example.kitchen.model.enums.KitchenOrderStatus;
-import org.example.kitchen.repository.KitchenOrderRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+    import lombok.RequiredArgsConstructor;
+    import org.example.kitchen.exception.KitchenOrderOperationException;
+    import org.example.kitchen.model.KitchenOrder;
+    import org.example.kitchen.model.enums.KitchenOrderStatus;
+    import org.example.kitchen.repository.KitchenOrderRepository;
+    import org.slf4j.Logger;
+    import org.slf4j.LoggerFactory;
+    import org.springframework.beans.factory.annotation.Value;
+    import org.springframework.stereotype.Service;
+    import org.springframework.transaction.annotation.Transactional;
 
-import jakarta.annotation.PreDestroy;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.time.Instant;
-import java.util.List;
-import java.util.Random;
-import java.util.UUID;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
+    import jakarta.annotation.PreDestroy;
+    import java.net.URI;
+    import java.net.http.HttpClient;
+    import java.net.http.HttpRequest;
+    import java.net.http.HttpResponse;
+    import java.time.Instant;
+    import java.util.List;
+    import java.util.Random;
+    import java.util.UUID;
+    import java.util.concurrent.Executors;
+    import java.util.concurrent.ScheduledExecutorService;
+    import java.util.concurrent.TimeUnit;
+    import java.util.concurrent.atomic.AtomicInteger;
 
-/**
- * KitchenOrderService — persists kitchen orders and schedules transition to READY after a randomized delay.
- * Enhanced with validation and a cancel() operation that makes CANCELLED irreversible.
- */
-@Service
-public class KitchenOrderService implements IKitchenOrderService {
+    @Service
+    public class KitchenOrderService implements IKitchenOrderService {
 
-<span class="fc" id="L35">    private static final Logger log = LoggerFactory.getLogger(KitchenOrderService.class);</span>
+<span class="fc" id="L31">        private static final Logger log = LoggerFactory.getLogger(KitchenOrderService.class);</span>
 
-    private final KitchenOrderRepository repository;
+        private final KitchenOrderRepository repository;
 
-    
-<span class="fc" id="L40">    private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(2);</span>
+<span class="fc" id="L35">        private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(2);</span>
 
-    
-    private final int minPrepSeconds;
-    private final int maxPrepSeconds;
+        private final int minPrepSeconds;
+        private final int maxPrepSeconds;
 
-    private final boolean callbackEnabled;
-    private final String callbackUrl;
-    private final String callbackSecret; 
+        private final boolean callbackEnabled;
+        private final String callbackUrl;
+        private final String callbackSecret;
 
-    private final boolean prepSchedulingEnabled;
+        private final boolean prepSchedulingEnabled;
 
-<span class="fc" id="L52">    private final Random random = new Random();</span>
-<span class="fc" id="L53">    private final HttpClient httpClient = HttpClient.newHttpClient();</span>
+<span class="fc" id="L46">        private final Random random = new Random();</span>
+<span class="fc" id="L47">        private final HttpClient httpClient = HttpClient.newHttpClient();</span>
 
-<span class="fc" id="L55">    private final AtomicInteger createCounter = new AtomicInteger(0);</span>
+<span class="fc" id="L49">        private final AtomicInteger createCounter = new AtomicInteger(0);</span>
 
-    public KitchenOrderService(KitchenOrderRepository repository,
-                               @Value(&quot;${kitchen.prep.min-seconds:5}&quot;) int minPrepSeconds,
-                               @Value(&quot;${kitchen.prep.max-seconds:20}&quot;) int maxPrepSeconds,
-                               @Value(&quot;${kitchen.callback.enabled:true}&quot;) boolean callbackEnabled,
-                               @Value(&quot;${kitchen.callback.url:}&quot;) String callbackUrl,
-                               @Value(&quot;${kitchen.callback.secret:}&quot;) String callbackSecret,
-                               @Value(&quot;${kitchen.prep.enabled:true}&quot;) boolean prepSchedulingEnabled)
-<span class="fc" id="L64"> {</span>
-<span class="fc" id="L65">        this.repository = repository;</span>
-<span class="fc" id="L66">        this.minPrepSeconds = Math.max(1, minPrepSeconds);</span>
-<span class="fc" id="L67">        this.maxPrepSeconds = Math.max(this.minPrepSeconds, maxPrepSeconds);</span>
-<span class="fc" id="L68">        this.callbackEnabled = callbackEnabled;</span>
-<span class="pc bpc" id="L69" title="1 of 2 branches missed.">        this.callbackUrl = callbackUrl == null ? &quot;&quot; : callbackUrl.trim();</span>
-<span class="pc bpc" id="L70" title="1 of 2 branches missed.">        this.callbackSecret = callbackSecret == null ? &quot;&quot; : callbackSecret.trim();</span>
-<span class="fc" id="L71">        this.prepSchedulingEnabled = prepSchedulingEnabled;</span>
+<span class="fc" id="L51">        public KitchenOrderService(KitchenOrderRepository repository,</span>
+                                   @Value(&quot;${kitchen.prep.min-seconds:5}&quot;) int minPrepSeconds,
+                                   @Value(&quot;${kitchen.prep.max-seconds:20}&quot;) int maxPrepSeconds,
+                                   @Value(&quot;${kitchen.callback.enabled:true}&quot;) boolean callbackEnabled,
+                                   @Value(&quot;${kitchen.callback.url:}&quot;) String callbackUrl,
+                                   @Value(&quot;${kitchen.callback.secret:}&quot;) String callbackSecret,
+                                   @Value(&quot;${kitchen.prep.enabled:true}&quot;) boolean prepSchedulingEnabled)
+     {
+<span class="fc" id="L59">            this.repository = repository;</span>
+<span class="fc" id="L60">            this.minPrepSeconds = Math.max(1, minPrepSeconds);</span>
+<span class="fc" id="L61">            this.maxPrepSeconds = Math.max(this.minPrepSeconds, maxPrepSeconds);</span>
+<span class="fc" id="L62">            this.callbackEnabled = callbackEnabled;</span>
+<span class="pc bpc" id="L63" title="1 of 2 branches missed.">            this.callbackUrl = callbackUrl == null ? &quot;&quot; : callbackUrl.trim();</span>
+<span class="pc bpc" id="L64" title="1 of 2 branches missed.">            this.callbackSecret = callbackSecret == null ? &quot;&quot; : callbackSecret.trim();</span>
+<span class="fc" id="L65">            this.prepSchedulingEnabled = prepSchedulingEnabled;</span>
 
-<span class="fc" id="L73">    }</span>
+<span class="fc" id="L67">        }</span>
 
-    @Override
-    @Transactional
-    public KitchenOrder createOrder(UUID orderId, String itemsJson) {
-<span class="fc" id="L78">        KitchenOrder o = KitchenOrder.builder()</span>
-<span class="fc" id="L79">                .orderId(orderId)</span>
-<span class="fc" id="L80">                .itemsJson(itemsJson)</span>
-<span class="fc" id="L81">                .status(KitchenOrderStatus.PREPARING)</span>
-<span class="fc" id="L82">                .createdAt(Instant.now())</span>
-<span class="fc" id="L83">                .build();</span>
+        @Override
+        @Transactional
+        public KitchenOrder createOrder(UUID orderId, String itemsJson) {
+<span class="fc" id="L72">            KitchenOrder o = KitchenOrder.builder()</span>
+<span class="fc" id="L73">                    .orderId(orderId)</span>
+<span class="fc" id="L74">                    .itemsJson(itemsJson)</span>
+<span class="fc" id="L75">                    .status(KitchenOrderStatus.PREPARING)</span>
+<span class="fc" id="L76">                    .createdAt(Instant.now())</span>
+<span class="fc" id="L77">                    .build();</span>
 
-<span class="fc" id="L85">        KitchenOrder saved = repository.save(o);</span>
-<span class="fc" id="L86">        int createdIndex = createCounter.incrementAndGet();</span>
-<span class="pc bpc" id="L87" title="3 of 4 branches missed.">        boolean shouldSchedule = prepSchedulingEnabled &amp;&amp; (createdIndex % 2 == 1);</span>
+<span class="fc" id="L79">            KitchenOrder saved = repository.save(o);</span>
+<span class="fc" id="L80">            int createdIndex = createCounter.incrementAndGet();</span>
+<span class="fc bfc" id="L81" title="All 4 branches covered.">            boolean shouldSchedule = prepSchedulingEnabled &amp;&amp; (createdIndex % 2 == 1);</span>
 
-<span class="fc" id="L89">        log.info(&quot;Kitchen order created: {} for source order {}&quot;, saved.getId(), orderId);</span>
+<span class="fc" id="L83">            log.info(&quot;Kitchen order created: {} for source order {}&quot;, saved.getId(), orderId);</span>
 
-<span class="pc bpc" id="L91" title="1 of 2 branches missed.">        if ( shouldSchedule ) {</span>
-<span class="nc" id="L92">            scheduleCompletion(saved);</span>
-        } else {
-<span class="fc" id="L94">            log.debug(&quot;Prep scheduling disabled; not scheduling completion for kitchen order {}&quot;, saved.getId());</span>
+<span class="fc bfc" id="L85" title="All 2 branches covered.">            if ( shouldSchedule ) {</span>
+<span class="fc" id="L86">                scheduleCompletion(saved);</span>
+<span class="fc" id="L87">            } else {</span>
+<span class="fc" id="L88">                log.debug(&quot;Prep scheduling disabled; not scheduling completion for kitchen order {}&quot;, saved.getId());</span>
+            }
+
+<span class="fc" id="L91">            return saved;</span>
         }
 
-<span class="fc" id="L97">        return saved;</span>
-    }
+        @Override
+        @Transactional
+        public KitchenOrder updateStatus(UUID id, KitchenOrderStatus newStatus) {
+<span class="pc" id="L97">            KitchenOrder o = repository.findById(id).orElseThrow(() -&gt; new KitchenOrderOperationException(&quot;Kitchen order not found: &quot; + id));</span>
+<span class="fc" id="L98">            KitchenOrderStatus current = o.getStatus();</span>
 
-    @Override
-    @Transactional
-    public KitchenOrder updateStatus(UUID id, KitchenOrderStatus newStatus) {
-<span class="fc" id="L103">        KitchenOrder o = repository.findById(id).orElseThrow(() -&gt; new KitchenOrderOperationException(&quot;Kitchen order not found: &quot; + id));</span>
-<span class="fc" id="L104">        KitchenOrderStatus current = o.getStatus();</span>
+<span class="fc bfc" id="L100" title="All 2 branches covered.">            if (current == KitchenOrderStatus.CANCELLED) {</span>
+<span class="fc" id="L101">                throw new KitchenOrderOperationException(&quot;Kitchen order &quot; + id + &quot; is cancelled and cannot be modified.&quot;);</span>
+            }
 
-        
-<span class="pc bpc" id="L107" title="1 of 2 branches missed.">        if (current == KitchenOrderStatus.CANCELLED) {</span>
-<span class="nc" id="L108">            throw new KitchenOrderOperationException(&quot;Kitchen order &quot; + id + &quot; is cancelled and cannot be modified.&quot;);</span>
+<span class="fc bfc" id="L104" title="All 2 branches covered.">            if (!isValidTransition(current, newStatus)) {</span>
+<span class="fc" id="L105">                throw new KitchenOrderOperationException(&quot;Invalid status transition from &quot; + current + &quot; to &quot; + newStatus);</span>
+            }
+
+<span class="fc" id="L108">            o.setStatus(newStatus);</span>
+<span class="fc" id="L109">            o.setUpdatedAt(Instant.now());</span>
+<span class="fc" id="L110">            KitchenOrder saved = repository.save(o);</span>
+<span class="fc" id="L111">            log.info(&quot;Kitchen order {} status changed {} -&gt; {}&quot;, id, current, newStatus);</span>
+<span class="fc" id="L112">            return saved;</span>
         }
 
-        
-<span class="fc bfc" id="L112" title="All 2 branches covered.">        if (!isValidTransition(current, newStatus)) {</span>
-<span class="fc" id="L113">            throw new KitchenOrderOperationException(&quot;Invalid status transition from &quot; + current + &quot; to &quot; + newStatus);</span>
+        @Override
+        @Transactional
+        public void cancelOrder(UUID id) {
+<span class="pc" id="L118">            KitchenOrder o = repository.findById(id).orElseThrow(() -&gt; new KitchenOrderOperationException(&quot;Kitchen order not found: &quot; + id));</span>
+<span class="fc" id="L119">            KitchenOrderStatus current = o.getStatus();</span>
+<span class="fc bfc" id="L120" title="All 2 branches covered.">            if (current == KitchenOrderStatus.CANCELLED) {</span>
+<span class="fc" id="L121">                throw new KitchenOrderOperationException(&quot;Kitchen order &quot; + id + &quot; is already cancelled&quot;);</span>
+            }
+
+<span class="pc bpc" id="L124" title="2 of 6 branches missed.">            if (current == KitchenOrderStatus.READY || current == KitchenOrderStatus.SERVED || current == KitchenOrderStatus.COMPLETED) {</span>
+<span class="fc" id="L125">                throw new KitchenOrderOperationException(&quot;Kitchen order &quot; + id + &quot; cannot be cancelled in state &quot; + current);</span>
+            }
+
+<span class="fc" id="L128">            o.setStatus(KitchenOrderStatus.CANCELLED);</span>
+<span class="fc" id="L129">            o.setUpdatedAt(Instant.now());</span>
+<span class="fc" id="L130">            repository.save(o);</span>
+<span class="fc" id="L131">            log.info(&quot;Kitchen order {} cancelled (was {})&quot;, id, current);</span>
+<span class="fc" id="L132">        }</span>
+
+        private boolean isValidTransition(KitchenOrderStatus from, KitchenOrderStatus to) {
+<span class="fc bfc" id="L135" title="All 2 branches covered.">            if (to == KitchenOrderStatus.CANCELLED) return true;</span>
+<span class="fc bfc" id="L136" title="All 5 branches covered.">            switch (from) {</span>
+<span class="pc bpc" id="L137" title="3 of 4 branches missed.">                case NEW: return to == KitchenOrderStatus.PREPARING || to == KitchenOrderStatus.CANCELLED;</span>
+<span class="pc bpc" id="L138" title="1 of 6 branches missed.">                case PREPARING: return to == KitchenOrderStatus.IN_PROGRESS || to == KitchenOrderStatus.READY || to == KitchenOrderStatus.CANCELLED;</span>
+<span class="pc bpc" id="L139" title="1 of 4 branches missed.">                case IN_PROGRESS: return to == KitchenOrderStatus.READY || to == KitchenOrderStatus.CANCELLED;</span>
+<span class="fc bfc" id="L140" title="All 4 branches covered.">                case READY: return to == KitchenOrderStatus.SERVED || to == KitchenOrderStatus.COMPLETED;</span>
+<span class="fc" id="L141">                default: return false;</span>
+            }
         }
 
-<span class="fc" id="L116">        o.setStatus(newStatus);</span>
-<span class="fc" id="L117">        o.setUpdatedAt(Instant.now());</span>
-<span class="fc" id="L118">        KitchenOrder saved = repository.save(o);</span>
-<span class="fc" id="L119">        log.info(&quot;Kitchen order {} status changed {} -&gt; {}&quot;, id, current, newStatus);</span>
-<span class="fc" id="L120">        return saved;</span>
-    }
+        private void scheduleCompletion(KitchenOrder ko) {
+<span class="fc" id="L146">            int delay = minPrepSeconds + random.nextInt(maxPrepSeconds - minPrepSeconds + 1);</span>
+<span class="fc" id="L147">            log.info(&quot;Scheduling kitchen order {} to become READY in {}s&quot;, ko.getId(), delay);</span>
 
-    @Override
-    @Transactional
-    public void cancelOrder(UUID id) {
-<span class="fc" id="L126">        KitchenOrder o = repository.findById(id).orElseThrow(() -&gt; new KitchenOrderOperationException(&quot;Kitchen order not found: &quot; + id));</span>
-<span class="fc" id="L127">        KitchenOrderStatus current = o.getStatus();</span>
-<span class="fc bfc" id="L128" title="All 2 branches covered.">        if (current == KitchenOrderStatus.CANCELLED) {</span>
-<span class="fc" id="L129">            throw new KitchenOrderOperationException(&quot;Kitchen order &quot; + id + &quot; is already cancelled&quot;);</span>
-        }
+<span class="fc" id="L149">            scheduler.schedule(() -&gt; {</span>
+                try {
+<span class="fc" id="L151">                    KitchenOrder current = repository.findById(ko.getId()).orElse(null);</span>
+<span class="fc bfc" id="L152" title="All 2 branches covered.">                    if (current == null) {</span>
+<span class="fc" id="L153">                        log.warn(&quot;Kitchen order {} not found when completing&quot;, ko.getId());</span>
+<span class="fc" id="L154">                        return;</span>
+                    }
 
-        
-<span class="pc bpc" id="L133" title="3 of 6 branches missed.">        if (current == KitchenOrderStatus.READY || current == KitchenOrderStatus.SERVED || current == KitchenOrderStatus.COMPLETED) {</span>
-<span class="nc" id="L134">            throw new KitchenOrderOperationException(&quot;Kitchen order &quot; + id + &quot; cannot be cancelled in state &quot; + current);</span>
-        }
+<span class="fc bfc" id="L157" title="All 2 branches covered.">                    if (current.getStatus() == KitchenOrderStatus.CANCELLED</span>
+<span class="pc bpc" id="L158" title="1 of 2 branches missed.">                            || current.getStatus() == KitchenOrderStatus.READY</span>
+<span class="pc bpc" id="L159" title="1 of 2 branches missed.">                            || current.getStatus() == KitchenOrderStatus.COMPLETED</span>
+<span class="pc bpc" id="L160" title="1 of 2 branches missed.">                            || current.getStatus() == KitchenOrderStatus.SERVED) {</span>
+<span class="fc" id="L161">                        log.info(&quot;Kitchen order {} in status {}, skipping completion&quot;, ko.getId(), current.getStatus());</span>
+<span class="fc" id="L162">                        return;</span>
+                    }
 
-<span class="fc" id="L137">        o.setStatus(KitchenOrderStatus.CANCELLED);</span>
-<span class="fc" id="L138">        o.setUpdatedAt(Instant.now());</span>
-<span class="fc" id="L139">        repository.save(o);</span>
-<span class="fc" id="L140">        log.info(&quot;Kitchen order {} cancelled (was {})&quot;, id, current);</span>
-<span class="fc" id="L141">    }</span>
+<span class="fc" id="L165">                    current.setStatus(KitchenOrderStatus.READY);</span>
+<span class="fc" id="L166">                    current.setUpdatedAt(Instant.now());</span>
+<span class="fc" id="L167">                    repository.save(current);</span>
+<span class="fc" id="L168">                    log.info(&quot;Kitchen order {} marked READY&quot;, current.getId());</span>
 
-    private boolean isValidTransition(KitchenOrderStatus from, KitchenOrderStatus to) {
-<span class="fc bfc" id="L144" title="All 2 branches covered.">        if (to == KitchenOrderStatus.CANCELLED) return true; 
-<span class="pc bpc" id="L145" title="1 of 5 branches missed.">        switch (from) {</span>
-<span class="pc bpc" id="L146" title="3 of 4 branches missed.">            case NEW: return to == KitchenOrderStatus.PREPARING || to == KitchenOrderStatus.CANCELLED;</span>
-<span class="pc bpc" id="L147" title="1 of 6 branches missed.">            case PREPARING: return to == KitchenOrderStatus.IN_PROGRESS || to == KitchenOrderStatus.READY || to == KitchenOrderStatus.CANCELLED;</span>
-<span class="pc bpc" id="L148" title="1 of 4 branches missed.">            case IN_PROGRESS: return to == KitchenOrderStatus.READY || to == KitchenOrderStatus.CANCELLED;</span>
-<span class="pc bpc" id="L149" title="1 of 4 branches missed.">            case READY: return to == KitchenOrderStatus.SERVED || to == KitchenOrderStatus.COMPLETED;</span>
-<span class="nc" id="L150">            default: return false;</span>
-        }
-    }
+<span class="pc bpc" id="L170" title="2 of 6 branches missed.">                    if (callbackEnabled &amp;&amp; callbackUrl != null &amp;&amp; !callbackUrl.isBlank()) {</span>
+                        try {
+<span class="fc" id="L172">                            String target = callbackUrl</span>
+<span class="fc" id="L173">                                    .replace(&quot;{orderId}&quot;, current.getOrderId().toString())</span>
+<span class="fc" id="L174">                                    .replace(&quot;{kitchenOrderId}&quot;, current.getId().toString());</span>
+<span class="fc" id="L175">                            HttpRequest.Builder builder = HttpRequest.newBuilder()</span>
+<span class="fc" id="L176">                                    .uri(URI.create(target))</span>
+<span class="fc" id="L177">                                    .timeout(java.time.Duration.ofSeconds(10))</span>
+<span class="fc" id="L178">                                    .POST(HttpRequest.BodyPublishers.noBody());</span>
 
-    private void scheduleCompletion(KitchenOrder ko) {
-<span class="nc" id="L155">        int delay = minPrepSeconds + random.nextInt(maxPrepSeconds - minPrepSeconds + 1);</span>
-<span class="nc" id="L156">        log.info(&quot;Scheduling kitchen order {} to become READY in {}s&quot;, ko.getId(), delay);</span>
+<span class="pc bpc" id="L180" title="1 of 4 branches missed.">                            if (callbackSecret != null &amp;&amp; !callbackSecret.isBlank()) {</span>
+<span class="fc" id="L181">                                builder.header(&quot;X-Callback-Secret&quot;, callbackSecret);</span>
+                            }
 
-<span class="nc" id="L158">        scheduler.schedule(() -&gt; {</span>
-            try {
-<span class="nc" id="L160">                KitchenOrder current = repository.findById(ko.getId()).orElse(null);</span>
-<span class="nc bnc" id="L161" title="All 2 branches missed.">                if (current == null) {</span>
-<span class="nc" id="L162">                    log.warn(&quot;Kitchen order {} not found when completing&quot;, ko.getId());</span>
-<span class="nc" id="L163">                    return;</span>
-                }
-
-                
-<span class="nc bnc" id="L167" title="All 2 branches missed.">                if (current.getStatus() == KitchenOrderStatus.CANCELLED</span>
-<span class="nc bnc" id="L168" title="All 2 branches missed.">                        || current.getStatus() == KitchenOrderStatus.READY</span>
-<span class="nc bnc" id="L169" title="All 2 branches missed.">                        || current.getStatus() == KitchenOrderStatus.COMPLETED</span>
-<span class="nc bnc" id="L170" title="All 2 branches missed.">                        || current.getStatus() == KitchenOrderStatus.SERVED) {</span>
-<span class="nc" id="L171">                    log.info(&quot;Kitchen order {} in status {}, skipping completion&quot;, ko.getId(), current.getStatus());</span>
-<span class="nc" id="L172">                    return;</span>
-                }
-
-<span class="nc" id="L175">                current.setStatus(KitchenOrderStatus.READY);</span>
-<span class="nc" id="L176">                current.setUpdatedAt(Instant.now());</span>
-<span class="nc" id="L177">                repository.save(current);</span>
-<span class="nc" id="L178">                log.info(&quot;Kitchen order {} marked READY&quot;, current.getId());</span>
-
-<span class="nc bnc" id="L180" title="All 6 branches missed.">                if (callbackEnabled &amp;&amp; callbackUrl != null &amp;&amp; !callbackUrl.isBlank()) {</span>
-                    try {
-<span class="nc" id="L182">                        String target = callbackUrl</span>
-<span class="nc" id="L183">                                .replace(&quot;{orderId}&quot;, current.getOrderId().toString())</span>
-<span class="nc" id="L184">                                .replace(&quot;{kitchenOrderId}&quot;, current.getId().toString());</span>
-<span class="nc" id="L185">                        HttpRequest.Builder builder = HttpRequest.newBuilder()</span>
-<span class="nc" id="L186">                                .uri(URI.create(target))</span>
-<span class="nc" id="L187">                                .timeout(java.time.Duration.ofSeconds(10))</span>
-<span class="nc" id="L188">                                .POST(HttpRequest.BodyPublishers.noBody());</span>
-
-<span class="nc bnc" id="L190" title="All 4 branches missed.">                        if (callbackSecret != null &amp;&amp; !callbackSecret.isBlank()) {</span>
-<span class="nc" id="L191">                            builder.header(&quot;X-Callback-Secret&quot;, callbackSecret);</span>
+<span class="fc" id="L184">                            HttpRequest req = builder.build();</span>
+<span class="fc" id="L185">                            HttpResponse&lt;String&gt; resp = httpClient.send(req, HttpResponse.BodyHandlers.ofString());</span>
+<span class="fc" id="L186">                            log.info(&quot;Callback to main-service returned status {} for kitchenOrder {}&quot;, resp.statusCode(), current.getId());</span>
+<span class="fc" id="L187">                        } catch (Exception cbEx) {</span>
+<span class="fc" id="L188">                            log.warn(&quot;Callback to main-service failed for kitchenOrder {}: {}&quot;, current.getId(), cbEx.getMessage());</span>
                         }
+                    }
 
-<span class="nc" id="L194">                        HttpRequest req = builder.build();</span>
-<span class="nc" id="L195">                        HttpResponse&lt;String&gt; resp = httpClient.send(req, HttpResponse.BodyHandlers.ofString());</span>
-<span class="nc" id="L196">                        log.info(&quot;Callback to main-service returned status {} for kitchenOrder {}&quot;, resp.statusCode(), current.getId());</span>
-<span class="nc" id="L197">                    } catch (Exception cbEx) {</span>
-<span class="nc" id="L198">                        log.warn(&quot;Callback to main-service failed for kitchenOrder {}: {}&quot;, current.getId(), cbEx.getMessage());</span>
-<span class="nc" id="L199">                    }</span>
+<span class="pc" id="L192">                } catch (Exception e) {</span>
+<span class="nc" id="L193">                    log.error(&quot;Error while completing kitchen order {}: {}&quot;, ko.getId(), e.getMessage(), e);</span>
                 }
+<span class="fc" id="L195">            }, delay, TimeUnit.SECONDS);</span>
+<span class="fc" id="L196">        }</span>
 
-<span class="nc" id="L202">            } catch (Exception e) {</span>
-<span class="nc" id="L203">                log.error(&quot;Error while completing kitchen order {}: {}&quot;, ko.getId(), e.getMessage(), e);</span>
-<span class="nc" id="L204">            }</span>
-<span class="nc" id="L205">        }, delay, TimeUnit.SECONDS);</span>
-<span class="nc" id="L206">    }</span>
+        @Override
+        @Transactional(readOnly = true)
+        public List&lt;KitchenOrder&gt; findByOrderId(UUID orderId) {
+<span class="fc" id="L201">            return repository.findByOrderId(orderId);</span>
+        }
 
-    @Override
-    @Transactional(readOnly = true)
-    public List&lt;KitchenOrder&gt; findByOrderId(UUID orderId) {
-<span class="fc" id="L211">        return repository.findByOrderId(orderId);</span>
+        @Override
+        @Transactional
+        public void delete(UUID id) {
+<span class="fc" id="L207">            repository.deleteById(id);</span>
+<span class="fc" id="L208">        }</span>
+
+        @PreDestroy
+        public void shutdown() {
+            try {
+<span class="fc" id="L213">                scheduler.shutdownNow();</span>
+<span class="fc" id="L214">            } catch (Exception e) {</span>
+<span class="fc" id="L215">                log.warn(&quot;Error shutting down kitchen scheduler: {}&quot;, e.getMessage());</span>
+            }
+<span class="fc" id="L217">        }</span>
     }
-
-    @Override
-    @Transactional
-    public void delete(UUID id) {
-<span class="fc" id="L217">        repository.deleteById(id);</span>
-<span class="fc" id="L218">    }</span>
-
-    @PreDestroy
-    public void shutdown() {
-        try {
-<span class="fc" id="L223">            scheduler.shutdownNow();</span>
-<span class="nc" id="L224">        } catch (Exception e) {</span>
-<span class="nc" id="L225">            log.warn(&quot;Error shutting down kitchen scheduler: {}&quot;, e.getMessage());</span>
-<span class="fc" id="L226">        }</span>
-<span class="fc" id="L227">    }</span>
-}
-</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.10.202304240956</span></div></body></html>

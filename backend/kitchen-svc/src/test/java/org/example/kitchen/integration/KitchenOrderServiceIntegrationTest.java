@@ -36,7 +36,6 @@ class KitchenOrderServiceIntegrationTest {
     void setUp() {
         repository.deleteAll();
 
-        // Let JPA generate the id (don't assign manually) and persist immediately
         entity = KitchenOrder.builder()
                 .orderId(java.util.UUID.randomUUID())
                 .itemsJson("[]")
@@ -44,17 +43,15 @@ class KitchenOrderServiceIntegrationTest {
                 .createdAt(Instant.now())
                 .build();
 
-        // Persist and flush to DB so the test sees a fully managed instance
         entity = repository.saveAndFlush(entity);
     }
 
     @Test
     void updateStatus_allowsValidTransitions_and_rejectsInvalid() {
-        // valid transition PREPARING -> IN_PROGRESS
+
         KitchenOrder updated = service.updateStatus(entity.getId(), KitchenOrderStatus.IN_PROGRESS);
         assertThat(updated.getStatus()).isEqualTo(KitchenOrderStatus.IN_PROGRESS);
 
-        // invalid transition IN_PROGRESS -> NEW (not allowed)
         assertThatThrownBy(() -> service.updateStatus(entity.getId(), KitchenOrderStatus.NEW))
                 .isInstanceOf(Exception.class)
                 .hasMessageContaining("Invalid status transition");
@@ -62,12 +59,10 @@ class KitchenOrderServiceIntegrationTest {
 
     @Test
     void cancelOrder_allowsAndRejectsBasedOnCurrentState() {
-        // Cancel when PREPARING - should succeed
         service.cancelOrder(entity.getId());
         KitchenOrder after = repository.findById(entity.getId()).orElseThrow();
         assertThat(after.getStatus()).isEqualTo(KitchenOrderStatus.CANCELLED);
 
-        // Trying to cancel again should throw
         assertThatThrownBy(() -> service.cancelOrder(entity.getId()))
                 .isInstanceOf(KitchenOrderOperationException.class)
                 .hasMessageContaining("already cancelled");

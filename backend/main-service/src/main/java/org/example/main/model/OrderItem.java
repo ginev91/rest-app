@@ -53,11 +53,14 @@ public class OrderItem {
     @PreUpdate
     private void syncSnapshotFields() {
         if (this.menuItem != null) {
+            // copy snapshot fields from menuItem when available
             if (this.menuItemName == null || this.menuItemName.isBlank()) {
-                this.menuItemName = this.menuItem.getName();
+                String name = this.menuItem.getName();
+                this.menuItemName = name != null ? name : "";
             }
             if (this.price == null) {
-                this.price = this.menuItem.getPrice();
+                BigDecimal mp = this.menuItem.getPrice();
+                this.price = mp != null ? mp : BigDecimal.ZERO;
             }
         }
 
@@ -66,6 +69,16 @@ public class OrderItem {
     }
 
     public boolean isKitchenItem() {
-        return this.menuItem.getItemType().equals(ItemType.KITCHEN);
+        if (this.menuItem == null) return false;
+        ItemType type = this.menuItem.getItemType();
+        return type == ItemType.KITCHEN || type == null;
+    }
+
+
+    public void setMenuItemId(UUID uuid) {
+        if (this.menuItem == null) {
+            this.menuItem = new MenuItem();
+        }
+        this.menuItem.setId(uuid);
     }
 }

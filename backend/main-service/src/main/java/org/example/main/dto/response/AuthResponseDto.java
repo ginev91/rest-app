@@ -1,9 +1,6 @@
 package org.example.main.dto.response;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.util.UUID;
 
@@ -11,6 +8,8 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Getter
+@Setter
 public class AuthResponseDto {
     private String token;
     private String username;
@@ -20,5 +19,9 @@ public class AuthResponseDto {
     private UUID tableId;
 
     public AuthResponseDto(String token, String username, UUID id, String role) {
+        this.token = token;
+        this.username = username;
+        this.userId = id;
+        this.role = role;
     }
 }

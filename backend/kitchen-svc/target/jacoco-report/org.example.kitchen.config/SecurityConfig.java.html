@@ -19,61 +19,58 @@ import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.stream.Collectors;
 
-/**
- * Security configuration for kitchen service (resource server).
- */
 @Profile(&quot;!test&quot;)
 @Configuration
 @EnableMethodSecurity
-<span class="fc" id="L28">public class SecurityConfig {</span>
+<span class="fc" id="L25">public class SecurityConfig {</span>
 
     @Value(&quot;${security.jwt.secret:}&quot;)
     private String jwtSecret;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-<span class="nc" id="L35">        http</span>
-<span class="nc" id="L36">                .csrf(csrf -&gt; csrf.disable())</span>
-<span class="nc" id="L37">                .authorizeHttpRequests(auth -&gt; auth</span>
-<span class="nc" id="L38">                        .requestMatchers(&quot;/api/public/**&quot;, &quot;/actuator/health&quot;, &quot;/actuator/info&quot;).permitAll()</span>
+<span class="fc" id="L32">        http</span>
+<span class="fc" id="L33">                .csrf(csrf -&gt; csrf.disable())</span>
+<span class="fc" id="L34">                .authorizeHttpRequests(auth -&gt; auth</span>
+<span class="fc" id="L35">                        .requestMatchers(&quot;/api/public/**&quot;, &quot;/actuator/health&quot;, &quot;/actuator/info&quot;).permitAll()</span>
 
-<span class="nc" id="L40">                        .requestMatchers(&quot;/api/kitchen/orders&quot;, &quot;/api/kitchen/orders/by-order/**&quot;).permitAll()</span>
+<span class="fc" id="L37">                        .requestMatchers(&quot;/api/kitchen/orders&quot;, &quot;/api/kitchen/orders/by-order/**&quot;).permitAll()</span>
 
-<span class="nc" id="L42">                        .requestMatchers(&quot;/api/kitchen/admin/**&quot;).hasRole(&quot;ADMIN&quot;)</span>
-<span class="nc" id="L43">                        .anyRequest().authenticated()</span>
+<span class="fc" id="L39">                        .requestMatchers(&quot;/api/kitchen/admin/**&quot;).hasRole(&quot;ADMIN&quot;)</span>
+<span class="fc" id="L40">                        .anyRequest().authenticated()</span>
                 )
-<span class="nc" id="L45">                .oauth2ResourceServer(oauth2 -&gt; oauth2</span>
-<span class="nc" id="L46">                        .jwt(jwt -&gt; jwt</span>
-<span class="nc" id="L47">                                .jwtAuthenticationConverter(jwtAuthenticationConverter())</span>
-                        )
+<span class="fc" id="L42">                .oauth2ResourceServer(oauth2 -&gt; oauth2</span>
+<span class="fc" id="L43">                        .jwt(jwt -&gt; jwt</span>
+<span class="fc" id="L44">                                .jwtAuthenticationConverter(jwtAuthenticationConverter())</span>
+<span class="fc" id="L45">                        )</span>
                 );
 
-<span class="nc" id="L51">        return http.build();</span>
+<span class="fc" id="L48">        return http.build();</span>
     }
 
     private Converter&lt;org.springframework.security.oauth2.jwt.Jwt, JwtAuthenticationToken&gt; jwtAuthenticationConverter() {
-<span class="fc" id="L55">        JwtGrantedAuthoritiesConverter grantedAuthoritiesConverter = new JwtGrantedAuthoritiesConverter();</span>
-<span class="fc" id="L56">        grantedAuthoritiesConverter.setAuthoritiesClaimName(&quot;roles&quot;);</span>
-<span class="fc" id="L57">        grantedAuthoritiesConverter.setAuthorityPrefix(&quot;ROLE_&quot;);</span>
+<span class="fc" id="L52">        JwtGrantedAuthoritiesConverter grantedAuthoritiesConverter = new JwtGrantedAuthoritiesConverter();</span>
+<span class="fc" id="L53">        grantedAuthoritiesConverter.setAuthoritiesClaimName(&quot;roles&quot;);</span>
+<span class="fc" id="L54">        grantedAuthoritiesConverter.setAuthorityPrefix(&quot;ROLE_&quot;);</span>
 
-<span class="fc" id="L59">        return jwt -&gt; {</span>
-<span class="fc" id="L60">            Collection&lt;GrantedAuthority&gt; authorities = grantedAuthoritiesConverter.convert(jwt);</span>
-<span class="fc" id="L61">            Collection&lt;GrantedAuthority&gt; mapped = authorities.stream()</span>
-<span class="fc" id="L62">                    .map(a -&gt; (GrantedAuthority) () -&gt; a.getAuthority().trim())</span>
-<span class="fc" id="L63">                    .collect(Collectors.toList());</span>
+<span class="fc" id="L56">        return jwt -&gt; {</span>
+<span class="fc" id="L57">            Collection&lt;GrantedAuthority&gt; authorities = grantedAuthoritiesConverter.convert(jwt);</span>
+<span class="fc" id="L58">            Collection&lt;GrantedAuthority&gt; mapped = authorities.stream()</span>
+<span class="pc" id="L59">                    .map(a -&gt; (GrantedAuthority) () -&gt; a.getAuthority().trim())</span>
+<span class="fc" id="L60">                    .collect(Collectors.toList());</span>
 
-<span class="fc" id="L65">            return new JwtAuthenticationToken(jwt, mapped);</span>
+<span class="fc" id="L62">            return new JwtAuthenticationToken(jwt, mapped);</span>
         };
     }
 
     @Bean
     public JwtDecoder jwtDecoder() {
-<span class="pc bpc" id="L71" title="1 of 4 branches missed.">        if (jwtSecret == null || jwtSecret.isBlank()) {</span>
-<span class="fc" id="L72">            return NimbusJwtDecoder.withJwkSetUri(&quot;https://example.com/.well-known/jwks.json&quot;).build();</span>
+<span class="pc bpc" id="L68" title="2 of 4 branches missed.">        if (jwtSecret == null || jwtSecret.isBlank()) {</span>
+<span class="fc" id="L69">            return NimbusJwtDecoder.withJwkSetUri(&quot;https://example.com/.well-known/jwks.json&quot;).build();</span>
         }
-<span class="fc" id="L74">        byte[] keyBytes = jwtSecret.getBytes(StandardCharsets.UTF_8);</span>
-<span class="fc" id="L75">        SecretKeySpec secretKey = new SecretKeySpec(keyBytes, &quot;HmacSHA256&quot;);</span>
-<span class="fc" id="L76">        return NimbusJwtDecoder.withSecretKey(secretKey).build();</span>
+<span class="nc" id="L71">        byte[] keyBytes = jwtSecret.getBytes(StandardCharsets.UTF_8);</span>
+<span class="nc" id="L72">        SecretKeySpec secretKey = new SecretKeySpec(keyBytes, &quot;HmacSHA256&quot;);</span>
+<span class="nc" id="L73">        return NimbusJwtDecoder.withSecretKey(secretKey).build();</span>
     }
 }
-</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.10.202304240956</span></div></body></html>

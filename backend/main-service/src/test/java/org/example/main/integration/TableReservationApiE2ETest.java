@@ -1,7 +1,6 @@
 package org.example.main.integration;
 
 import org.example.main.config.TestSecurityConfig;
-import org.example.main.dto.request.CancelReservationRequestDto;
 import org.example.main.dto.request.ReservationRequestDto;
 import org.example.main.dto.response.TableReservationResponseDto;
 import org.example.main.mapper.ReservationMapper;

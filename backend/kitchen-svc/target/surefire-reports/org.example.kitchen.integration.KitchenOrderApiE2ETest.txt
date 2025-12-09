@@ -1,4 +1,4 @@
 -------------------------------------------------------------------------------
 Test set: org.example.kitchen.integration.KitchenOrderApiE2ETest
 -------------------------------------------------------------------------------
-Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.878 s -- in org.example.kitchen.integration.KitchenOrderApiE2ETest
+Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.286 s -- in org.example.kitchen.integration.KitchenOrderApiE2ETest

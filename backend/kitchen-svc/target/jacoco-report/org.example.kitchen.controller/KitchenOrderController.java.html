@@ -18,7 +18,7 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping(&quot;/api/kitchen/orders&quot;)
-<span class="fc" id="L21">@RequiredArgsConstructor</span>
+@RequiredArgsConstructor
 public class KitchenOrderController {
 
     private final IKitchenOrderService service;
@@ -43,20 +43,16 @@ public class KitchenOrderController {
 <span class="fc" id="L43">        return ResponseEntity.ok(KitchenOrderMapper.toResponse(updated));</span>
     }
 
-    /**
-     * Dedicated cancel endpoint for convenience and clearer intent.
-     * Enforces domain rules in the service (cancellation irreversibility).
-     */
     @PostMapping(&quot;/{id}/cancel&quot;)
     public ResponseEntity&lt;Void&gt; cancel(@PathVariable(&quot;id&quot;) UUID id) {
-<span class="fc" id="L52">        service.cancelOrder(id);</span>
-<span class="fc" id="L53">        return ResponseEntity.ok().build();</span>
+<span class="fc" id="L48">        service.cancelOrder(id);</span>
+<span class="fc" id="L49">        return ResponseEntity.ok().build();</span>
     }
 
     @DeleteMapping(&quot;/{id}&quot;)
     public ResponseEntity&lt;Void&gt; delete(@PathVariable(&quot;id&quot;) UUID id) {
-<span class="fc" id="L58">        service.delete(id);</span>
-<span class="fc" id="L59">        return ResponseEntity.noContent().build();</span>
+<span class="fc" id="L54">        service.delete(id);</span>
+<span class="fc" id="L55">        return ResponseEntity.noContent().build();</span>
     }
 }
-</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.10.202304240956</span></div></body></html>

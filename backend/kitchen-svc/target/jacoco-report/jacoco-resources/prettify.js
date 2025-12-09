@@ -1,16 +1,16 @@
-
+// Copyright (C) 2006 Google Inc.
 //
-
-
-
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
 //
-
+//      http://www.apache.org/licenses/LICENSE-2.0
 //
-
-
-
-
-
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 
 /**
@@ -52,7 +52,7 @@
  * @requires console
  */
 
-
+// JSLint declarations
 /*global console, document, navigator, setTimeout, window */
 
 /**
@@ -100,7 +100,7 @@ window['_pr_isIE6'] = function () {
 
 
 (function () {
-  
+  // Keyword lists for various languages.
   var FLOW_CONTROL_KEYWORDS =
       "break continue do else for if return while ";
   var C_KEYWORDS = FLOW_CONTROL_KEYWORDS + "auto case char const default " +
@@ -141,7 +141,7 @@ window['_pr_isIE6'] = function () {
       CPP_KEYWORDS + CSHARP_KEYWORDS + JSCRIPT_KEYWORDS + PERL_KEYWORDS +
       PYTHON_KEYWORDS + RUBY_KEYWORDS + SH_KEYWORDS);
 
-  
+  // token style names.  correspond to css classes
   /** token style for a string literal */
   var PR_STRING = 'str';
   /** token style for a keyword */
@@ -208,19 +208,19 @@ window['_pr_isIE6'] = function () {
       for (var i = 0; i < preceders.length; ++i) {
         pattern += '|' + preceders[i].replace(/([^=<>:&a-z])/g, '\\$1');
       }
-      pattern += ')\\s*';  
+      pattern += ')\\s*';  // matches at end, and matches empty string
       return pattern;
-      
-      
-      
-      
-      
+      // CAVEAT: this does not properly handle the case where a regular
+      // expression immediately follows another since a regular expression may
+      // have flags for case-sensitivity and the like.  Having regexp tokens
+      // adjacent is not valid in any language I'm aware of, so I'm punting.
+      // TODO: maybe style special characters inside a regexp as punctuation.
     }();
 
-  
-  
-  
-  
+  // Define regexps here so that the interpreter doesn't have to create an
+  // object each time the function containing them is called.
+  // The language spec requires a new object created even if you don't access
+  // the $1 members.
   var pr_amp = /&/g;
   var pr_lt = /</g;
   var pr_gt = />/g;
@@ -251,9 +251,9 @@ window['_pr_isIE6'] = function () {
   function htmlToText(html) {
     var pos = html.indexOf('&');
     if (pos < 0) { return html; }
-    
-    
-    
+    // Handle numeric entities specially.  We can't use functional substitution
+    // since that doesn't work in older versions of Safari.
+    // These should be rare since most browsers convert them to normal chars.
     for (--pos; (pos = html.indexOf('&#', pos + 1)) >= 0;) {
       var end = html.indexOf(';', pos);
       if (end >= 0) {
@@ -289,17 +289,17 @@ window['_pr_isIE6'] = function () {
    * Are newlines and adjacent spaces significant in the given node's innerHTML?
    */
   function isPreformatted(node, content) {
-    
-    
+    // PRE means preformatted, and is a very common case, so don't create
+    // unnecessary computed style objects.
     if ('PRE' === node.tagName) { return true; }
-    if (!newlineRe.test(content)) { return true; }  
+    if (!newlineRe.test(content)) { return true; }  // Don't care
     var whitespace = '';
-    
+    // For disconnected nodes, IE has no currentStyle.
     if (node.currentStyle) {
       whitespace = node.currentStyle.whiteSpace;
     } else if (window.getComputedStyle) {
-      
-      
+      // Firefox makes a best guess if node is disconnected whereas Safari
+      // returns the empty string.
       whitespace = window.getComputedStyle(node, null).whiteSpace;
     }
     return !whitespace || whitespace === 'pre';
@@ -307,7 +307,7 @@ window['_pr_isIE6'] = function () {
 
   function normalizedHtml(node, out, opt_sortAttrs) {
     switch (node.nodeType) {
-      case 1:  
+      case 1:  // an element
         var name = node.tagName.toLowerCase();
 
         out.push('<', name);
@@ -337,7 +337,7 @@ window['_pr_isIE6'] = function () {
           out.push('<\/', name, '>');
         }
         break;
-      case 3: case 4: 
+      case 3: case 4: // text
         out.push(textToHtml(node.nodeValue));
         break;
     }
@@ -431,7 +431,7 @@ window['_pr_isIE6'] = function () {
           end = start;
         }
         ranges.push([start, end]);
-        
+        // If the range might intersect letters, then expand it.
         if (!(end < 65 || start > 122)) {
           if (!(end < 65 || start > 90)) {
             ranges.push([Math.max(65, start) | 32, Math.min(end, 90) | 32]);
@@ -442,8 +442,8 @@ window['_pr_isIE6'] = function () {
         }
       }
 
-      
-      
+      // [[1, 10], [3, 4], [8, 12], [14, 14], [16, 16], [17, 17]]
+      // -> [[1, 12], [14, 14], [16, 17]]
       ranges.sort(function (a, b) { return (a[0] - b[0]) || (b[1]  - a[1]); });
       var consolidatedRanges = [];
       var lastRange = [NaN, NaN];
@@ -472,35 +472,35 @@ window['_pr_isIE6'] = function () {
     }
 
     function allowAnywhereFoldCaseAndRenumberGroups(regex) {
-      
-      
-      
+      // Split into character sets, escape sequences, punctuation strings
+      // like ('(', '(?:', ')', '^'), and runs of characters that do not
+      // include any of the above.
       var parts = regex.source.match(
           new RegExp(
               '(?:'
-              + '\\[(?:[^\\x5C\\x5D]|\\\\[\\s\\S])*\\]'  
-              + '|\\\\u[A-Fa-f0-9]{4}'  
-              + '|\\\\x[A-Fa-f0-9]{2}'  
-              + '|\\\\[0-9]+'  
-              + '|\\\\[^ux0-9]'  
-              + '|\\(\\?[:!=]'  
-              + '|[\\(\\)\\^]'  
-              + '|[^\\x5B\\x5C\\(\\)\\^]+'  
+              + '\\[(?:[^\\x5C\\x5D]|\\\\[\\s\\S])*\\]'  // a character set
+              + '|\\\\u[A-Fa-f0-9]{4}'  // a unicode escape
+              + '|\\\\x[A-Fa-f0-9]{2}'  // a hex escape
+              + '|\\\\[0-9]+'  // a back-reference or octal escape
+              + '|\\\\[^ux0-9]'  // other escape sequence
+              + '|\\(\\?[:!=]'  // start of a non-capturing group
+              + '|[\\(\\)\\^]'  // start/emd of a group, or line start
+              + '|[^\\x5B\\x5C\\(\\)\\^]+'  // run of other characters
               + ')',
               'g'));
       var n = parts.length;
 
-      
-      
-      
+      // Maps captured group numbers to the number they will occupy in
+      // the output or to -1 if that has not been determined, or to
+      // undefined if they need not be capturing in the output.
       var capturedGroups = [];
 
-      
-      
+      // Walk over and identify back references to build the capturedGroups
+      // mapping.
       for (var i = 0, groupIndex = 0; i < n; ++i) {
         var p = parts[i];
         if (p === '(') {
-          
+          // groups are 1-indexed, so max group index is count of '('
           ++groupIndex;
         } else if ('\\' === p.charAt(0)) {
           var decimalValue = +p.substring(1);
@@ -510,8 +510,8 @@ window['_pr_isIE6'] = function () {
         }
       }
 
-      
-      
+      // Renumber groups and reduce capturing groups to non-capturing groups
+      // where possible.
       for (var i = 1; i < capturedGroups.length; ++i) {
         if (-1 === capturedGroups[i]) {
           capturedGroups[i] = ++capturedGroupIndex;
@@ -532,14 +532,14 @@ window['_pr_isIE6'] = function () {
         }
       }
 
-      
-      
+      // Remove any prefix anchors so that the output will match anywhere.
+      // ^^ really does mean an anchored match though.
       for (var i = 0, groupIndex = 0; i < n; ++i) {
         if ('^' === parts[i] && '^' !== parts[i + 1]) { parts[i] = ''; }
       }
 
-      
-      
+      // Expand letters to groupts to handle mixing of case-sensitive and
+      // case-insensitive patterns if necessary.
       if (regex.ignoreCase && needToFoldCase) {
         for (var i = 0; i < n; ++i) {
           var p = parts[i];
@@ -547,7 +547,7 @@ window['_pr_isIE6'] = function () {
           if (p.length >= 2 && ch0 === '[') {
             parts[i] = caseFoldCharset(p);
           } else if (ch0 !== '\\') {
-            
+            // TODO: handle letters in numeric escapes.
             parts[i] = p.replace(
                 /[a-zA-Z]/g,
                 function (ch) {
@@ -574,9 +574,9 @@ window['_pr_isIE6'] = function () {
 
   var PR_innerHtmlWorks = null;
   function getInnerHtml(node) {
-    
-    
-    
+    // inner html is hopelessly broken in Safari 2.0.4 when the content is
+    // an html description of well formed XML and the containing tag is a PRE
+    // tag, so we detect that case and emulate innerHTML.
     if (null === PR_innerHtmlWorks) {
       var testNode = document.createElement('PRE');
       testNode.appendChild(
@@ -586,7 +586,7 @@ window['_pr_isIE6'] = function () {
 
     if (PR_innerHtmlWorks) {
       var content = node.innerHTML;
-      
+      // XMP tags contain unescaped entities so require special handling.
       if (isRawContent(node)) {
         content = textToHtml(content);
       } else if (!isPreformatted(node, content)) {
@@ -615,9 +615,9 @@ window['_pr_isIE6'] = function () {
     var charInLine = 0;
 
     return function (plainText) {
-      
-      
-      
+      // walk over each character looking for tabs and newlines.
+      // On tabs, expand them.  On newlines, reset charInLine.
+      // Otherwise increment charInLine
       var out = null;
       var pos = 0;
       for (var i = 0, n = plainText.length; i < n; ++i) {
@@ -627,10 +627,10 @@ window['_pr_isIE6'] = function () {
           case '\t':
             if (!out) { out = []; }
             out.push(plainText.substring(pos, i));
-            
-            
-            
-            
+            // calculate how much space we need in front of this part
+            // nSpaces is the amount of padding -- the number of spaces needed
+            // to move us to the next column, where columns occur at factors of
+            // tabWidth.
             var nSpaces = tabWidth - (charInLine % tabWidth);
             charInLine += nSpaces;
             for (; nSpaces >= 0; nSpaces -= SPACES.length) {
@@ -652,12 +652,12 @@ window['_pr_isIE6'] = function () {
   }
 
   var pr_chunkPattern = new RegExp(
-      '[^<]+'  
-      + '|<\!--[\\s\\S]*?--\>'  
-      + '|<!\\[CDATA\\[[\\s\\S]*?\\]\\]>'  
-      
+      '[^<]+'  // A run of characters other than '<'
+      + '|<\!--[\\s\\S]*?--\>'  // an HTML comment
+      + '|<!\\[CDATA\\[[\\s\\S]*?\\]\\]>'  // a CDATA section
+      // a probable tag that should not be highlighted
       + '|<\/?[a-zA-Z](?:[^>\"\']|\'[^\']*\'|\"[^\"]*\")*>'
-      + '|<',  
+      + '|<',  // A '<' that does not begin a larger chunk
       'g');
   var pr_commentPrefix = /^<\!--/;
   var pr_cdataPrefix = /^<!\[CDATA\[/;
@@ -673,9 +673,9 @@ window['_pr_isIE6'] = function () {
     * @private
     */
   function extractTags(s) {
-    
-    
-    
+    // since the pattern has the 'g' modifier and defines no capturing groups,
+    // this will return a list of all chunks which we then classify and wrap as
+    // PR_Tokens
     var matches = s.match(pr_chunkPattern);
     var sourceBuf = [];
     var sourceBufLen = 0;
@@ -686,19 +686,19 @@ window['_pr_isIE6'] = function () {
         if (match.length > 1 && match.charAt(0) === '<') {
           if (pr_commentPrefix.test(match)) { continue; }
           if (pr_cdataPrefix.test(match)) {
-            
+            // strip CDATA prefix and suffix.  Don't unescape since it's CDATA
             sourceBuf.push(match.substring(9, match.length - 3));
             sourceBufLen += match.length - 12;
           } else if (pr_brPrefix.test(match)) {
-            
-            
+            // <br> tags are lexically significant so convert them to text.
+            // This is undone later.
             sourceBuf.push('\n');
             ++sourceBufLen;
           } else {
             if (match.indexOf(PR_NOCODE) >= 0 && isNoCodeTag(match)) {
-              
-              
-              
+              // A <span class="nocode"> will start a section that should be
+              // ignored.  Continue walking the list until we see a matching end
+              // tag.
               var name = match.match(pr_tagNameRe)[2];
               var depth = 1;
               var j;
@@ -717,7 +717,7 @@ window['_pr_isIE6'] = function () {
                 extractedTags.push(
                     sourceBufLen, matches.slice(i, j + 1).join(''));
                 i = j;
-              } else {  
+              } else {  // Ignore unclosed sections.
                 extractedTags.push(sourceBufLen, match);
               }
             } else {
@@ -737,10 +737,10 @@ window['_pr_isIE6'] = function () {
   /** True if the given tag contains a class attribute with the nocode class. */
   function isNoCodeTag(tag) {
     return !!tag
-        
+        // First canonicalize the representation of attributes
         .replace(/\s(\w+)\s*=\s*(?:\"([^\"]*)\"|'([^\']*)'|(\S+))/g,
                  ' $1="$2$3$4"')
-        
+        // Then look for the attribute we want.
         .match(/[cC][lL][aA][sS][sS]=\"[^\"]*\bnocode\b/);
   }
 
@@ -854,7 +854,7 @@ window['_pr_isIE6'] = function () {
         * @type {Array.<number|string>}
         */
       var decorations = [basePos, PR_PLAIN];
-      var pos = 0;  
+      var pos = 0;  // index into sourceCode
       var tokens = sourceCode.match(tokenizer) || [];
       var styleCache = {};
 
@@ -881,7 +881,7 @@ window['_pr_isIE6'] = function () {
               }
             }
 
-            if (!match) {  
+            if (!match) {  // make sure that we make progress
               style = PR_PLAIN;
             }
           }
@@ -900,30 +900,30 @@ window['_pr_isIE6'] = function () {
 
         if (!isEmbedded) {
           decorations.push(basePos + tokenStart, style);
-        } else {  
+        } else {  // Treat group 1 as an embedded block of source code.
           var embeddedSource = match[1];
           var embeddedSourceStart = token.indexOf(embeddedSource);
           var embeddedSourceEnd = embeddedSourceStart + embeddedSource.length;
           if (match[2]) {
-            
-            
-            
+            // If embeddedSource can be blank, then it would match at the
+            // beginning which would cause us to infinitely recurse on the
+            // entire token, so we catch the right context in match[2].
             embeddedSourceEnd = token.length - match[2].length;
             embeddedSourceStart = embeddedSourceEnd - embeddedSource.length;
           }
           var lang = style.substring(5);
-          
+          // Decorate the left of the embedded source
           appendDecorations(
               basePos + tokenStart,
               token.substring(0, embeddedSourceStart),
               decorate, decorations);
-          
+          // Decorate the embedded source
           appendDecorations(
               basePos + tokenStart + embeddedSourceStart,
               embeddedSource,
               langHandlerForExtension(lang, embeddedSource),
               decorations);
-          
+          // Decorate the right of the embedded section
           appendDecorations(
               basePos + tokenStart + embeddedSourceEnd,
               token.substring(embeddedSourceEnd),
@@ -953,30 +953,30 @@ window['_pr_isIE6'] = function () {
   function sourceDecorator(options) {
     var shortcutStylePatterns = [], fallthroughStylePatterns = [];
     if (options['tripleQuotedStrings']) {
-      
+      // '''multi-line-string''', 'single-line-string', and double-quoted
       shortcutStylePatterns.push(
           [PR_STRING,  /^(?:\'\'\'(?:[^\'\\]|\\[\s\S]|\'{1,2}(?=[^\']))*(?:\'\'\'|$)|\"\"\"(?:[^\"\\]|\\[\s\S]|\"{1,2}(?=[^\"]))*(?:\"\"\"|$)|\'(?:[^\\\']|\\[\s\S])*(?:\'|$)|\"(?:[^\\\"]|\\[\s\S])*(?:\"|$))/,
            null, '\'"']);
     } else if (options['multiLineStrings']) {
-      
+      // 'multi-line-string', "multi-line-string"
       shortcutStylePatterns.push(
           [PR_STRING,  /^(?:\'(?:[^\\\']|\\[\s\S])*(?:\'|$)|\"(?:[^\\\"]|\\[\s\S])*(?:\"|$)|\`(?:[^\\\`]|\\[\s\S])*(?:\`|$))/,
            null, '\'"`']);
     } else {
-      
+      // 'single-line-string', "single-line-string"
       shortcutStylePatterns.push(
           [PR_STRING,
            /^(?:\'(?:[^\\\'\r\n]|\\.)*(?:\'|$)|\"(?:[^\\\"\r\n]|\\.)*(?:\"|$))/,
            null, '"\'']);
     }
     if (options['verbatimStrings']) {
-      
+      // verbatim-string-literal production from the C# grammar.  See issue 93.
       fallthroughStylePatterns.push(
           [PR_STRING, /^@\"(?:[^\"]|\"\")*(?:\"|$)/, null]);
     }
     if (options['hashComments']) {
       if (options['cStyleComments']) {
-        
+        // Stop C preprocessor declarations at an unclosed open comment
         shortcutStylePatterns.push(
             [PR_COMMENT, /^#(?:(?:define|elif|else|endif|error|ifdef|include|ifndef|line|pragma|undef|warning)\b|[^\r\n]*)/,
              null, '#']);
@@ -995,17 +995,17 @@ window['_pr_isIE6'] = function () {
     }
     if (options['regexLiterals']) {
       var REGEX_LITERAL = (
-          
-          
-          
+          // A regular expression literal starts with a slash that is
+          // not followed by * or / so that it is not confused with
+          // comments.
           '/(?=[^/*])'
-          
+          // and then contains any number of raw characters,
           + '(?:[^/\\x5B\\x5C]'
-          
+          // escape sequences (\x5C),
           +    '|\\x5C[\\s\\S]'
-          
+          // or non-nesting character sets (\x5B\x5D);
           +    '|\\x5B(?:[^\\x5C\\x5D]|\\x5C[\\s\\S])*(?:\\x5D|$))+'
-          
+          // finally closed by a /.
           + '/');
       fallthroughStylePatterns.push(
           ['lang-regex',
@@ -1022,21 +1022,21 @@ window['_pr_isIE6'] = function () {
 
     shortcutStylePatterns.push([PR_PLAIN,       /^\s+/, null, ' \r\n\t\xA0']);
     fallthroughStylePatterns.push(
-        
+        // TODO(mikesamuel): recognize non-latin letters and numerals in idents
         [PR_LITERAL,     /^@[a-z_$][a-z_$@0-9]*/i, null],
         [PR_TYPE,        /^@?[A-Z]+[a-z][A-Za-z_$@0-9]*/, null],
         [PR_PLAIN,       /^[a-z_$][a-z_$@0-9]*/i, null],
         [PR_LITERAL,
          new RegExp(
              '^(?:'
-             
+             // A hex number
              + '0x[a-f0-9]+'
-             
+             // or an octal or decimal number,
              + '|(?:\\d(?:_\\d+)*\\d*(?:\\.\\d*)?|\\.\\d\\+)'
-             
+             // possibly in scientific notation
              + '(?:e[+\\-]?\\d+)?'
              + ')'
-             
+             // with an optional modifier like UL for unsigned long
              + '[a-z]*', 'i'),
          null, '0123456789'],
         [PR_PUNCTUATION, /^.[^\s\w\.$@\'\"\`\/\#]*/, null]);
@@ -1071,40 +1071,40 @@ window['_pr_isIE6'] = function () {
     var decorations = job.decorations;
 
     var html = [];
-    
+    // index past the last char in sourceText written to html
     var outputIdx = 0;
 
     var openDecoration = null;
     var currentDecoration = null;
-    var tagPos = 0;  
-    var decPos = 0;  
+    var tagPos = 0;  // index into extractedTags
+    var decPos = 0;  // index into decorations
     var tabExpander = makeTabExpander(window['PR_TAB_WIDTH']);
 
     var adjacentSpaceRe = /([\r\n ]) /g;
     var startOrSpaceRe = /(^| ) /gm;
     var newlineRe = /\r\n?|\n/g;
     var trailingSpaceRe = /[ \r\n]$/;
-    var lastWasSpace = true;  
+    var lastWasSpace = true;  // the last text chunk emitted ended with a space.
 
-    
+    // See bug 71 and http://stackoverflow.com/questions/136443/why-doesnt-ie7-
     var isIE678 = window['_pr_isIE6']();
     var lineBreakHtml = (
         isIE678
         ? (job.sourceNode.tagName === 'PRE'
-           
-           
-           
-           
+           // Use line feeds instead of <br>s so that copying and pasting works
+           // on IE.
+           // Doing this on other browsers breaks lots of stuff since \r\n is
+           // treated as two newlines on Firefox.
            ? (isIE678 === 6 ? '&#160;\r\n' :
               isIE678 === 7 ? '&#160;<br>\r' : '&#160;\r')
-           
-           
-           
+           // IE collapses multiple adjacent <br>s into 1 line break.
+           // Prefix every newline with '&#160;' to prevent such behavior.
+           // &nbsp; is the same as &#160; but works in XML as well as HTML.
            : '&#160;<br />')
         : '<br />');
 
-    
-    
+    // Look for a class like linenums or linenums:<n> where <n> is the 1-indexed
+    // number of the first line.
     var numberLines = job.sourceNode.className.match(/\blinenums\b(?::(\d+))?/);
     var lineBreaker;
     if (numberLines) {
@@ -1113,7 +1113,7 @@ window['_pr_isIE6'] = function () {
         lineBreaks[i] = lineBreakHtml + '</li><li class="L' + i + '">';
       }
       var lineNum = numberLines[1] && numberLines[1].length
-          ? numberLines[1] - 1 : 0;  
+          ? numberLines[1] - 1 : 0;  // Lines are 1-indexed
       html.push('<ol class="linenums"><li class="L', (lineNum) % 10, '"');
       if (lineNum) {
         html.push(' value="', lineNum + 1, '"');
@@ -1121,8 +1121,8 @@ window['_pr_isIE6'] = function () {
       html.push('>');
       lineBreaker = function () {
         var lb = lineBreaks[++lineNum % 10];
-        
-        
+        // If a decoration is open, we need to close it before closing a list-item
+        // and reopen it on the other side of the list item.
         return openDecoration
             ? ('</span>' + lb + '<span class="' + openDecoration + '">') : lb;
       };
@@ -1130,12 +1130,12 @@ window['_pr_isIE6'] = function () {
       lineBreaker = lineBreakHtml;
     }
 
-    
-    
+    // A helper function that is responsible for opening sections of decoration
+    // and outputing properly escaped chunks of source
     function emitTextUpTo(sourceIdx) {
       if (sourceIdx > outputIdx) {
         if (openDecoration && openDecoration !== currentDecoration) {
-          
+          // Close the current decoration
           html.push('</span>');
           openDecoration = null;
         }
@@ -1143,20 +1143,20 @@ window['_pr_isIE6'] = function () {
           openDecoration = currentDecoration;
           html.push('<span class="', openDecoration, '">');
         }
-        
-        
-        
-        
-        
-        
-        
+        // This interacts badly with some wikis which introduces paragraph tags
+        // into pre blocks for some strange reason.
+        // It's necessary for IE though which seems to lose the preformattedness
+        // of <pre> tags when their innerHTML is assigned.
+        // http://stud3.tuwien.ac.at/~e0226430/innerHtmlQuirk.html
+        // and it serves to undo the conversion of <br>s to newlines done in
+        // chunkify.
         var htmlChunk = textToHtml(
             tabExpander(sourceText.substring(outputIdx, sourceIdx)))
             .replace(lastWasSpace
                      ? startOrSpaceRe
                      : adjacentSpaceRe, '$1&#160;');
-        
-        
+        // Keep track of whether we need to escape space at the beginning of the
+        // next chunk.
         lastWasSpace = trailingSpaceRe.test(htmlChunk);
         html.push(htmlChunk.replace(newlineRe, lineBreaker));
         outputIdx = sourceIdx;
@@ -1164,14 +1164,14 @@ window['_pr_isIE6'] = function () {
     }
 
     while (true) {
-      
-      
+      // Determine if we're going to consume a tag this time around.  Otherwise
+      // we consume a decoration or exit.
       var outputTag;
       if (tagPos < extractedTags.length) {
         if (decPos < decorations.length) {
-          
-          
-          
+          // Pick one giving preference to extractedTags since we shouldn't open
+          // a new style that we're going to have to immediately close in order
+          // to output a tag.
           outputTag = extractedTags[tagPos] <= decorations[decPos];
         } else {
           outputTag = true;
@@ -1179,11 +1179,11 @@ window['_pr_isIE6'] = function () {
       } else {
         outputTag = false;
       }
-      
+      // Consume either a decoration or a tag or exit.
       if (outputTag) {
         emitTextUpTo(extractedTags[tagPos]);
         if (openDecoration) {
-          
+          // Close the current decoration
           html.push('</span>');
           openDecoration = null;
         }
@@ -1235,8 +1235,8 @@ window['_pr_isIE6'] = function () {
   }
   function langHandlerForExtension(extension, source) {
     if (!(extension && langHandlerRegistry.hasOwnProperty(extension))) {
-      
-      
+      // Treat it as markup if the first non whitespace character is a < and
+      // the last non-whitespace character is a >.
       extension = /^\s*</.test(source)
           ? 'default-markup'
           : 'default-code';
@@ -1251,14 +1251,14 @@ window['_pr_isIE6'] = function () {
            [PR_PLAIN,       /^[^<?]+/],
            [PR_DECLARATION, /^<!\w[^>]*(?:>|$)/],
            [PR_COMMENT,     /^<\!--[\s\S]*?(?:-\->|$)/],
-           
+           // Unescaped content in an unknown language
            ['lang-',        /^<\?([\s\S]+?)(?:\?>|$)/],
            ['lang-',        /^<%([\s\S]+?)(?:%>|$)/],
            [PR_PUNCTUATION, /^(?:<[%?]|[%?]>)/],
            ['lang-',        /^<xmp\b[^>]*>([\s\S]+?)<\/xmp\b[^>]*>/i],
-           
+           // Unescaped content in javascript.  (Or possibly vbscript).
            ['lang-js',      /^<script\b[^>]*>([\s\S]*?)(<\/script\b[^>]*>)/i],
-           
+           // Contains unescaped stylesheet content
            ['lang-css',     /^<style\b[^>]*>([\s\S]*?)(<\/style\b[^>]*>)/i],
            ['lang-in.tag',  /^(<\/?[a-z][^<>]*>)/i]
           ]),
@@ -1337,11 +1337,11 @@ window['_pr_isIE6'] = function () {
     var sourceCodeHtml = job.sourceCodeHtml;
     var opt_langExtension = job.langExtension;
 
-    
+    // Prepopulate output in case processing fails with an exception.
     job.prettyPrintedHtml = sourceCodeHtml;
 
     try {
-      
+      // Extract tags, and convert the source code to plain text.
       var sourceAndExtractedTags = extractTags(sourceCodeHtml);
       /** Plain text. @type {string} */
       var source = sourceAndExtractedTags.source;
@@ -1354,10 +1354,10 @@ window['_pr_isIE6'] = function () {
         */
       job.extractedTags = sourceAndExtractedTags.tags;
 
-      
+      // Apply the appropriate language handler
       langHandlerForExtension(opt_langExtension, source)(job);
-      
-      
+      // Integrate the decorations and tags back into the source code to produce
+      // a decorated html string which is left in job.prettyPrintedHtml.
       recombineTagsAndDecorations(job);
     } catch (e) {
       if ('console' in window) {
@@ -1377,7 +1377,7 @@ window['_pr_isIE6'] = function () {
 
   function prettyPrint(opt_whenDone) {
     function byTagName(tn) { return document.getElementsByTagName(tn); }
-    
+    // fetch a list of nodes to rewrite
     var codeSegments = [byTagName('pre'), byTagName('code'), byTagName('xmp')];
     var elements = [];
     for (var i = 0; i < codeSegments.length; ++i) {
@@ -1392,8 +1392,8 @@ window['_pr_isIE6'] = function () {
       clock = { 'now': function () { return (new Date).getTime(); } };
     }
 
-    
-    
+    // The loop is broken into a series of continuations to make sure that we
+    // don't make the browser unresponsive when rewriting a large page.
     var k = 0;
     var prettyPrintingJob;
 
@@ -1403,34 +1403,34 @@ window['_pr_isIE6'] = function () {
                      Infinity);
       for (; k < elements.length && clock.now() < endTime; k++) {
         var cs = elements[k];
-        
+        // [JACOCO] 'prettyprint' -> 'source'
         if (cs.className && cs.className.indexOf('source') >= 0) {
-          
-          
-          
-          
-          
+          // If the classes includes a language extensions, use it.
+          // Language extensions can be specified like
+          //     <pre class="prettyprint lang-cpp">
+          // the language extension "cpp" is used to find a language handler as
+          // passed to PR_registerLangHandler.
           var langExtension = cs.className.match(/\blang-(\w+)\b/);
           if (langExtension) { langExtension = langExtension[1]; }
 
-          
+          // make sure this is not nested in an already prettified element
           var nested = false;
           for (var p = cs.parentNode; p; p = p.parentNode) {
             if ((p.tagName === 'pre' || p.tagName === 'code' ||
                  p.tagName === 'xmp') &&
-                
+                // [JACOCO] 'prettyprint' -> 'source'
                 p.className && p.className.indexOf('source') >= 0) {
               nested = true;
               break;
             }
           }
           if (!nested) {
-            
-            
+            // fetch the content as a snippet of properly escaped HTML.
+            // Firefox adds newlines at the end.
             var content = getInnerHtml(cs);
             content = content.replace(/(?:\r\n?|\n)$/, '');
 
-            
+            // do the pretty printing
             prettyPrintingJob = {
               sourceCodeHtml: content,
               langExtension: langExtension,
@@ -1442,7 +1442,7 @@ window['_pr_isIE6'] = function () {
         }
       }
       if (k < elements.length) {
-        
+        // finish up in a continuation
         setTimeout(doWork, 250);
       } else if (opt_whenDone) {
         opt_whenDone();
@@ -1454,21 +1454,21 @@ window['_pr_isIE6'] = function () {
       if (!newContent) { return; }
       var cs = prettyPrintingJob.sourceNode;
 
-      
+      // push the prettified html back into the tag.
       if (!isRawContent(cs)) {
-        
+        // just replace the old html with the new
         cs.innerHTML = newContent;
       } else {
-        
-        
-        
+        // we need to change the tag to a <pre> since <xmp>s do not allow
+        // embedded tags such as the span tags used to attach styles to
+        // sections of source code.
         var pre = document.createElement('PRE');
         for (var i = 0; i < cs.attributes.length; ++i) {
           var a = cs.attributes[i];
           if (a.specified) {
             var aname = a.name.toLowerCase();
             if (aname === 'class') {
-              pre.className = a.value;  
+              pre.className = a.value;  // For IE 6
             } else {
               pre.setAttribute(a.name, a.value);
             }
@@ -1476,7 +1476,7 @@ window['_pr_isIE6'] = function () {
         }
         pre.innerHTML = newContent;
 
-        
+        // remove the old
         cs.parentNode.replaceChild(pre, cs);
         cs = pre;
       }
