@@ -10,11 +10,11 @@ export interface MenuItemDTO {
 }
 
 export async function fetchMenu(): Promise<MenuItemDTO[]> {
-  const r = await api.get("/api/menu");
+  const r = await api.get("menu");
   return r.data as MenuItemDTO[];
 }
 
 export async function fetchMenuItem(id: string): Promise<MenuItemDTO> {
-  const r = await api.get(`/api/menu/${id}`);
+  const r = await api.get(`menu/${id}`);
   return r.data as MenuItemDTO;
 }

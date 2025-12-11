@@ -30,7 +30,7 @@ public class User {
     @Column(nullable = false)
     private String passwordHash;
 
-    @Column
+    @Column(name = "full_name", nullable = false)
     private String fullName;
 
     @ManyToOne(fetch = FetchType.EAGER, optional = false)

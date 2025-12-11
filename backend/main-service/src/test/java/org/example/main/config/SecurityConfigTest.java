@@ -41,7 +41,7 @@ class SecurityConfigTest {
         CorsConfiguration conf = uSrc.getCorsConfiguration(req);
         assertThat(conf).isNotNull();
 
-        assertThat(conf.getAllowedOrigins()).containsExactly("http://localhost:8082");
+        assertThat(conf.getAllowedOrigins()).containsExactly("http://localhost:3000");
         assertThat(conf.getAllowedMethods()).containsExactlyInAnyOrder("GET", "POST", "PUT", "DELETE", "OPTIONS");
         assertThat(conf.getAllowedHeaders()).containsExactlyInAnyOrder("Authorization", "Content-Type", "Accept");
         assertThat(conf.getAllowCredentials()).isTrue();

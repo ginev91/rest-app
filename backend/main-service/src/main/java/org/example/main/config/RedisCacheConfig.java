@@ -12,8 +12,6 @@ import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.serializer.*;
 
 import java.time.Duration;
-import java.util.HashMap;
-import java.util.Map;
 
 @Configuration
 @EnableCaching
@@ -21,7 +19,6 @@ public class RedisCacheConfig {
 
     @Bean
     public CacheManager cacheManager(RedisConnectionFactory connectionFactory) {
-        // configure ObjectMapper for polymorphic types
         ObjectMapper mapper = new ObjectMapper();
         mapper.activateDefaultTyping(
                 BasicPolymorphicTypeValidator.builder()
@@ -32,25 +29,14 @@ public class RedisCacheConfig {
 
         GenericJackson2JsonRedisSerializer jsonSerializer = new GenericJackson2JsonRedisSerializer(mapper);
 
-        RedisSerializationContext.SerializationPair<Object> pair =
-                RedisSerializationContext.SerializationPair.fromSerializer(jsonSerializer);
-
-        RedisCacheConfiguration defaultConfig = RedisCacheConfiguration.defaultCacheConfig()
-                .serializeValuesWith(pair)
+        RedisCacheConfiguration config = RedisCacheConfiguration.defaultCacheConfig()
+                .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(jsonSerializer))
                 .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer()))
                 .entryTtl(Duration.ofMinutes(10))
-                .disableCachingNullValues(); // avoid caching nulls
-
-        Map<String, RedisCacheConfiguration> cacheConfigs = new HashMap<>();
-        cacheConfigs.put("menuItems", defaultConfig.entryTtl(Duration.ofMinutes(5)));
-        cacheConfigs.put("menuItemById", defaultConfig.entryTtl(Duration.ofMinutes(10)));
-        cacheConfigs.put("menuItemByName", defaultConfig.entryTtl(Duration.ofMinutes(10)));
-        cacheConfigs.put("tables", defaultConfig.entryTtl(Duration.ofMinutes(5)));
-        cacheConfigs.put("orders", defaultConfig.entryTtl(Duration.ofMinutes(1)));
+                .disableCachingNullValues();
 
         return RedisCacheManager.builder(connectionFactory)
-                .cacheDefaults(defaultConfig)
-                .withInitialCacheConfigurations(cacheConfigs)
+                .cacheDefaults(config)
                 .transactionAware()
                 .build();
     }

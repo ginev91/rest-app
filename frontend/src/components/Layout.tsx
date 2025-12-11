@@ -1,8 +1,18 @@
-import { ReactNode } from 'react';
+import React, { ReactNode } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { UtensilsCrossed, LogOut, Menu, ShoppingCart, Users, LayoutDashboard, Sparkles } from 'lucide-react';
+import {
+  UtensilsCrossed,
+  LogOut,
+  Menu,
+  ShoppingCart,
+  Users,
+  LayoutDashboard,
+  Sparkles,
+  Calendar,
+  User as UserIcon,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface LayoutProps {
@@ -22,12 +32,22 @@ const Layout = ({ children }: LayoutProps) => {
   const navItems = [
     { path: '/menu', label: 'Menu', icon: Menu, roles: ['ROLE_USER', 'ROLE_EMPLOYEE', 'ROLE_ADMIN'] },
     { path: '/orders', label: 'Orders', icon: ShoppingCart, roles: ['ROLE_USER', 'ROLE_EMPLOYEE', 'ROLE_ADMIN'] },
+    { path: '/reservations', label: 'Reservations', icon: Calendar, roles: ['ROLE_USER', 'ROLE_EMPLOYEE', 'ROLE_ADMIN'] },
     { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['ROLE_EMPLOYEE', 'ROLE_ADMIN'] },
     { path: '/tables', label: 'Tables', icon: Users, roles: ['ROLE_EMPLOYEE', 'ROLE_ADMIN'] },
     { path: '/recommendations', label: 'AI Recommendations', icon: Sparkles, roles: ['ROLE_USER', 'ROLE_EMPLOYEE', 'ROLE_ADMIN'] },
   ];
 
-  const visibleNavItems = navItems.filter(item => item.roles.includes(user?.role || 'ROLE_USER'));
+  // Support user.role being a string or an array of strings
+  const userRoles: string[] = React.useMemo(() => {
+    if (!user) return ['ROLE_USER'];
+    const r = (user as any).role;
+    if (Array.isArray(r)) return r;
+    if (typeof r === 'string') return [r];
+    return ['ROLE_USER'];
+  }, [user]);
+
+  const visibleNavItems = navItems.filter(item => item.roles.some(role => userRoles.includes(role)));
 
   return (
     <div className="min-h-screen bg-background">
@@ -42,15 +62,30 @@ const Layout = ({ children }: LayoutProps) => {
               <h1 className="text-lg font-bold">Restaurant Manager</h1>
               {user && (
                 <p className="text-xs text-muted-foreground">
-                  {user.username} • {user.role} • {user.tableNumber}
+                  {user.username} • {Array.isArray(userRoles) ? userRoles.join(', ') : userRoles} • {user.tableNumber ?? ''}
                 </p>
               )}
             </div>
           </div>
-          <Button variant="ghost" size="sm" onClick={handleLogout}>
-            <LogOut className="h-4 w-4 mr-2" />
-            Logout
-          </Button>
+
+          <div className="flex items-center gap-2">
+            {user && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate('/profile')}
+                className="gap-2"
+              >
+                <UserIcon className="h-4 w-4 mr-1" />
+                Profile
+              </Button>
+            )}
+
+            <Button variant="ghost" size="sm" onClick={handleLogout}>
+              <LogOut className="h-4 w-4 mr-2" />
+              Logout
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -59,7 +94,8 @@ const Layout = ({ children }: LayoutProps) => {
         <div className="container flex h-12 items-center gap-1">
           {visibleNavItems.map((item) => {
             const Icon = item.icon;
-            const isActive = location.pathname === item.path;
+            const isActive =
+              location.pathname === item.path || location.pathname.startsWith(item.path + '/');
             return (
               <Button
                 key={item.path}
@@ -70,6 +106,7 @@ const Layout = ({ children }: LayoutProps) => {
                   'gap-2 transition-all',
                   !isActive && 'hover:bg-primary/10'
                 )}
+                aria-current={isActive ? 'page' : undefined}
               >
                 <Icon className="h-4 w-4" />
                 {item.label}

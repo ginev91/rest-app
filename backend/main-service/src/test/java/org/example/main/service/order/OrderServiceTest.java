@@ -1,5 +1,6 @@
 package org.example.main.service.order;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import feign.FeignException;
 import org.example.main.dto.request.order.OrderRequestDto;
 import org.example.main.dto.request.order.OrderRequestDto.OrderItemRequest;
@@ -14,19 +15,21 @@ import org.example.main.model.enums.OrderStatus;
 import org.example.main.model.menu.MenuItem;
 import org.example.main.model.order.OrderEntity;
 import org.example.main.model.order.OrderItem;
+import org.example.main.model.role.Role;
 import org.example.main.repository.menu.MenuItemRepository;
 import org.example.main.repository.order.OrderRepository;
+import org.example.main.repository.role.RoleRepository;
 import org.example.main.repository.user.UserRepository;
 import org.example.main.service.table.RestaurantTableService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.util.*;
-import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -45,6 +48,9 @@ class OrderServiceTest {
 
     @Mock
     KitchenClient kitchenClient;
+
+    @Mock
+    RoleRepository roleRepository;
 
     @Mock
     RestaurantTableService restaurantTableService;
@@ -276,8 +282,10 @@ class OrderServiceTest {
     void getOrdersForUser_variousRoles_and_nullUser() {
         UUID uid = UUID.randomUUID();
 
-        
-        when(userRepository.findRoleByUserId(uid)).thenReturn("ROLE_ADMIN");
+        // ADMIN via RoleRepository
+        Role adminRole = new Role();
+        adminRole.setName("ROLE_ADMIN");
+        when(roleRepository.findRolesByUserId(uid)).thenReturn(List.of(adminRole));
         OrderEntity e1 = new OrderEntity();
         e1.setId(UUID.randomUUID());
         when(orderRepository.findAll()).thenReturn(List.of(e1));
@@ -286,8 +294,9 @@ class OrderServiceTest {
         assertThat(outAdmin).hasSize(1);
         assertThat(outAdmin.get(0).getOrderId()).isEqualTo(e1.getId());
 
-        
-        when(userRepository.findRoleByUserId(uid)).thenReturn("ROLE_EMPLOYEE");
+        Role empRole = new Role();
+        empRole.setName("ROLE_EMPLOYEE");
+        when(roleRepository.findRolesByUserId(uid)).thenReturn(List.of(empRole));
         OrderEntity e2 = new OrderEntity();
         e2.setId(UUID.randomUUID());
         when(orderRepository.findWithItemsByWaiterUserId(uid)).thenReturn(List.of(e2));
@@ -296,7 +305,7 @@ class OrderServiceTest {
         assertThat(outEmp).hasSize(1);
         assertThat(outEmp.get(0).getOrderId()).isEqualTo(e2.getId());
 
-        
+        when(roleRepository.findRolesByUserId(uid)).thenReturn(Collections.emptyList());
         when(userRepository.findRoleByUserId(uid)).thenReturn(null);
         OrderEntity e3 = new OrderEntity();
         e3.setId(UUID.randomUUID());
@@ -306,14 +315,13 @@ class OrderServiceTest {
         assertThat(outCust).hasSize(1);
         assertThat(outCust.get(0).getOrderId()).isEqualTo(e3.getId());
 
-        
+        // null user
         List<OrderResponseDto> outNull = orderService.getOrdersForUser(null);
         assertThat(outNull).isEmpty();
     }
 
     @Test
     void placeOrder_delegates_to_createOrder() {
-        
         OrderService spySvc = spy(orderService);
         OrderResponseDto fake = OrderResponseDto.builder().orderId(UUID.randomUUID()).status("X").build();
         doReturn(fake).when(spySvc).createOrder(any());
@@ -362,7 +370,6 @@ class OrderServiceTest {
         List<OrderResponseDto> all = orderService.getAllOrders();
         assertThat(all).hasSize(2);
 
-        
         UUID userId = UUID.randomUUID();
         OrderEntity active = new OrderEntity();
         active.setId(UUID.randomUUID());
@@ -387,11 +394,9 @@ class OrderServiceTest {
         when(orderRepository.findById(oid)).thenReturn(Optional.of(o));
         when(orderRepository.save(any(OrderEntity.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        
         orderService.cancelOrder(oid);
         assertThat(o.getStatus()).isEqualTo(OrderStatus.CANCELLED);
 
-        
         UUID kid = UUID.randomUUID();
         OrderEntity o2 = new OrderEntity();
         o2.setId(UUID.randomUUID());
@@ -404,7 +409,6 @@ class OrderServiceTest {
         verify(kitchenClient).cancelKitchenOrder(kid);
         assertThat(o2.getKitchenStatus()).isEqualTo("CANCELLED");
 
-        
         UUID kid2 = UUID.randomUUID();
         OrderEntity o3 = new OrderEntity();
         o3.setId(UUID.randomUUID());
@@ -420,7 +424,6 @@ class OrderServiceTest {
         verify(kitchenClient).cancelKitchenOrder(kid2);
         assertThat(o3.getKitchenStatus()).isEqualTo("cancel_notify_failed");
 
-        
         UUID kid3 = UUID.randomUUID();
         OrderEntity o4 = new OrderEntity();
         o4.setId(UUID.randomUUID());
@@ -450,7 +453,6 @@ class OrderServiceTest {
         o.setKitchenOrderId(kitchenOrderId);
         when(orderRepository.findById(oid)).thenReturn(Optional.of(o));
 
-        
         KitchenClient.KitchenOrderResponse kr = new KitchenClient.KitchenOrderResponse();
         kr.id = kitchenOrderId;
         kr.status = "READY";
@@ -460,16 +462,242 @@ class OrderServiceTest {
 
         assertThat(dto).isNotNull();
         assertThat(dto.getId()).isEqualTo(oid.toString());
-        
+
         assertThat(dto.getKitchenOrderId()).isEqualTo(kitchenOrderId.toString());
-        
+
         assertThat(o.getKitchenStatus()).isEqualTo("READY");
-        
+
         OrderItemStatus mapped = KitchenStatusMapper.toOrderItemStatus("READY");
         if (mapped != null) {
             assertThat(k1.getStatus()).isEqualTo(mapped);
         } else {
             assertThat(k1.getStatus()).isIn(OrderItemStatus.READY);
         }
+    }
+
+    // ----- Additional tests to increase coverage -----
+
+    @Test
+    void createOrder_tableOccupyThrows_shouldStillCreateOrder() {
+        UUID midKitchen = UUID.randomUUID();
+
+        OrderRequestDto r = new OrderRequestDto();
+        OrderItemRequest i1 = new OrderItemRequest();
+        i1.setMenuItemId(midKitchen);
+        i1.setQuantity(1);
+        r.setItems(Collections.singletonList(i1));
+        r.setTableNumber(5);
+        r.setTableId(UUID.randomUUID());
+        r.setCustomerId(UUID.randomUUID());
+
+        MenuItem kitchenItem = mkMenuItem(midKitchen, "Stew", ItemType.KITCHEN, BigDecimal.valueOf(3.00));
+        when(menuItemRepository.findAllById(Collections.singletonList(midKitchen))).thenReturn(Collections.singletonList(kitchenItem));
+
+        when(orderRepository.save(any(OrderEntity.class))).thenAnswer(inv -> {
+            OrderEntity o = inv.getArgument(0);
+            if (o.getId() == null) o.setId(UUID.randomUUID());
+            return o;
+        });
+
+        doThrow(new RuntimeException("occupy fail")).when(restaurantTableService).occupyTable(eq(r.getTableNumber()), anyInt());
+
+        when(kitchenClient.createKitchenOrder(any())).thenReturn(null);
+
+        OrderResponseDto resp = orderService.createOrder(r);
+        assertThat(resp).isNotNull();
+        assertThat(resp.getOrderId()).isNotNull();
+
+        verify(restaurantTableService).occupyTable(eq(r.getTableNumber()), anyInt());
+        verify(orderRepository).save(any(OrderEntity.class));
+    }
+
+    @Test
+    void createOrder_kitchenClientReturnsNull_setsKitchenNotifyFailed() {
+        UUID midKitchen = UUID.randomUUID();
+
+        OrderRequestDto r = new OrderRequestDto();
+        OrderItemRequest i1 = new OrderItemRequest();
+        i1.setMenuItemId(midKitchen);
+        i1.setQuantity(1);
+        r.setItems(Collections.singletonList(i1));
+        r.setCustomerId(UUID.randomUUID());
+
+        MenuItem kitchenItem = mkMenuItem(midKitchen, "Stew", ItemType.KITCHEN, BigDecimal.valueOf(4.00));
+        when(menuItemRepository.findAllById(Collections.singletonList(midKitchen))).thenReturn(Collections.singletonList(kitchenItem));
+
+        when(orderRepository.save(any(OrderEntity.class))).thenAnswer(inv -> {
+            OrderEntity o = inv.getArgument(0);
+            if (o.getId() == null) o.setId(UUID.randomUUID());
+            return o;
+        });
+
+        when(kitchenClient.createKitchenOrder(any())).thenReturn(null);
+
+        OrderResponseDto resp = orderService.createOrder(r);
+        assertThat(resp).isNotNull();
+
+        ArgumentCaptor<OrderEntity> captor = ArgumentCaptor.forClass(OrderEntity.class);
+        verify(orderRepository, atLeastOnce()).save(captor.capture());
+        List<OrderEntity> savedList = captor.getAllValues();
+        OrderEntity last = savedList.get(savedList.size() - 1);
+        assertThat(last.getKitchenStatus()).isEqualTo("kitchen_notify_failed");
+    }
+
+    @Test
+    void createOrder_kitchenClientThrowsFeign_setsKitchenNotifyFailed() {
+        UUID midKitchen = UUID.randomUUID();
+
+        OrderRequestDto r = new OrderRequestDto();
+        OrderItemRequest i1 = new OrderItemRequest();
+        i1.setMenuItemId(midKitchen);
+        i1.setQuantity(1);
+        r.setItems(Collections.singletonList(i1));
+        r.setCustomerId(UUID.randomUUID());
+
+        MenuItem kitchenItem = mkMenuItem(midKitchen, "Stew", ItemType.KITCHEN, BigDecimal.valueOf(4.00));
+        when(menuItemRepository.findAllById(Collections.singletonList(midKitchen))).thenReturn(Collections.singletonList(kitchenItem));
+
+        when(orderRepository.save(any(OrderEntity.class))).thenAnswer(inv -> {
+            OrderEntity o = inv.getArgument(0);
+            if (o.getId() == null) o.setId(UUID.randomUUID());
+            return o;
+        });
+
+        FeignException fe = mock(FeignException.class);
+        when(kitchenClient.createKitchenOrder(any())).thenThrow(fe);
+
+        OrderResponseDto resp = orderService.createOrder(r);
+        assertThat(resp).isNotNull();
+
+        ArgumentCaptor<OrderEntity> captor = ArgumentCaptor.forClass(OrderEntity.class);
+        verify(orderRepository, atLeastOnce()).save(captor.capture());
+        OrderEntity last = captor.getAllValues().get(captor.getAllValues().size() - 1);
+        assertThat(last.getKitchenStatus()).isEqualTo("kitchen_notify_failed");
+    }
+
+    @Test
+    void createOrder_withNullPrice_usesZeroPriceInTotal() {
+        UUID mid = UUID.randomUUID();
+
+        OrderRequestDto r = new OrderRequestDto();
+        OrderItemRequest it = new OrderItemRequest();
+        it.setMenuItemId(mid);
+        it.setQuantity(2);
+        r.setItems(Collections.singletonList(it));
+        r.setCustomerId(UUID.randomUUID());
+
+        MenuItem m = mkMenuItem(mid, "FreeSample", ItemType.KITCHEN, null); // price null
+        when(menuItemRepository.findAllById(Collections.singletonList(mid))).thenReturn(Collections.singletonList(m));
+
+        when(orderRepository.save(any(OrderEntity.class))).thenAnswer(inv -> {
+            OrderEntity o = inv.getArgument(0);
+            if (o.getId() == null) o.setId(UUID.randomUUID());
+            return o;
+        });
+
+        when(kitchenClient.createKitchenOrder(any())).thenReturn(null);
+
+        var resp = orderService.createOrder(r);
+        assertThat(resp).isNotNull();
+
+        ArgumentCaptor<OrderEntity> captor = ArgumentCaptor.forClass(OrderEntity.class);
+        verify(orderRepository, atLeastOnce()).save(captor.capture());
+        OrderEntity saved = captor.getValue();
+        assertThat(saved.getTotalAmount()).isEqualByComparingTo(BigDecimal.ZERO);
+    }
+
+    @Test
+    void getOrderDetails_withKitchenResponse_firstElementUsed_whenIdsDontMatch() {
+        UUID oid = UUID.randomUUID();
+        OrderEntity o = new OrderEntity();
+        o.setId(oid);
+        o.setStatus(OrderStatus.NEW);
+        OrderItem k1 = new OrderItem();
+        k1.setMenuItem(new MenuItem());
+        k1.getMenuItem().setItemType(ItemType.KITCHEN);
+        k1.setStatus(OrderItemStatus.PENDING);
+        k1.setMenuItemId(UUID.randomUUID());
+        o.setItems(new ArrayList<>(Collections.singletonList(k1)));
+        when(orderRepository.findById(oid)).thenReturn(Optional.of(o));
+
+        KitchenClient.KitchenOrderResponse kr1 = new KitchenClient.KitchenOrderResponse();
+        kr1.id = UUID.randomUUID();
+        kr1.status = "PREPARED";
+        when(kitchenClient.getByOrder(oid)).thenReturn(Collections.singletonList(kr1));
+
+        var dto = orderService.getOrderDetails(oid);
+        assertThat(dto).isNotNull();
+        assertThat(dto.getKitchenOrderId()).isEqualTo(kr1.id.toString());
+        assertThat(o.getKitchenStatus()).isEqualTo(kr1.status);
+    }
+
+    @Test
+    void getOrdersForUser_whenRoleRepoThrows_fallsBackToUserRepositoryStringRole() {
+        UUID uid = UUID.randomUUID();
+
+        when(roleRepository.findRolesByUserId(uid)).thenThrow(new RuntimeException("boom"));
+        when(userRepository.findRoleByUserId(uid)).thenReturn("ROLE_EMPLOYEE");
+
+        OrderEntity e = new OrderEntity();
+        e.setId(UUID.randomUUID());
+        when(orderRepository.findWithItemsByWaiterUserId(uid)).thenReturn(Collections.singletonList(e));
+
+        List<OrderResponseDto> out = orderService.getOrdersForUser(uid);
+        assertThat(out).hasSize(1);
+        assertThat(out.get(0).getOrderId()).isEqualTo(e.getId());
+    }
+
+    @Test
+    void notifyKitchen_serializationFailure_marksKitchenNotifyFailed_and_saves() throws Exception {
+        UUID midKitchen = UUID.randomUUID();
+
+        OrderRequestDto r = new OrderRequestDto();
+        OrderItemRequest it = new OrderItemRequest();
+        it.setMenuItemId(midKitchen);
+        it.setQuantity(1);
+        r.setItems(Collections.singletonList(it));
+        r.setCustomerId(UUID.randomUUID());
+
+        MenuItem m = mkMenuItem(midKitchen, "Stew", ItemType.KITCHEN, BigDecimal.valueOf(4.0));
+        when(menuItemRepository.findAllById(Collections.singletonList(midKitchen))).thenReturn(Collections.singletonList(m));
+
+        when(orderRepository.save(any(OrderEntity.class))).thenAnswer(inv -> {
+            OrderEntity o = inv.getArgument(0);
+            if (o.getId() == null) o.setId(UUID.randomUUID());
+            return o;
+        });
+
+        ObjectMapper mockMapper = mock(ObjectMapper.class);
+        when(mockMapper.writeValueAsString(any())).thenThrow(new RuntimeException("serfail"));
+
+        OrderService spySvc = spy(orderService);
+        ReflectionTestUtils.setField(spySvc, "objectMapper", mockMapper);
+
+        when(kitchenClient.createKitchenOrder(any())).thenReturn(null);
+
+        OrderResponseDto resp = spySvc.createOrder(r);
+        assertThat(resp).isNotNull();
+
+        ArgumentCaptor<OrderEntity> captor = ArgumentCaptor.forClass(OrderEntity.class);
+        verify(orderRepository, atLeastOnce()).save(captor.capture());
+        OrderEntity last = captor.getAllValues().get(captor.getAllValues().size() - 1);
+        assertThat(last.getKitchenStatus()).isEqualTo("kitchen_notify_failed");
+    }
+
+    @Test
+    void getOrderDetails_kitchenClientRuntimeException_isCaught_and_returnsDto() {
+        UUID oid = UUID.randomUUID();
+        OrderEntity o = new OrderEntity();
+        o.setId(oid);
+        o.setStatus(OrderStatus.NEW);
+        o.setItems(new ArrayList<>());
+        when(orderRepository.findById(oid)).thenReturn(Optional.of(o));
+
+        when(kitchenClient.getByOrder(oid)).thenThrow(new RuntimeException("down"));
+
+        var dto = orderService.getOrderDetails(oid);
+        assertThat(dto).isNotNull();
+        assertThat(dto.getId()).isEqualTo(oid.toString());
+        assertThat(dto.getKitchenOrderId()).isNull();
     }
 }

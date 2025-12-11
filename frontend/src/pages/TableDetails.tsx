@@ -7,7 +7,7 @@ import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Layout from '@/components/Layout';
-import { Order, OrderItem } from '@/types/order';
+import { Order, OrderItem } from '@/types';
 import { ArrowLeft, Users, Clock, DollarSign, Loader2, ChefHat, User, List } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/services/api/client';
@@ -85,7 +85,7 @@ const TableDetails = () => {
       setIsLoading(true);
       console.log('Fetching orders for table:', tableNum);
       
-      const response = await api.get(`/api/orders?tableNumber=${tableNum}`);
+      const response = await api.get(`orders?tableNumber=${tableNum}`);
       const data = response.data;
       
       console.log('Table orders fetched:', data);
@@ -106,7 +106,7 @@ const TableDetails = () => {
     try {
       console.log('Updating order status:', { orderId, newStatus });
       
-      await api.patch(`/api/orders/${orderId}/status`, { status: newStatus });
+      await api.patch(`orders/${orderId}/status`, { status: newStatus });
       
       
       setOrders(prevOrders =>
@@ -133,7 +133,7 @@ const TableDetails = () => {
     try {
       console.log('Updating item status:', { orderId, itemId, newStatus });
       
-      await api.patch(`/api/orders/${orderId}/items/${itemId}/status`, { status: newStatus });
+      await api.patch(`orders/${orderId}/items/${itemId}/status`, { status: newStatus });
       
       
       setOrders(prevOrders =>
@@ -202,18 +202,15 @@ const TableDetails = () => {
 
   if (isLoading) {
     return (
-      <Layout>
         <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
           <p className="text-muted-foreground">Loading table details...</p>
         </div>
-      </Layout>
     );
   }
 
   if (tableNumber === null) {
     return (
-      <Layout>
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <p className="text-lg font-semibold mb-2">Invalid Table</p>
@@ -221,14 +218,12 @@ const TableDetails = () => {
             <Button onClick={() => navigate('/tables')}>Back to Tables</Button>
           </CardContent>
         </Card>
-      </Layout>
     );
   }
 
   const groupedOrders = groupOrdersByUser();
 
   return (
-    <Layout>
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -576,7 +571,6 @@ const TableDetails = () => {
           </Card>
         )}
       </div>
-    </Layout>
   );
 };
 

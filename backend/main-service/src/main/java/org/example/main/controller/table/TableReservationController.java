@@ -10,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -53,5 +54,14 @@ public class TableReservationController {
         List<TableReservationResponseDto> dtos = reservationService.findReservationHistoryForTable(tableId)
                 .stream().map(mapper::toResponse).collect(Collectors.toList());
         return ResponseEntity.ok(dtos);
+    }
+
+
+    @GetMapping
+    public ResponseEntity<List<TableReservationResponseDto>> getReservationsByDate(@RequestParam("date") String date) {
+        LocalDate d = LocalDate.parse(date);
+        List<TableReservationResponseDto> dto = reservationService.findReservationsByDate(d)
+                .stream().map(mapper::toResponse).collect(Collectors.toList());
+        return ResponseEntity.ok(dto);
     }
 }

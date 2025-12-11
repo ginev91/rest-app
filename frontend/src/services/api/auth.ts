@@ -1,60 +1,57 @@
-import api, { setAccessToken } from "./client";
+import api, { setAccessToken, getAccessToken } from "./client";
+import type { LoginRequest, LoginResponse, User } from "@/types";
 
-export interface LoginRequest { username: string; password: string; tableNumber: number; tablePin: string; }
-export interface LoginResponse {
-  token?: string;
-  accessToken?: string;
-  user?: any;
-  username?: string;
-  userId?: string;
-  role?: 'ROLE_USER' | 'ROLE_EMPLOYEE' | 'ROLE_ADMIN';
-  tableNumber?: number;
-  tableId?: string;
-}
 
-export async function login(username: string, password: string, tableNumber: number, tablePin: string): Promise<LoginResponse> {
-  const resp = await api.post("/api/auth/login", { username, password, tableNumber, tablePin });
-  const data = resp.data as LoginResponse;
-  const token = data.token ?? data.accessToken;
-  if (token) {
+
+
+export async function login(payload: LoginRequest): Promise<{ user: User | null; token?: string | null }> {
+  const strategy = (import.meta.env.VITE_AUTH_STRATEGY as string) ?? "cookie";
+  const resp = await api.post<LoginResponse>("/auth/login", payload);
+  const data = resp.data;
+  const token = data?.token ?? data?.accessToken ?? null;
+
+  if (strategy === "bearer") {
+    if (!token) throw new Error("No token returned from login (bearer strategy)");
     setAccessToken(token);
+    
+    try {
+      const me = await fetchCurrentUser();
+      return { user: me, token };
+    } catch {
+      return { user: null, token };
+    }
+  } else {
+    
+    try {
+      const me = await fetchCurrentUser();
+      return { user: me, token: null };
+    } catch (e) {
+      return { user: null, token: null };
+    }
   }
-  return data;
-}
-
-export interface RegisterResponse {
-  token?: string;
-  accessToken?: string;
-  user?: any;
-  username?: string;
-}
-
-export async function register(name: string, email: string, password: string): Promise<RegisterResponse> {
-  const payload = {
-    username: email,
-    password,
-    fullName: name,
-  };
-  const resp = await api.post("/api/auth/register", payload);
-  const data = resp.data as RegisterResponse;
-  const token = data.token ?? data.accessToken;
-  if (token) {
-    setAccessToken(token);
-  }
-  return data;
 }
 
 export async function logout(): Promise<void> {
-  await api.post("/api/auth/logout");
+  await api.post("/auth/logout");
   setAccessToken(null);
 }
 
-export async function fetchCurrentUser(): Promise<any | null> {
+export async function fetchCurrentUser(): Promise<User | null> {
   try {
-    const r = await api.get("/api/auth/me");
-    return r.data;
+    const r = await api.get("/auth/me");
+    return r.data as User;
   } catch (err) {
-    console.debug("fetchCurrentUser failed", err?.response?.status);
     return null;
   }
+}
+
+export async function register(payload: any): Promise<LoginResponse> {
+  const r = await api.post("/auth/register", payload);
+  const data = r.data;
+  
+  if ((import.meta.env.VITE_AUTH_STRATEGY as string) === "bearer") {
+    const token = data?.token ?? data?.accessToken;
+    if (token) setAccessToken(token);
+  }
+  return data;
 }

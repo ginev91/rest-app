@@ -15,7 +15,7 @@ app:
   jwtExpirationMs: ${APP_JWT_EXPIRATION_MS:3600000}
 
 frontend:
-  origin: ${FRONTEND_ORIGIN:http://localhost:8082}
+  origin: ${FRONTEND_ORIGIN:http://localhost:3000}
 
 spring:
   devtools:
@@ -35,7 +35,7 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: create
+      ddl-auto: validate
     show-sql: true
     properties:
       hibernate:

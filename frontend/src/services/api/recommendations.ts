@@ -16,7 +16,7 @@ export interface RecommendationResponse {
 
 export const recommend = async (request: RecommendationRequest): Promise<RecommendationResponse[]> => {
   console.log('Sending recommendation request:', request);
-  const response = await api.post('/api/ai/recommendations', request);
+  const response = await api.post('ai/recommendations', request);
   console.log('Recommendation response:', response.data);
 
   const payload = Array.isArray(response.data) ? response.data : [response.data];
@@ -40,6 +40,6 @@ export const recommend = async (request: RecommendationRequest): Promise<Recomme
 };
 
 export const getRecommendationHistory = async () => {
-  const response = await api.get('/api/recommendations/history');
+  const response = await api.get('recommendations/history');
   return response.data;
 };

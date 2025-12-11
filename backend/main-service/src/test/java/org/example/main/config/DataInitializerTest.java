@@ -1,100 +1,184 @@
 package org.example.main.config;
 
+import org.example.main.model.category.CategoryEntity;
+import org.example.main.model.menu.MenuItem;
+import org.example.main.model.role.Role;
+import org.example.main.model.table.RestaurantTable;
+import org.example.main.model.user.User;
 import org.example.main.repository.category.CategoryRepository;
 import org.example.main.repository.menu.MenuItemRepository;
 import org.example.main.repository.order.OrderItemRepository;
 import org.example.main.repository.role.RoleRepository;
 import org.example.main.repository.table.RestaurantTableRepository;
 import org.example.main.repository.user.UserRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
+import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.boot.ApplicationArguments;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.jdbc.core.JdbcTemplate;
 
-import java.lang.reflect.Field;
+import java.math.BigDecimal;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
-
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
+import static org.assertj.core.api.Assertions.assertThat;
 
 @ExtendWith(MockitoExtension.class)
 class DataInitializerTest {
 
     @Mock
     CategoryRepository categoryRepository;
+
     @Mock
     MenuItemRepository menuItemRepository;
+
     @Mock
     RoleRepository roleRepository;
+
     @Mock
     UserRepository userRepository;
+
     @Mock
     OrderItemRepository orderItemRepository;
+
     @Mock
     PasswordEncoder passwordEncoder;
+
     @Mock
     RestaurantTableRepository tableRepository;
+
     @Mock
     JdbcTemplate jdbcTemplate;
 
-    @Mock
-    ApplicationArguments args;
+    @InjectMocks
+    DataInitializer dataInitializer;
+
+    @BeforeEach
+    void setup() {
+        
+        ReflectionTestUtils.setField(dataInitializer, "reinitialize", false);
+    }
 
     @Test
     void run_skips_when_menu_items_table_missing() throws Exception {
-        when(jdbcTemplate.queryForObject(anyString(), eq(Integer.class), eq("menu_items"))).thenReturn(0);
+        
+        when(jdbcTemplate.queryForObject(
+                contains("information_schema.tables"),
+                eq(Integer.class),
+                eq("menu_items")
+        )).thenReturn(0);
 
-        DataInitializer di = new DataInitializer(categoryRepository, menuItemRepository, roleRepository,
-                userRepository, orderItemRepository, passwordEncoder, tableRepository, jdbcTemplate);
+        dataInitializer.run(mock(ApplicationArguments.class));
 
-        di.run(args);
-
-        verify(jdbcTemplate).queryForObject(anyString(), eq(Integer.class), eq("menu_items"));
-        verifyNoInteractions(categoryRepository, menuItemRepository, roleRepository, userRepository, orderItemRepository, tableRepository);
+        
+        verify(categoryRepository, never()).count();
+        verify(menuItemRepository, never()).count();
+        verify(roleRepository, never()).findByName(anyString());
+        verify(userRepository, never()).findByUsername(anyString());
+        verify(tableRepository, never()).count();
     }
 
     @Test
-    void run_skips_when_item_type_column_missing() throws Exception {
-        when(jdbcTemplate.queryForObject(anyString(), eq(Integer.class), eq("menu_items"))).thenReturn(1);
-        when(jdbcTemplate.queryForObject(contains("information_schema.columns"), eq(Integer.class))).thenReturn(0);
+    void run_reinitialize_deletes_and_seeds_success_with_jdbc_fallback() throws Exception {
+        
+        ReflectionTestUtils.setField(dataInitializer, "reinitialize", true);
 
-        DataInitializer di = new DataInitializer(categoryRepository, menuItemRepository, roleRepository,
-                userRepository, orderItem_repository_or_cast(orderItemRepository), passwordEncoder, table_repository_or_cast(tableRepository), jdbcTemplate);
+        
+        when(jdbcTemplate.queryForObject(
+                contains("information_schema.tables"),
+                eq(Integer.class),
+                eq("menu_items")
+        )).thenReturn(1);
 
-        di.run(args);
+        
+        when(jdbcTemplate.queryForObject(
+                contains("information_schema.tables"),
+                eq(Integer.class),
+                eq("order_items")
+        )).thenReturn(1);
 
-        verify(jdbcTemplate).queryForObject(anyString(), eq(Integer.class), eq("menu_items"));
-        verify(jdbcTemplate).queryForObject(contains("information_schema.columns"), eq(Integer.class));
-        verifyNoInteractions(roleRepository, userRepository, tableRepository);
-    }
+        
+        when(jdbcTemplate.queryForObject(
+                contains("information_schema.columns"),
+                eq(Integer.class)
+        )).thenReturn(1);
 
-    @Test
-    void run_reinitialize_orderItems_delete_falls_back_to_jdbc_when_repo_delete_throws() throws Exception {
-        when(jdbcTemplate.queryForObject(anyString(), eq(Integer.class), eq("menu_items"))).thenReturn(1);
-        when(jdbcTemplate.queryForObject(anyString(), eq(Integer.class), eq("order_items"))).thenReturn(1);
-        when(jdbcTemplate.queryForObject(contains("information_schema.columns"), eq(Integer.class))).thenReturn(1);
+        
+        doThrow(new RuntimeException("deleteAll fail")).when(orderItemRepository).deleteAll();
+        when(jdbcTemplate.update(startsWith("DELETE FROM order_items"))).thenReturn(1);
 
-        doThrow(new RuntimeException("delete-fail")).when(orderItemRepository).deleteAll();
-        when(categoryRepository.count()).thenReturn(1L);
-        when(menuItemRepository.count()).thenReturn(1L);
+        
+        doNothing().when(menuItemRepository).deleteAll();
 
-        DataInitializer di = new DataInitializer(categoryRepository, menuItemRepository, role_repository_or_cast(roleRepository),
-                user_repository_or_cast(userRepository), orderItemRepository, passwordEncoder, tableRepository, jdbcTemplate);
+        
+        when(categoryRepository.count()).thenReturn(0L);
+        when(menuItemRepository.count()).thenReturn(0L);
 
-        Field f = DataInitializer.class.getDeclaredField("reinitialize");
-        f.setAccessible(true);
-        f.setBoolean(di, true);
+        
+        when(roleRepository.findByName("ROLE_ADMIN")).thenReturn(Optional.empty());
+        when(roleRepository.findByName("ROLE_EMPLOYEE")).thenReturn(Optional.empty());
+        when(roleRepository.findByName("ROLE_USER")).thenReturn(Optional.empty());
 
-        di.run(args);
+        when(userRepository.findByUsername("admin@test.com")).thenReturn(Optional.empty());
+        when(userRepository.findByUsername("employee@test.com")).thenReturn(Optional.empty());
+        when(userRepository.findByUsername("user@test.com")).thenReturn(Optional.empty());
 
+        when(passwordEncoder.encode(anyString())).thenReturn("encoded");
+
+        
+        when(tableRepository.count()).thenReturn(0L);
+        when(tableRepository.saveAll(anyList())).thenReturn(Collections.emptyList());
+
+        dataInitializer.run(mock(ApplicationArguments.class));
+
+        
         verify(orderItemRepository).deleteAll();
-        verify(jdbcTemplate).update(eq("DELETE FROM order_items"));
+        verify(jdbcTemplate).update(startsWith("DELETE FROM order_items"));
+
+        
+        verify(menuItemRepository).saveAll(anyList());
+
+        
+        verify(categoryRepository, atLeastOnce()).save(argThat(c -> c instanceof CategoryEntity));
+
+        
+        verify(roleRepository, atLeast(1)).save(argThat(r -> r instanceof Role));
+
+        
+        verify(userRepository, atLeast(1)).save(argThat(u -> u instanceof User));
+
+        
+        verify(tableRepository).saveAll(anyList());
     }
 
-    private static OrderItemRepository orderItem_repository_or_cast(OrderItemRepository r) { return r; }
-    private static RestaurantTableRepository table_repository_or_cast(RestaurantTableRepository r) { return r; }
-    private static RoleRepository role_repository_or_cast(RoleRepository r) { return r; }
-    private static UserRepository user_repository_or_cast(UserRepository r) { return r; }
+    @Test
+    void run_handles_missing_columns_gracefully() throws Exception {
+        
+        when(jdbcTemplate.queryForObject(
+                contains("information_schema.tables"),
+                eq(Integer.class),
+                eq("menu_items")
+        )).thenReturn(1);
+
+        
+        when(jdbcTemplate.queryForObject(
+                contains("information_schema.columns"),
+                eq(Integer.class),
+                anyString()
+        )).thenReturn(0);
+
+        dataInitializer.run(mock(ApplicationArguments.class));
+
+        
+        verify(menuItemRepository, never()).saveAll(anyList());
+        verify(roleRepository, never()).save(any());
+    }
 }

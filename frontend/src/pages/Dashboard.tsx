@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Layout from '@/components/Layout';
-import { Order } from '@/types/order';
+import { Order } from '@/types';
 import { toast } from 'sonner';
 import { ArrowRight, CheckCircle } from 'lucide-react';
 
@@ -45,7 +45,6 @@ const Dashboard = () => {
   const activeOrders = orders.filter(o => o.status !== 'completed');
 
   return (
-    <Layout>
       <div className="space-y-6">
         <div>
           <h2 className="text-3xl font-bold">Order Management</h2>
@@ -135,7 +134,6 @@ const Dashboard = () => {
           )}
         </div>
       </div>
-    </Layout>
   );
 };
 

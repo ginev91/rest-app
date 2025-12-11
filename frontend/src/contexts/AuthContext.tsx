@@ -1,245 +1,190 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { User, AuthState } from '@/types/auth';
+import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   login as apiLogin,
-  register as apiRegister,
   logout as apiLogout,
+  register as apiRegister,
   fetchCurrentUser,
-  LoginResponse,
-  RegisterResponse
-} from '@/services/api/auth';
-import { setAccessToken } from '@/services/api/client';
+} from "@/services/api/auth";
+import { setAccessToken } from "@/services/api/client";
+import type { User, LoginRequest } from "@/types";
 
-interface AuthContextType extends AuthState {
+
+type AuthContextType = {
+  user: User | null;
+  token: string | null;
+  isAuthenticated: boolean;
+  loading: boolean;
   isLoading: boolean;
-  login: (email: string, password: string, tableNumber: number, tablePin: string) => Promise<User | null>;
-  register: (email: string, password: string, name: string) => Promise<User | null>;
+  login: (username: string, password: string, tableNumber?: number, tablePin?: string) => Promise<User | null>;
+  register: (email: string, password: string, name?: string) => Promise<User | null>;
   logout: () => Promise<void>;
-  setUser: (user: User | null) => void;
-  refreshUser: () => Promise<User | null>;
-}
+  hasRole: (role: string) => boolean;
+};
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const cleanRole = (role: string | undefined): string => {
-  if (!role) return 'CUSTOMER';
-  return role.startsWith('.') ? role.substring(1) : role;
-};
-
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [authState, setAuthState] = useState<AuthState>({
-    user: null,
-    token: null,
-    isAuthenticated: false,
-  });
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const strategy = (import.meta.env.VITE_AUTH_STRATEGY as string) ?? "cookie";
+  const storeStrategy = (import.meta.env.VITE_STORE_TOKEN as string) ?? "local";
 
+  const navigate = useNavigate();
+  const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(() => {
+    if (strategy === "bearer" && storeStrategy === "local") {
+      return localStorage.getItem("auth_token");
+    }
+    return null;
+  });
+  const [loading, setLoading] = useState<boolean>(true);
+
+  // Ensure client has token (bearer) on start
+  useEffect(() => {
+    if (strategy === "bearer" && token) {
+      setAccessToken(token);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // On mount try to load current user (works for both cookie and bearer)
   useEffect(() => {
     let mounted = true;
     (async () => {
       try {
-        const storedToken = localStorage.getItem('token');
-        const storedUser = localStorage.getItem('user');
-        
-        if (storedToken) {
-          setAccessToken(storedToken);
-        }
-
-        if (storedUser) {
-          try {
-            const parsed = JSON.parse(storedUser) as User;
-            console.log('Loaded user from localStorage:', parsed);
-            if (mounted) {
-              setAuthState({ user: parsed, token: storedToken ?? null, isAuthenticated: true });
-            }
-          } catch {
-            localStorage.removeItem('user');
+        const me = await fetchCurrentUser();
+        if (mounted && me) {
+          setUser(me);
+          if (strategy === "cookie") {
+            setToken("__cookie__");
           }
-        }
-
-        if (storedToken) {
-          const user = await fetchCurrentUser();
-          if (!mounted) return;
-          if (user) {
-            user.role = cleanRole(user.role);
-            console.log('Fetched user from server:', user);
-            localStorage.setItem('user', JSON.stringify(user));
-            setAuthState({ user, token: storedToken, isAuthenticated: true });
+        } else {
+          if (mounted) {
+            setUser(null);
+            if (strategy === "cookie") setToken(null);
           }
         }
       } catch (err) {
-        console.error('Auth initialization error:', err);
+        if (mounted) {
+          setUser(null);
+          if (strategy === "cookie") setToken(null);
+        }
       } finally {
-        if (mounted) setIsLoading(false);
+        if (mounted) setLoading(false);
       }
     })();
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [strategy]);
 
-  const refreshUser = async (): Promise<User | null> => {
-    setIsLoading(true);
+  // login wrapper used by UI — CALLS API WITH SINGLE PAYLOAD OBJECT
+  const login = async (username: string, password: string, tableNumber?: number, tablePin?: string) => {
     try {
-      const user = await fetchCurrentUser();
-      if (user) {
-        user.role = cleanRole(user.role);
-        console.log('Refreshed user:', user);
-        localStorage.setItem('user', JSON.stringify(user));
-        setAuthState(prev => ({ ...prev, user, isAuthenticated: true }));
-        return user;
+      const payload: LoginRequest = { username, password, tableNumber, tablePin };
+      // apiLogin expects one argument (the payload object)
+      const resp = await apiLogin(payload);
+      // If bearer strategy and server returned token, persist it (apiLogin may have returned it)
+      const maybeToken = (resp as any)?.token ?? (resp as any)?.accessToken ?? null;
+      if (strategy === "bearer" && maybeToken) {
+        setAccessToken(maybeToken);
+        setToken(maybeToken);
+        if (storeStrategy === "local") localStorage.setItem("auth_token", maybeToken);
+      }
+
+      // For cookie strategy, server sets cookie. We must fetch current user via /auth/me
+      const me = await fetchCurrentUser();
+      if (me) {
+        setUser(me);
+        if (strategy === "cookie") {
+          setToken("__cookie__");
+        }
+        return me as User;
       } else {
-        localStorage.removeItem('user');
-        localStorage.removeItem('token');
-        localStorage.removeItem('tableId');
-        localStorage.removeItem('tableNumber');
-        setAccessToken(null);
-        setAuthState({ user: null, token: null, isAuthenticated: false });
+        setUser(null);
         return null;
       }
-    } finally {
-      setIsLoading(false);
+    } catch (err) {
+      throw err;
     }
   };
 
-  const login = async (email: string, password: string, tableNumber: number, tablePin: string): Promise<User | null> => {
-    setIsLoading(true);
+  // register wrapper — CALLS API WITH SINGLE PAYLOAD OBJECT
+  const register = async (email: string, password: string, name?: string) => {
     try {
-      console.log('AuthContext: Starting login with table auth...', { tableNumber, tablePin });
-      
-      const resp: LoginResponse = await apiLogin(email, password, tableNumber, tablePin);
-      console.log('AuthContext: Login response:', resp);
-      
-      const token = resp.token ?? resp.accessToken;
-      console.log('AuthContext: Received token:', resp);
-      if (token) {
-        setAccessToken(token);
-        localStorage.setItem('token', token);
+      // adapt to API which expects a single payload object; common shape: { username, password, fullName }
+      const payload = { username: email, password, fullName: name ?? "" };
+      const resp = await apiRegister(payload);
+      const maybeToken = (resp as any)?.token ?? (resp as any)?.accessToken ?? null;
+      if (strategy === "bearer" && maybeToken) {
+        setAccessToken(maybeToken);
+        setToken(maybeToken);
+        if (storeStrategy === "local") localStorage.setItem("auth_token", maybeToken);
       }
 
-      const userId = resp.userId;
-      const username = resp.username || email;
-      const name = resp.username || username;
-      const role = resp.role;
-      const userTableNumber = resp.tableNumber;
-      const tableId = resp.tableId;
-
-      if (userId) {
-        const userData: User = {
-          id: userId,
-          userId: userId,         
-          username: username,
-          email: email,           
-          name: name,             
-          role: role,
-          tableNumber: userTableNumber || tableNumber,
-          tableId: tableId 
-        };
-        
-        if (tableId) {
-          localStorage.setItem('tableId', tableId);
+      try {
+        const me = await fetchCurrentUser();
+        if (me) {
+          setUser(me);
+          if (strategy === "cookie") setToken("__cookie__");
+          return me as User;
         }
-        
-        console.log('AuthContext: Created user data:', userData);
-        localStorage.setItem('user', JSON.stringify(userData));
-        setAuthState({ user: userData, token: token ?? authState.token, isAuthenticated: true });
-        return userData;
+      } catch {
+        // registration succeeded, but not logged in automatically
       }
 
-      console.log('AuthContext: No userId in response, fetching from /me...');
-      const fetched = await fetchCurrentUser();
-      if (fetched) {
-        fetched.role = cleanRole(fetched.role);
-        fetched.tableNumber = tableNumber;
-        fetched.tableId = tableId;
-        
-        console.log('AuthContext: Fetched user:', fetched);
-        localStorage.setItem('user', JSON.stringify(fetched));
-        setAuthState({ user: fetched, token: token ?? authState.token, isAuthenticated: true });
-        return fetched;
-      }
-
-      setAuthState({ user: null, token: null, isAuthenticated: false });
       return null;
     } catch (err) {
-      console.error('AuthContext: Login failed:', err);
       throw err;
-    } finally {
-      setIsLoading(false);
     }
   };
 
-  const register = async (email: string, password: string, name: string): Promise<User | null> => {
-    setIsLoading(true);
-    try {
-      console.log('AuthContext: Starting registration...');
-      const resp: RegisterResponse = await apiRegister(name, email, password);
-      console.log('AuthContext: Registration response:', resp);
-      
-      
-      
-      return null;
-    } catch (err) {
-      console.error('AuthContext: Registration failed:', err);
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const logout = async (): Promise<void> => {
-    setIsLoading(true);
+  const logout = async () => {
     try {
       await apiLogout();
-    } catch {
-      
+    } catch (err) {
+      console.warn("logout error", err);
     } finally {
-      setAccessToken(null);
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      localStorage.removeItem('tableId');
-      localStorage.removeItem('tableNumber');
-      setAuthState({ user: null, token: null, isAuthenticated: false });
-      setIsLoading(false);
+      setUser(null);
+      setToken(null);
+      if (strategy === "bearer") {
+        setAccessToken(null);
+        if (storeStrategy === "local") localStorage.removeItem("auth_token");
+      }
+      try {
+        navigate("/login");
+      } catch {
+        // ignore
+      }
     }
   };
 
-  const setUser = (user: User | null) => {
-    setAuthState(prev => ({
-      ...prev,
+  const hasRole = (role: string) => {
+    if (!user) return false;
+    if (Array.isArray((user as any).roles)) return (user as any).roles.includes(role as any);
+    if (typeof (user as any).role === "string") return (user as any).role === role;
+    return false;
+  };
+
+  const value = useMemo(
+    () => ({
       user,
+      token,
       isAuthenticated: !!user,
-    }));
-    if (user) {
-      localStorage.setItem('user', JSON.stringify(user));
-    } else {
-      localStorage.removeItem('user');
-      localStorage.removeItem('tableId');
-      localStorage.removeItem('tableNumber');
-    }
-  };
-
-  return (
-    <AuthContext.Provider
-      value={{
-        ...authState,
-        isLoading,
-        login,
-        register,
-        logout,
-        setUser,
-        refreshUser,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
+      loading,
+      isLoading: loading,
+      login,
+      register,
+      logout,
+      hasRole,
+    }),
+    [user, token, loading]
   );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
-export const useAuth = (): AuthContextType => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-};
+export function useAuth() {
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
+  return ctx;
+}

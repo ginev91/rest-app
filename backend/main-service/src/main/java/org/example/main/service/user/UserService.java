@@ -247,19 +247,21 @@ public class UserService implements IUserService {
         Object principal = authentication.getPrincipal();
         Map<String, Object> dto = new LinkedHashMap<>();
         String username = null;
+        String fullName = null;
 
         if (principal instanceof UserDetails) {
             UserDetails ud = (UserDetails) principal;
             username = ud.getUsername();
             dto.put("username", username);
+            dto.put("fullName", userRepository.findByUsername(username).get().getFullName());
             dto.put("authorities", ud.getAuthorities().stream()
                     .map(GrantedAuthority::getAuthority)
                     .collect(Collectors.toList()));
         } else if (principal instanceof String) {
             username = (String) principal;
             dto.put("username", username);
+            dto.put("fullName", userRepository.findByUsername(username).get().getFullName());
         } else if (principal instanceof Map) {
-            @SuppressWarnings("unchecked")
             Map<String, Object> map = (Map<String, Object>) principal;
             dto.putAll(map);
         } else {

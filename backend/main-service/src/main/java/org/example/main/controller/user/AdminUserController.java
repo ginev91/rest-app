@@ -1,6 +1,10 @@
 package org.example.main.controller.user;
 
 import lombok.RequiredArgsConstructor;
+import org.example.main.dto.request.user.RegisterRequestDto;
+import org.example.main.dto.response.user.UserProfileResponseDto;
+import org.example.main.mapper.user.UserMapper;
+import org.example.main.model.role.Role;
 import org.example.main.model.user.User;
 import org.example.main.service.user.IUserService;
 import org.example.main.service.role.IRoleService;
@@ -12,7 +16,10 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
+
+import java.net.URI;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @RestController
@@ -31,17 +38,24 @@ public class AdminUserController {
         return ResponseEntity.ok(userService.findAll());
     }
 
+    @PostMapping
+    public ResponseEntity<UserProfileResponseDto>  createUser(@Valid @RequestBody RegisterRequestDto request) {
+        User toCreate = UserMapper.toEntity(request);
+        User created = userService.create(toCreate, request.getPassword());
+        return ResponseEntity.created(URI.create("/api/admin/users/" + created.getId()))
+                .body(UserMapper.toProfile(created));
+    }
+
     @PutMapping("/{userId}/role")
     public ResponseEntity<User> changeRole(@PathVariable UUID userId, @Valid @RequestBody RoleChangeRequestDto req) {
         User updated = userService.assignRole(userId, req.getRoleName());
         return ResponseEntity.ok(updated);
     }
 
-    @PutMapping("/{userId}/block")
-    public ResponseEntity<User> blockUser(@PathVariable UUID userId) {
-        // assign special blocking role. Admin can later reassign a proper role.
-        User updated = userService.assignRole(userId, "ROLE_BLOCKED");
-        return ResponseEntity.ok(updated);
+    @DeleteMapping("/{userId}")
+    public ResponseEntity<Void> deleteUser (@PathVariable UUID userId) {
+        userService.delete(userId);
+        return ResponseEntity.noContent().build();
     }
 
     @PutMapping("/{userId}/unblock")

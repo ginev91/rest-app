@@ -1,63 +1,99 @@
-import axios, { AxiosInstance } from "axios";
+import axios, { AxiosInstance, AxiosRequestHeaders } from "axios";
 
-const baseURL = (import.meta.env.VITE_API_BASE_URL as string) || "http://localhost:8080";
+const baseURL =
+  (import.meta.env.VITE_API_BASE_URL as string) ||
+  (import.meta.env.VITE_API_BASE as string) ||
+  "http://localhost:8080/api/";
 
 const api: AxiosInstance = axios.create({
   baseURL,
-  withCredentials: true,
+  withCredentials: true, 
   headers: {
     "Content-Type": "application/json",
   },
 });
 
-let accessToken: string | null = null;
 
-const storedToken = localStorage.getItem('token');
+let accessToken: string | null = null; 
+
+const storedToken =
+  typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
 if (storedToken) {
-  setAccessToken(storedToken);
+  setAccessToken(storedToken, false);
 }
 
-export function setAccessToken(token: string | null) {
+export function setAccessToken(token: string | null, persist = true) {
   accessToken = token;
   if (token) {
     api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+    if (persist) localStorage.setItem("auth_token", token);
   } else {
     delete api.defaults.headers.common["Authorization"];
+    localStorage.removeItem("auth_token");
   }
 }
 
+export function getAccessToken() {
+  return accessToken;
+}
+
+
+api.interceptors.request.use((cfg) => {
+  const strategy = (import.meta.env.VITE_AUTH_STRATEGY as string) ?? "cookie";
+  if (strategy === "bearer") {
+    const t = accessToken;
+    if (t) {
+      
+      cfg.headers = (cfg.headers as AxiosRequestHeaders) ?? ({} as AxiosRequestHeaders);
+      (cfg.headers as AxiosRequestHeaders)["Authorization"] = `Bearer ${t}`;
+    }
+  }
+  return cfg;
+});
+
+
 api.interceptors.response.use(
-  (response) => response,
+  (r) => r,
   async (error) => {
-    const originalRequest = error.config;
+    const originalRequest = error?.config as any;
     if (!originalRequest) return Promise.reject(error);
 
+    const status = error.response?.status;
+    const url = originalRequest.url ?? "";
+
     
-    if (error.response?.status === 401 && !originalRequest._retry && !originalRequest.url?.includes('/api/auth/me')) {
+    const reqHeaders = originalRequest.headers as Record<string, any> | undefined;
+    const skipRefresh = reqHeaders?.["x-skip-refresh"] || reqHeaders?.["X-Skip-Refresh"];
+
+    
+    const isAuthEndpoint =
+      url.includes("/auth/login") || url.includes("/auth/logout") || url.includes("/auth/me");
+    if (isAuthEndpoint || skipRefresh) {
+      return Promise.reject(error);
+    }
+
+    
+    if (status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
       try {
         
-        const r = await api.get('/api/auth/me');
+        await api.get("auth/me", { headers: { "x-skip-refresh": "1" } });
         
-        if (r.status === 200) {
-          return api(originalRequest);
-        }
+        return api(originalRequest);
       } catch (refreshErr) {
         
         setAccessToken(null);
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        localStorage.removeItem('tableId');
-        localStorage.removeItem('tableNumber');
-        
-        
-        if (!window.location.pathname.includes('/login')) {
-          window.location.href = '/login';
+        localStorage.removeItem("auth_token");
+        localStorage.removeItem("user");
+        localStorage.removeItem("tableId");
+        localStorage.removeItem("tableNumber");
+        if (!window.location.pathname.includes("/login")) {
+          window.location.href = "/login";
         }
-        
         return Promise.reject(refreshErr);
       }
     }
+
     return Promise.reject(error);
   }
 );

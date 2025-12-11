@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Layout from '@/components/Layout';
-import { Order } from '@/types/order';
+import { Order } from '@/types';
 import { Clock, CheckCircle2, ChefHat, Utensils, Loader2, User, Table, XCircle } from 'lucide-react';
 import { getOrders } from '@/services/api/order';
 import { toast } from 'sonner';
@@ -268,17 +268,14 @@ const Orders = () => {
 
   if (authLoading) {
     return (
-      <Layout>
         <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
           <p className="text-muted-foreground">Loading user information...</p>
         </div>
-      </Layout>
     );
   }
 
   return (
-    <Layout>
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
         <TabsList className="grid w-full max-w-md grid-cols-2">
           <TabsTrigger value="my" className="gap-2">
@@ -299,7 +296,6 @@ const Orders = () => {
           <OrdersList orders={tableOrders} isLoading={isLoadingTable} />
         </TabsContent>
       </Tabs>
-    </Layout>
   );
 };
 

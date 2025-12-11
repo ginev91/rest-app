@@ -15,12 +15,14 @@ import org.example.main.mapper.kitchen.KitchenStatusMapper;
 import org.example.main.model.menu.MenuItem;
 import org.example.main.model.order.OrderEntity;
 import org.example.main.model.order.OrderItem;
+import org.example.main.model.role.Role;
 import org.example.main.model.user.User;
 import org.example.main.model.enums.ItemType;
 import org.example.main.model.enums.OrderItemStatus;
 import org.example.main.model.enums.OrderStatus;
 import org.example.main.repository.menu.MenuItemRepository;
 import org.example.main.repository.order.OrderRepository;
+import org.example.main.repository.role.RoleRepository;
 import org.example.main.repository.user.UserRepository;
 import org.example.main.service.table.RestaurantTableService;
 import org.springframework.http.HttpStatus;
@@ -44,17 +46,20 @@ public class OrderService implements IOrderService {
     private final KitchenClient kitchenClient;
     private final RestaurantTableService restaurantTableService;
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private final RoleRepository roleRepository;
 
     public OrderService(OrderRepository orderRepository,
                         MenuItemRepository menuItemRepository,
                         UserRepository userRepository,
                         KitchenClient kitchenClient,
-                        RestaurantTableService restaurantTableService) {
+                        RestaurantTableService restaurantTableService,
+                        RoleRepository roleRepository) {
         this.orderRepository = orderRepository;
         this.menuItemRepository = menuItemRepository;
         this.userRepository = userRepository;
         this.kitchenClient = kitchenClient;
         this.restaurantTableService = restaurantTableService;
+        this.roleRepository = roleRepository;
     }
 
     @Transactional
@@ -278,23 +283,80 @@ public class OrderService implements IOrderService {
     @Override
     @Transactional
     public List<OrderResponseDto> getOrdersForUser(UUID userId) {
-        if (userId == null) return Collections.emptyList();
-        String userRole = userRepository.findRoleByUserId(userId);
-        if (userRole != null && "ROLE_ADMIN".equals(userRole)) {
-            List<OrderEntity> allOrders = orderRepository.findAll();
-            return allOrders.stream()
-                    .map(this::mapToOrderResponseDto)
-                    .collect(Collectors.toList());
-        } else if (userRole != null && "ROLE_EMPLOYEE".equals(userRole)) {
-            List<OrderEntity> entities = orderRepository.findWithItemsByWaiterUserId(userId);
-            return entities.stream()
-                    .map(this::mapToOrderResponseDto)
-                    .collect(Collectors.toList());
+        if (userId == null) {
+            return Collections.emptyList();
         }
-        List<OrderEntity> entities = orderRepository.findWithItemsByCustomerUserId(userId);
-        return entities.stream()
-                .map(this::mapToOrderResponseDto)
-                .collect(Collectors.toList());
+
+        boolean isAdmin = false;
+        boolean isEmployee = false;
+
+        List<Role> roles = Collections.emptyList();
+        try {
+            roles = roleRepository.findRolesByUserId(userId);
+        } catch (Exception e) {
+            log.debug("RoleRepository lookup failed for user {}: {}", userId, e.getMessage());
+            roles = Collections.emptyList();
+        }
+
+        if (roles != null && !roles.isEmpty()) {
+            for (Role r : roles) {
+                if (r == null) continue;
+                String roleName = r.getName();
+                if ("ROLE_ADMIN".equals(roleName)) isAdmin = true;
+                if ("ROLE_EMPLOYEE".equals(roleName) || "ROLE_WAITER".equals(roleName)) isEmployee = true;
+            }
+        } else {
+            try {
+                String userRole = userRepository.findRoleByUserId(userId);
+                if (userRole != null) {
+                    if ("ROLE_ADMIN".equals(userRole)) isAdmin = true;
+                    if ("ROLE_EMPLOYEE".equals(userRole) || "ROLE_WAITER".equals(userRole)) isEmployee = true;
+                } else {
+                    Optional<User> userOpt = userRepository.findById(userId);
+                    if (userOpt.isPresent()) {
+                        User user = userOpt.get();
+                        try {
+                            Object roleObj = user.getRole();
+                            if (roleObj instanceof String) {
+                                String rn = (String) roleObj;
+                                if ("ROLE_ADMIN".equals(rn)) isAdmin = true;
+                                if ("ROLE_EMPLOYEE".equals(rn) || "ROLE_WAITER".equals(rn)) isEmployee = true;
+                            } else if (roleObj instanceof Role) {
+                                String rn = ((Role) roleObj).getName();
+                                if ("ROLE_ADMIN".equals(rn)) isAdmin = true;
+                                if ("ROLE_EMPLOYEE".equals(rn) || "ROLE_WAITER".equals(rn)) isEmployee = true;
+                            }
+                        } catch (Exception ex) {
+                            log.debug("Unable to read user role for user {}: {}", userId, ex.getMessage());
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                log.debug("Legacy role lookup failed for user {}: {}", userId, e.getMessage());
+            }
+        }
+
+        try {
+            if (isAdmin) {
+                List<OrderEntity> allOrders = orderRepository.findAll();
+                return allOrders.stream()
+                        .map(this::mapToOrderResponseDto)
+                        .collect(Collectors.toList());
+            } else if (isEmployee) {
+                List<OrderEntity> entities = orderRepository.findWithItemsByWaiterUserId(userId);
+                return entities.stream()
+                        .map(this::mapToOrderResponseDto)
+                        .collect(Collectors.toList());
+            } else {
+                List<OrderEntity> entities = orderRepository.findWithItemsByCustomerUserId(userId);
+                return entities.stream()
+                        .map(this::mapToOrderResponseDto)
+                        .collect(Collectors.toList());
+            }
+        } catch (Exception e) {
+            log.error("Failed to fetch orders for user {}: {}", userId, e.getMessage(), e);
+            return Collections.emptyList();
+        }
     }
 
     @Override

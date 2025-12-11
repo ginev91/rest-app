@@ -73,23 +73,13 @@ class AdminUserControllerTest {
     }
 
     @Test
-    void blockUser_assignsRoleBlocked() {
+    void deleteUser_deletesUser() {
         UUID uid = UUID.randomUUID();
-        User blocked = new User();
-        blocked.setId(uid);
-        Role r = new Role(); r.setName("ROLE_BLOCKED");
-        blocked.setRole(r);
 
-        when(userService.assignRole(eq(uid), eq("ROLE_BLOCKED"))).thenReturn(blocked);
+        ResponseEntity<Void> resp = controller.deleteUser(uid);
+        assertThat(resp.getStatusCodeValue()).isEqualTo(204);
 
-        ResponseEntity<User> resp = controller.blockUser(uid);
-
-        assertThat(resp.getStatusCode().is2xxSuccessful()).isTrue();
-        User body = resp.getBody();
-        assertThat(body).isNotNull();
-        assertThat(body.getRole()).isNotNull();
-        assertThat(body.getRole().getName()).isEqualTo("ROLE_BLOCKED");
-        verify(userService).assignRole(uid, "ROLE_BLOCKED");
+        verify(userService).delete(uid);
     }
 
     @Test

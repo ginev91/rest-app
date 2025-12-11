@@ -43,7 +43,6 @@ const Recommendations = () => {
   };
 
   return (
-    <Layout>
       <div className="max-w-6xl mx-auto space-y-6">
         <div className="text-center space-y-2">
           <div className="flex items-center justify-center gap-2 mb-4">
@@ -196,7 +195,6 @@ const Recommendations = () => {
           </Card>
         )}
       </div>
-    </Layout>
   );
 };
 

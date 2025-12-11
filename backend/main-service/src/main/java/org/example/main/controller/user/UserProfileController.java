@@ -37,7 +37,6 @@ public class UserProfileController {
     @PutMapping("/me")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> updateMe(Authentication authentication, @Valid @RequestBody UpdateProfileRequestDto req) {
-        // fetch current user id via userService.me / repository
         var dto = userService.me(authentication, null);
         Object uid = dto.get("userId");
         if (uid == null) {
@@ -50,7 +49,6 @@ public class UserProfileController {
         changes.setUsername(req.getUsername());
         User updated = userService.update(id, changes);
 
-        // NOTE: prefer returning a response DTO rather than entity to avoid leaking fields.
         return ResponseEntity.ok(updated);
     }
 

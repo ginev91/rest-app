@@ -1,0 +1,10 @@
+export * as AuthApi from "./auth";
+export * from "./client";
+export * as MenuApi from "./menu";
+export * as OrdersApi from "./order";
+export * as RecommendApi from "./recommendations";
+export * as TableApi from "./tables";
+export * as ReservationApi from "./reservations";
+export * as UserApi from "./users";
+export * as AdminApi from "./adminUsers";
+export * as RoleApi from "./roles";

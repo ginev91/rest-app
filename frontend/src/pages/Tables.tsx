@@ -51,7 +51,7 @@ const Tables = () => {
   async function loadTables() {
     setLoading(true);
     try {
-      const res = await api.get('/api/tables');
+      const res = await api.get('tables');
       console.log('Tables loaded:', res.data);
       setTables(res.data);
     } catch (err: any) {
@@ -68,16 +68,13 @@ const Tables = () => {
 
   if (loading) {
     return (
-      <Layout>
         <div className="flex items-center justify-center min-h-[400px]">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
-      </Layout>
     );
   }
 
   return (
-    <Layout>
       <div className="space-y-6">
         <div>
           <h2 className="text-3xl font-bold">Table Management</h2>
@@ -144,7 +141,6 @@ const Tables = () => {
           </Card>
         )}
       </div>
-    </Layout>
   );
 };
 

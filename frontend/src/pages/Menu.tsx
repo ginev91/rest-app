@@ -8,8 +8,7 @@ import { Plus, Minus, ShoppingCart, Loader2, X, Receipt, User } from 'lucide-rea
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import Layout from '@/components/Layout';
-import { MenuItem } from '@/types/menu';
-import { Order } from '@/types/order';
+import { MenuItem, Order } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import api from '@/services/api/client';
 
@@ -39,7 +38,7 @@ const Menu = () => {
     try {
       setIsLoading(true);
       console.log('Fetching menu items...');
-      const response = await api.get('/api/menu');
+      const response = await api.get('menu');
       console.log('Menu items loaded:', response.data.length);
       setMenuItems(response.data);
     } catch (error) {
@@ -60,12 +59,12 @@ const Menu = () => {
       setIsFetchingOrder(true);
       console.log('🔍 Fetching active order for user:', user.userId);
       
-      const response = await api.get(`/api/orders/active?userId=${user.userId}`);
+      const response = await api.get(`orders/active?userId=${user.userId}`);
       
       if (response.data) {
         setActiveOrder(response.data);
         console.log('Active order found:', response.data.id);
-        toast.info(`You have an active order (#${response.data.id})`);
+        toast.info(`You have an active order`);
       }
     } catch (error: any) {
       if (error.response?.status === 404) {
@@ -87,7 +86,7 @@ const Menu = () => {
 
   const addToCart = (itemId: string) => {
     setCart(prev => ({ ...prev, [itemId]: (prev[itemId] || 0) + 1 }));
-    toast.success('Added to cart');
+    toast.success('Added order');
   };
 
   const removeFromCart = (itemId: string) => {
@@ -154,13 +153,13 @@ const Menu = () => {
       
       if (activeOrder) {
         console.log('Adding items to order:', activeOrder.id);
-        response = await api.post(`/api/orders/${activeOrder.id}/items`, {
+        response = await api.post(`orders/${activeOrder.id}/items`, {
           items: orderItems
         });
         toast.success('Items added to order!');
       } else {
         console.log('📝 Creating new order');
-        response = await api.post('/api/orders', {
+        response = await api.post('orders', {
           tableNumber: tableNumber,
           tableId: tableId,
           items: orderItems,
@@ -187,16 +186,13 @@ const Menu = () => {
 
   if (isLoading) {
     return (
-      <Layout>
         <div className="flex items-center justify-center min-h-[400px]">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
-      </Layout>
     );
   }
 
   return (
-    <Layout>
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -375,7 +371,6 @@ const Menu = () => {
           </DialogContent>
         </Dialog>
       </div>
-    </Layout>
   );
 };
 
