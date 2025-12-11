@@ -1,7 +1,7 @@
 package org.example.main.integration;
 
-import org.example.main.service.TableReservationService;
-import org.example.main.repository.TableReservationRepository;
+import org.example.main.service.table.TableReservationService;
+import org.example.main.repository.table.TableReservationRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;

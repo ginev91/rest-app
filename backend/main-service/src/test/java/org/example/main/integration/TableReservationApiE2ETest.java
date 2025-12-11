@@ -1,12 +1,12 @@
 package org.example.main.integration;
 
 import org.example.main.config.TestSecurityConfig;
-import org.example.main.dto.request.ReservationRequestDto;
-import org.example.main.dto.response.TableReservationResponseDto;
-import org.example.main.mapper.ReservationMapper;
-import org.example.main.model.TableReservationEntity;
+import org.example.main.dto.request.table.ReservationRequestDto;
+import org.example.main.dto.response.table.TableReservationResponseDto;
+import org.example.main.mapper.table.ReservationMapper;
+import org.example.main.model.table.TableReservationEntity;
 import org.example.main.model.enums.ReservationStatus;
-import org.example.main.repository.TableReservationRepository;
+import org.example.main.repository.table.TableReservationRepository;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;

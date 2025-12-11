@@ -1,7 +1,17 @@
 package org.example.main.config;
 
-import org.example.main.model.*;
-import org.example.main.repository.*;
+import org.example.main.model.category.CategoryEntity;
+import org.example.main.model.enums.Macros;
+import org.example.main.model.menu.MenuItem;
+import org.example.main.model.role.Role;
+import org.example.main.model.table.RestaurantTable;
+import org.example.main.model.user.User;
+import org.example.main.repository.category.CategoryRepository;
+import org.example.main.repository.menu.MenuItemRepository;
+import org.example.main.repository.order.OrderItemRepository;
+import org.example.main.repository.role.RoleRepository;
+import org.example.main.repository.table.RestaurantTableRepository;
+import org.example.main.repository.user.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -472,14 +482,14 @@ public class DataInitializer implements ApplicationRunner {
         Role userRole = roleRepository.findByName("ROLE_USER")
                 .orElseGet(() -> roleRepository.save(Role.builder().name("ROLE_USER").build()));
 
-        
         userRepository.findByUsername("admin@test.com").orElseGet(() -> {
             User u = new User();
             u.setUsername("admin@test.com");
             u.setPasswordHash(passwordEncoder.encode("adminpass"));
             u.setFullName("System Administrator");
-            
-            u.setRole(adminRole.getName());
+
+            // assign the Role entity, not the role name string
+            u.setRole(adminRole);
             return userRepository.save(u);
         });
 
@@ -488,7 +498,9 @@ public class DataInitializer implements ApplicationRunner {
             u.setUsername("employee@test.com");
             u.setPasswordHash(passwordEncoder.encode("emppass"));
             u.setFullName("Employee User");
-            u.setRole(employeeRole.getName());
+
+            // assign the Role entity, not the role name string
+            u.setRole(employeeRole);
             return userRepository.save(u);
         });
 
@@ -497,11 +509,12 @@ public class DataInitializer implements ApplicationRunner {
             u.setUsername("user@test.com");
             u.setPasswordHash(passwordEncoder.encode("userpass"));
             u.setFullName("Regular User");
-            u.setRole(userRole.getName());
+
+            // assign the Role entity, not the role name string
+            u.setRole(userRole);
             return userRepository.save(u);
         });
     }
-
     private void seedTablesIfNeeded() {
         if (tableRepository.count() == 0) {
             List<RestaurantTable> tables = List.of(

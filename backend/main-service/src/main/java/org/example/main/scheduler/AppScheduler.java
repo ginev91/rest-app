@@ -1,13 +1,13 @@
 package org.example.main.scheduler;
 
-import org.example.main.model.MenuItem;
-import org.example.main.model.OrderEntity;
-import org.example.main.model.OrderItem;
-import org.example.main.model.RestaurantTable;
+import org.example.main.model.menu.MenuItem;
+import org.example.main.model.order.OrderEntity;
+import org.example.main.model.order.OrderItem;
+import org.example.main.model.table.RestaurantTable;
 import org.example.main.model.enums.OrderStatus;
-import org.example.main.repository.MenuItemRepository;
-import org.example.main.repository.OrderRepository;
-import org.example.main.repository.RestaurantTableRepository;
+import org.example.main.repository.menu.MenuItemRepository;
+import org.example.main.repository.order.OrderRepository;
+import org.example.main.repository.table.RestaurantTableRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;

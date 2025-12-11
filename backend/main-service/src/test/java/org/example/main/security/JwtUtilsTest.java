@@ -25,7 +25,6 @@ class JwtUtilsTest {
 
     @AfterEach
     void cleanup() {
-        // nothing to clean here
     }
 
     @Test

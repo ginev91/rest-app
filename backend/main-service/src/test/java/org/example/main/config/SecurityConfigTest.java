@@ -3,6 +3,8 @@ package org.example.main.config;
 import org.example.main.security.JwtUtils;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentMatchers;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
@@ -19,13 +21,13 @@ import jakarta.servlet.Filter;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-/**
- * Unit tests for SecurityConfig.
- *
- * Fix: ensure the correct AuthenticationManagerBuilder import is used:
- * org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder
- */
+import org.junit.jupiter.api.extension.ExtendWith;
+
+@ExtendWith(MockitoExtension.class)
 class SecurityConfigTest {
+
+    @Mock
+    PasswordEncoder passwordEncoder;
 
     @Test
     void corsConfigurationSource_returnsExpectedCorsConfiguration() {
@@ -65,7 +67,7 @@ class SecurityConfigTest {
         JwtUtils jwtUtils = mock(JwtUtils.class);
         UserDetailsService uds = mock(UserDetailsService.class);
 
-        SecurityFilterChain result = cfg.securityFilterChain(http, jwtUtils, uds);
+        SecurityFilterChain result = cfg.securityFilterChain(http, jwtUtils, uds, passwordEncoder);
 
         assertThat(result).isSameAs(chain);
 

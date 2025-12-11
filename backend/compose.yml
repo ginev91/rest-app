@@ -121,6 +121,11 @@ services:
       interval: 5s
       retries: 12
       timeout: 2s
+    deploy:
+      resources:
+        limits:
+          cpus: "4"
+          memory: "8g"
     entrypoint: >
       sh -c "
         ollama serve & 

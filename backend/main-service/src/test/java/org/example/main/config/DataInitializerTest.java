@@ -1,6 +1,11 @@
 package org.example.main.config;
 
-import org.example.main.repository.*;
+import org.example.main.repository.category.CategoryRepository;
+import org.example.main.repository.menu.MenuItemRepository;
+import org.example.main.repository.order.OrderItemRepository;
+import org.example.main.repository.role.RoleRepository;
+import org.example.main.repository.table.RestaurantTableRepository;
+import org.example.main.repository.user.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;

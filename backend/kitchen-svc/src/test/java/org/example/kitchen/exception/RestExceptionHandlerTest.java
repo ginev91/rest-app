@@ -1,5 +1,6 @@
 package org.example.kitchen.exception;
 
+import org.example.main.exception.ResourceNotFoundException;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -13,7 +14,7 @@ class RestExceptionHandlerTest {
     @Test
     void handleNotFound_returnsNotFoundAndErrorBody() {
         RestExceptionHandler handler = new RestExceptionHandler();
-        IllegalArgumentException ex = new IllegalArgumentException("resource not found");
+        ResourceNotFoundException ex = new ResourceNotFoundException("resource not found");
 
         ResponseEntity<Map<String, String>> resp = handler.handleNotFound(ex);
 
@@ -24,7 +25,20 @@ class RestExceptionHandlerTest {
     }
 
     @Test
-    void handleGeneric_returnsInternalServerErrorAndErrorBody() {
+    void handleBadRequest_forIllegalArgument_returnsBadRequestAndErrorBody() {
+        RestExceptionHandler handler = new RestExceptionHandler();
+        IllegalArgumentException ex = new IllegalArgumentException("invalid input");
+
+        ResponseEntity<Map<String, String>> resp = handler.handleBadRequest(ex);
+
+        assertNotNull(resp);
+        assertEquals(HttpStatus.BAD_REQUEST, resp.getStatusCode());
+        assertNotNull(resp.getBody());
+        assertEquals("invalid input", resp.getBody().get("error"));
+    }
+
+    @Test
+    void handleGeneric_returnsInternalServerErrorAndGenericErrorBody() {
         RestExceptionHandler handler = new RestExceptionHandler();
         Exception ex = new Exception("something went wrong");
 
@@ -33,6 +47,7 @@ class RestExceptionHandlerTest {
         assertNotNull(resp);
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, resp.getStatusCode());
         assertNotNull(resp.getBody());
-        assertEquals("something went wrong", resp.getBody().get("error"));
+        // handler returns a generic message, do not assert original exception message
+        assertEquals("Internal server error", resp.getBody().get("error"));
     }
 }

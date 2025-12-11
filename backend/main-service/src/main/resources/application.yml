@@ -40,6 +40,12 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+    redis:
+      host: localhost
+      port: 6379
+      # password: yourpassword
+    cache:
+      type: redis
 
   zipkin:
     base-url: ${SPRING_ZIPKIN_BASE_URL:http://jaeger:9411}
@@ -70,10 +76,10 @@ feign:
 
 local:
   model:
-    backend: http               # mock | cli | http
+    backend: http
     name: llama3
     cli:
-      path: ollama              # set absolute path if ollama is not in PATH
+      path: ollama
       timeout-ms: 1200000
     http:
       url: ${OLLAMA_URL:http://localhost:11434}

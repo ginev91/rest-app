@@ -18,7 +18,6 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
-
 @Component
 public class JwtUtils {
 
@@ -87,9 +86,39 @@ public class JwtUtils {
                 .getBody();
     }
 
+    /**
+     * Read token from the request.
+     *
+     * Order of checks:
+     * 1) Authorization header with "Bearer <token>"
+     * 2) Cookie named "access_token"
+     * 3) Request parameter "access_token"
+     *
+     * This preserves backwards compatibility with cookie/param usage while supporting standard
+     * Authorization: Bearer header tokens.
+     */
     public String getTokenFromRequest(HttpServletRequest request) {
         if (request == null) return null;
 
+        // 1) Authorization header (Bearer ...)
+        try {
+            String authHeader = request.getHeader("Authorization");
+            if (authHeader == null) {
+                authHeader = request.getHeader("authorization"); // some clients send lowercase
+            }
+            if (authHeader != null && !authHeader.isBlank()) {
+                authHeader = authHeader.trim();
+                if (authHeader.regionMatches(true, 0, "Bearer ", 0, 7)) {
+                    String candidate = authHeader.substring(7).trim();
+                    if (!candidate.isBlank()) {
+                        return candidate;
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+        }
+
+        // 2) Cookie fallback (preserve existing behavior)
         try {
             Cookie[] cookies = request.getCookies();
             if (cookies != null) {
@@ -102,6 +131,7 @@ public class JwtUtils {
         } catch (Exception ignored) {
         }
 
+        // 3) Request parameter fallback
         String param = request.getParameter("access_token");
         if (param != null && !param.isBlank()) {
             return param.trim();

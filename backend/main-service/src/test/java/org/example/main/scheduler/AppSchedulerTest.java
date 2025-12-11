@@ -1,10 +1,13 @@
 package org.example.main.scheduler;
 
-import org.example.main.model.*;
 import org.example.main.model.enums.OrderStatus;
-import org.example.main.repository.MenuItemRepository;
-import org.example.main.repository.OrderRepository;
-import org.example.main.repository.RestaurantTableRepository;
+import org.example.main.model.menu.MenuItem;
+import org.example.main.model.order.OrderEntity;
+import org.example.main.model.order.OrderItem;
+import org.example.main.model.table.RestaurantTable;
+import org.example.main.repository.menu.MenuItemRepository;
+import org.example.main.repository.order.OrderRepository;
+import org.example.main.repository.table.RestaurantTableRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
