@@ -17,3 +17,27 @@ export async function sendOrderToKitchen(orderId: string) {
   const r = await api.post(`orders/${orderId}/send`);
   return r.data;
 }
+
+export async function claimOrder(orderId: string, waiterId?: string) {
+  
+  const payload = waiterId ? { waiterId } : { waiterId: undefined };
+  const r = await api.put(`orders/${orderId}/claim`, payload);
+  return r.data; 
+}
+
+export async function assignOrder(orderId: string, waiterId: string) {
+  
+  const r = await api.put(`orders/${orderId}/assign`, { waiterId });
+  return r.data;
+}
+
+export async function updateOrderItemStatus(orderId: string, itemId: string, statusLabel: string) {
+  
+  const r = await api.put(`orders/${orderId}/items/${itemId}/status`, { status: statusLabel });
+  return r.data;
+}
+
+export async function updateOrderStatus(orderId: string, statusLabel: string) {
+  const r = await api.put(`orders/${orderId}/status`, { status: statusLabel });
+  return r.data;
+}

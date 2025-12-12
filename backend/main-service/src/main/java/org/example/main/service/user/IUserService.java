@@ -25,4 +25,6 @@ public interface IUserService {
     Map<String, Object> me(Authentication authentication, HttpSession session);
     boolean verifyPassword(User user, String rawPassword);
     void setPassword(UUID userId, String newRawPassword);
+    User block(UUID userId, boolean blocked);
+
 }

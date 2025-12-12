@@ -5,9 +5,11 @@ import org.example.main.model.order.OrderEntity;
 import org.example.main.model.order.OrderItem;
 import org.example.main.model.table.RestaurantTable;
 import org.example.main.model.enums.OrderStatus;
+import org.example.main.model.recommendation.FavoriteRecommendation;
 import org.example.main.repository.menu.MenuItemRepository;
 import org.example.main.repository.order.OrderRepository;
 import org.example.main.repository.table.RestaurantTableRepository;
+import org.example.main.repository.recommendation.FavoriteRecommendationRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -27,13 +29,16 @@ public class AppScheduler {
     private final OrderRepository orderRepository;
     private final RestaurantTableRepository tableRepository;
     private final MenuItemRepository menuItemRepository;
+    private final FavoriteRecommendationRepository favoriteRepository;
 
     public AppScheduler(OrderRepository orderRepository,
                         RestaurantTableRepository tableRepository,
-                        MenuItemRepository menuItemRepository) {
+                        MenuItemRepository menuItemRepository,
+                        FavoriteRecommendationRepository favoriteRepository) {
         this.orderRepository = orderRepository;
         this.tableRepository = tableRepository;
         this.menuItemRepository = menuItemRepository;
+        this.favoriteRepository = favoriteRepository;
     }
 
     @Scheduled(fixedRateString = "${app.scheduled.rate:300000}")
@@ -88,8 +93,8 @@ public class AppScheduler {
         }
     }
 
-    
-    @Scheduled(cron = "0 5 1 * * ?")
+
+    @Scheduled(cron = "0 0 14 * * ?")
     public void dailyReportJob() {
         try {
             ZoneId zone = ZoneId.systemDefault();
@@ -104,16 +109,14 @@ public class AppScheduler {
 
             int ordersCount = orders.size();
 
-            
             BigDecimal totalRevenue = orders.stream()
-                    .flatMap(o -> safeStream(o.getItems()).map(this::itemTotal)) 
+                    .flatMap(o -> safeStream(o.getItems()).map(this::itemTotal))
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
 
             BigDecimal avgPerOrder = (ordersCount == 0)
                     ? BigDecimal.ZERO
                     : totalRevenue.divide(BigDecimal.valueOf(ordersCount), 2, BigDecimal.ROUND_HALF_UP);
 
-            
             Map<UUID, ItemAgg> agg = new HashMap<>();
             for (OrderEntity o : orders) {
                 for (OrderItem oi : safeCollection(o.getItems())) {
@@ -150,6 +153,59 @@ public class AppScheduler {
             log.error("dailyReportJob: failed to generate daily report", ex);
         }
     }
+
+
+    @Scheduled(cron = "3 0 13 * * ?")
+    public void dailyRecommendationsReport() {
+        try {
+            List<FavoriteRecommendation> allFavorites = favoriteRepository.findAll();
+
+            if (allFavorites.isEmpty()) {
+                log.info("dailyRecommendationsReport: no AI recommendations to report today");
+                return;
+            }
+
+            StringBuilder csv = new StringBuilder();
+            csv.append("id,menu_item_id,menu_item_name,description,ingredients,calories,protein,fats,carbs,created_by,created_at\n");
+
+            for (FavoriteRecommendation fav : allFavorites) {
+                csv.append(fav.getId()).append(",")
+                        .append(fav.getMenuItemId()).append(",")
+                        .append("\"").append(fav.getMenuItemName()).append("\",")
+                        .append("\"").append(fav.getDescription() != null ? fav.getDescription() : "").append("\",")
+                        .append("\"").append(fav.getIngredients() != null ? fav.getIngredients() : "").append("\",")
+                        .append(fav.getCalories() != null ? fav.getCalories() : "").append(",")
+                        .append(fav.getProtein() != null ? fav.getProtein() : "").append(",")
+                        .append(fav.getFats() != null ? fav.getFats() : "").append(",")
+                        .append(fav.getCarbs() != null ? fav.getCarbs() : "").append(",")
+                        .append(fav.getCreatedBy() != null ? fav.getCreatedBy() : "").append(",")
+                        .append(fav.getCreatedAt())
+                        .append("\n");
+            }
+
+            String filename = String.format("src/main/resources/reports/daily_ai_recommendations_%s.csv",
+                    LocalDate.now());
+            java.nio.file.Files.createDirectories(java.nio.file.Paths.get("src/main/resources/reports"));
+            java.nio.file.Files.writeString(java.nio.file.Paths.get(filename), csv.toString());
+
+            log.info("dailyRecommendationsReport: file created with {} recommendations -> {}", allFavorites.size(), filename);
+
+        } catch (Exception ex) {
+            log.error("dailyRecommendationsReport: failed to generate AI recommendations report", ex);
+        }
+    }
+
+
+    private static class FavAgg {
+        final MenuItem menuItem;
+        long count;
+
+        public FavAgg(MenuItem menuItem, long count) {
+            this.menuItem = menuItem;
+            this.count = count;
+        }
+    }
+
 
 
     private Stream<OrderItem> safeStream(Collection<?> items) {

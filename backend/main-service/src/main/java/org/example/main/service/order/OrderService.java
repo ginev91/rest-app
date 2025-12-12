@@ -21,6 +21,7 @@ import org.example.main.model.enums.ItemType;
 import org.example.main.model.enums.OrderItemStatus;
 import org.example.main.model.enums.OrderStatus;
 import org.example.main.repository.menu.MenuItemRepository;
+import org.example.main.repository.order.OrderItemRepository;
 import org.example.main.repository.order.OrderRepository;
 import org.example.main.repository.role.RoleRepository;
 import org.example.main.repository.user.UserRepository;
@@ -41,6 +42,7 @@ import java.util.UUID;
 public class OrderService implements IOrderService {
 
     private final OrderRepository orderRepository;
+    private final OrderItemRepository orderItemRepository;
     private final MenuItemRepository menuItemRepository;
     private final UserRepository userRepository;
     private final KitchenClient kitchenClient;
@@ -53,13 +55,15 @@ public class OrderService implements IOrderService {
                         UserRepository userRepository,
                         KitchenClient kitchenClient,
                         RestaurantTableService restaurantTableService,
-                        RoleRepository roleRepository) {
+                        RoleRepository roleRepository,
+                        OrderItemRepository orderItemRepository) {
         this.orderRepository = orderRepository;
         this.menuItemRepository = menuItemRepository;
         this.userRepository = userRepository;
         this.kitchenClient = kitchenClient;
         this.restaurantTableService = restaurantTableService;
         this.roleRepository = roleRepository;
+        this.orderItemRepository = orderItemRepository;
     }
 
     @Transactional
@@ -68,7 +72,6 @@ public class OrderService implements IOrderService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Order must contain at least one item");
         }
 
-        
         List<UUID> menuIds = request.getItems().stream()
                 .map(OrderItemRequest::getMenuItemId)
                 .collect(Collectors.toList());
@@ -85,7 +88,6 @@ public class OrderService implements IOrderService {
 
         UUID customerId = request.getCustomerId();
 
-        
         List<OrderItem> newItems = new ArrayList<>();
         BigDecimal newItemsTotal = BigDecimal.ZERO;
         for (OrderItemRequest itemReq : request.getItems()) {
@@ -100,52 +102,39 @@ public class OrderService implements IOrderService {
             oi.setMenuItemName(mi.getName());
             oi.setStatus(OrderItemStatus.PENDING);
             oi.setPrice(mi.getPrice() != null ? mi.getPrice() : BigDecimal.ZERO);
-            
+
             newItems.add(oi);
 
             BigDecimal line = oi.getPrice().multiply(BigDecimal.valueOf(oi.getQuantity()));
             newItemsTotal = newItemsTotal.add(line);
         }
 
-        
-        
         Optional<OrderEntity> activeOpt = Optional.empty();
         if (customerId != null) {
             activeOpt = orderRepository.findWithItemsByCustomerUserId(customerId)
                     .stream()
-                    .filter(o -> o.getStatus() != OrderStatus.CANCELLED) 
+                    .filter(o -> o.getStatus() != OrderStatus.CANCELLED)
                     .findFirst();
         }
 
         if (activeOpt.isPresent()) {
-            
             OrderEntity existing = activeOpt.get();
             if (existing.getItems() == null) existing.setItems(new ArrayList<>());
 
-            
             for (OrderItem ni : newItems) {
                 ni.setOrder(existing);
                 existing.getItems().add(ni);
             }
 
-            
             existing.setTotalAmount(existing.getTotalAmount() == null ? newItemsTotal : existing.getTotalAmount().add(newItemsTotal));
             existing.setUpdatedAt(OffsetDateTime.now());
 
             
-            
-            if (existing.getStatus() == OrderStatus.COMPLETED || existing.getStatus() == OrderStatus.READY || existing.getStatus() == OrderStatus.NEW) {
-                existing.setStatus(OrderStatus.PROCESSING);
-            } else {
-                
-                existing.setStatus(OrderStatus.PROCESSING);
-            }
+            existing.setStatus(OrderStatus.PROCESSING);
 
-            
             OrderEntity saved = orderRepository.save(existing);
             log.info("Merged {} new items into existing active order {} for customer={}", newItems.size(), saved.getId(), customerId);
 
-            
             List<OrderItem> kitchenItems = newItems.stream()
                     .filter(it -> {
                         MenuItem mi = it.getMenuItem();
@@ -165,17 +154,15 @@ public class OrderService implements IOrderService {
                     .build();
         }
 
-        
         OrderEntity order = new OrderEntity();
         order.setTableId(request.getTableId());
         order.setTableNumber(request.getTableNumber());
         order.setCustomerId(request.getCustomerId());
-        order.setCustomerName(findUserName(request.getCustomerId()));
+        
         order.setStatus(OrderStatus.NEW);
         order.setCreatedAt(OffsetDateTime.now());
         order.setUpdatedAt(OffsetDateTime.now());
 
-        
         for (OrderItem it : newItems) {
             it.setOrder(order);
         }
@@ -187,13 +174,12 @@ public class OrderService implements IOrderService {
 
         try {
             if (saved.getTableNumber() != null) {
-                restaurantTableService.occupyTable(saved.getTableNumber(), 60); 
+                restaurantTableService.occupyTable(saved.getTableNumber(), 60);
             }
         } catch (Exception ex) {
             log.warn("Failed to mark table {} occupied: {}", saved.getTableNumber(), ex.getMessage());
         }
 
-        
         try {
             List<OrderItem> allSavedItems = saved.getItems() == null ? Collections.emptyList() : saved.getItems();
 
@@ -242,11 +228,10 @@ public class OrderService implements IOrderService {
     @Override
     @Transactional(readOnly = true)
     public OrderDetailsResponseDto getOrderDetails(UUID orderId) {
-        
+
         OrderEntity o = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
 
-        
         try {
             List<org.example.main.feign.KitchenClient.KitchenOrderResponse> kitchenOrders = kitchenClient.getByOrder(orderId);
             if (kitchenOrders != null && !kitchenOrders.isEmpty()) {
@@ -260,7 +245,6 @@ public class OrderService implements IOrderService {
                     o.setKitchenOrderId(ki.getKitchenOrderId());
                     o.setKitchenStatus(ki.getStatus());
 
-                    
                     OrderItemStatus mapped = KitchenStatusMapper.toOrderItemStatus(ki.getStatus());
                     if (mapped != null && o.getItems() != null) {
                         for (OrderItem it : o.getItems()) {
@@ -372,7 +356,6 @@ public class OrderService implements IOrderService {
         OrderEntity o = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
 
-        
         o.setStatus(OrderStatus.CANCELLED);
         o.setUpdatedAt(OffsetDateTime.now());
         orderRepository.save(o);
@@ -380,7 +363,6 @@ public class OrderService implements IOrderService {
         UUID kitchenOrderId = o.getKitchenOrderId();
         if (kitchenOrderId != null) {
             try {
-                
                 kitchenClient.cancelKitchenOrder(kitchenOrderId);
                 o.setKitchenStatus("CANCELLED");
                 orderRepository.save(o);
@@ -437,10 +419,22 @@ public class OrderService implements IOrderService {
                 .findFirst();
     }
 
+    /**
+     * Resolve a friendly display name for a user id. Prefer fullName, fall back to username, then id string.
+     */
     private String findUserName(UUID userId) {
         if (userId == null) return null;
-        Optional<User> u = userRepository.findById(userId);
-        return u.map(User::getFullName).orElse(null);
+        try {
+            Optional<User> u = userRepository.findById(userId);
+            if (u.isPresent()) {
+                User user = u.get();
+                if (user.getFullName() != null && !user.getFullName().trim().isEmpty()) return user.getFullName();
+                if (user.getUsername() != null && !user.getUsername().trim().isEmpty()) return user.getUsername();
+            }
+        } catch (Exception e) {
+            log.debug("Failed to resolve user name for {}: {}", userId, e.getMessage());
+        }
+        return userId != null ? userId.toString() : null;
     }
 
     private OrderDetailsResponseDto mapEntityToDetailsDto(OrderEntity o) {
@@ -457,7 +451,7 @@ public class OrderService implements IOrderService {
         return OrderDetailsResponseDto.builder()
                 .id(o.getId() != null ? o.getId().toString() : null)
                 .userId(o.getCustomerId() != null ? o.getCustomerId().toString() : null)
-                .userName(o.getCustomerName())
+                .userName(findUserName(o.getCustomerId()))
                 .tableNumber(o.getTableNumber())
                 .status(String.valueOf(o.getStatus()))
                 .totalAmount(o.getTotalAmount())
@@ -469,7 +463,7 @@ public class OrderService implements IOrderService {
                 .build();
     }
 
-    private OrderResponseDto mapToOrderResponseDto(OrderEntity e) {
+    OrderResponseDto mapToOrderResponseDto(OrderEntity e) {
         List<OrderItemResponseDto> items = (e.getItems() == null) ? Collections.emptyList() :
                 e.getItems().stream()
                         .map(it -> OrderItemResponseDto.builder()
@@ -486,9 +480,10 @@ public class OrderService implements IOrderService {
                 .status(String.valueOf(e.getStatus()))
                 .totalAmount(e.getTotalAmount())
                 .tableNumber(e.getTableNumber())
+                .waiterId(e.getWaiterId() != null ? e.getWaiterId().toString() : null)
                 .createdAt(e.getCreatedAt())
                 .items(items)
-                .username(e.getCustomerName())
+                .username(findUserName(e.getCustomerId()))
                 .build();
     }
 
@@ -581,12 +576,10 @@ public class OrderService implements IOrderService {
             String payloadJson = objectMapper.writeValueAsString(payloadMap);
             log.debug("Kitchen request JSON for order {}: {}", saved.getId(), payloadJson);
         } catch (Exception e) {
-            
             log.debug("Kitchen request values for order {}: orderId={}, itemsJson={}", saved.getId(), req.orderId, req.itemsJson);
         }
 
         log.debug("Sending kitchen order payload for order {}: {}", saved.getId(), itemsJson);
-
 
         try {
             org.example.main.feign.KitchenClient.KitchenOrderResponse resp = kitchenClient.createKitchenOrder(req);
@@ -611,5 +604,176 @@ public class OrderService implements IOrderService {
             saved.setKitchenStatus("kitchen_notify_failed");
             orderRepository.save(saved);
         }
+    }
+
+    @Override
+    @Transactional
+    public boolean claimOrder(UUID orderId, UUID waiterId) {
+        OrderEntity o = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
+
+        if (o.getWaiterId() == null) {
+            o.setWaiterId(waiterId);
+            o.setStatus(org.example.main.model.enums.OrderStatus.PROCESSING);
+            o.setUpdatedAt(OffsetDateTime.now());
+            orderRepository.save(o);
+            return true;
+        }
+        return false;
+    }
+
+    @Override
+    @Transactional
+    public void updateOrderItemStatus(UUID orderId, UUID itemId, OrderItemStatus status) {
+        
+        OrderEntity order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
+
+        if (order.getStatus() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Order has no status");
+        }
+        if (order.getStatus().equals(OrderStatus.PAID) || order.getStatus().equals(OrderStatus.CANCELLED)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cannot update items of a paid or cancelled order");
+        }
+
+        
+        String available = order.getItems() == null ? ""
+                : order.getItems().stream()
+                .map(it -> {
+                    List<String> ids = new ArrayList<>();
+                    if (it.getId() != null) ids.add("id:" + it.getId().toString());
+                    try {
+                        Object menuId = it.getMenuItemId();
+                        if (menuId != null) ids.add("menuItemId:" + menuId.toString());
+                    } catch (Exception ignored) {}
+                    return String.join(",", ids);
+                })
+                .collect(Collectors.joining(" | "));
+        log.debug("updateOrderItemStatus: order={} available items [{}]", orderId, available);
+
+        
+        OrderItem item = null;
+        if (order.getItems() != null) {
+            String itemIdStr = itemId != null ? itemId.toString() : null;
+            for (OrderItem it : order.getItems()) {
+                
+                if (it.getId() != null && itemId.equals(it.getId())) {
+                    item = it;
+                    break;
+                }
+                
+                try {
+                    Object menuId = it.getMenuItemId();
+                    if (menuId != null && itemIdStr != null && itemIdStr.equals(menuId.toString())) {
+                        item = it;
+                        break;
+                    }
+                } catch (Exception ignored) {}
+                
+                try {
+                    if (it.getId() != null && itemIdStr != null && itemIdStr.equals(it.getId().toString())) {
+                        item = it;
+                        break;
+                    }
+                } catch (Exception ignored) {}
+            }
+        }
+
+        
+        if (item == null) {
+            OrderItem repoItem = orderItemRepository.findById(itemId)
+                    .orElse(null);
+
+            if (repoItem != null) {
+                
+                try {
+                    OrderEntity parent = repoItem.getOrder();
+                    if (parent != null && parent.getId() != null && parent.getId().equals(orderId)) {
+                        item = repoItem;
+                    } else {
+                        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Order item does not belong to the given order");
+                    }
+                } catch (ResponseStatusException e) {
+                    throw e;
+                } catch (Exception ignored) {
+                    
+                    log.debug("repoItem found but could not verify ownership via getOrder(): {}", repoItem);
+                }
+            }
+        }
+
+        if (item == null) {
+            
+            String msg = "Order item not found. Available item identifiers: " + (available.isEmpty() ? "<none>" : available);
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, msg);
+        }
+
+        
+        item.setStatus(status);
+        order.setUpdatedAt(java.time.OffsetDateTime.now());
+
+        
+        orderRepository.save(order);
+
+        log.info("Updated status of orderItem {} on order {} -> {}", item.getId(), orderId, status);
+    }
+
+
+    @Transactional
+    public void updateOrderStatus(UUID orderId, OrderStatus newStatus) {
+        OrderEntity order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
+
+        
+        if (order.getStatus() == OrderStatus.PAID || order.getStatus() == OrderStatus.CANCELLED) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cannot update status of a paid or cancelled order");
+        }
+
+        
+        if (OrderStatus.PROCESSING.equals(newStatus)) {
+            if (order.getWaiterId() == null) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Order must be assigned to a waiter before processing");
+            }
+        }
+
+        
+        if (OrderStatus.COMPLETED.equals(newStatus)) {
+            List<OrderItem> items = order.getItems() == null ? Collections.emptyList() : order.getItems();
+            boolean anyNotServed = items.stream()
+                    .anyMatch(it -> it.getStatus() == null ||
+                            !(it.getStatus().equals(OrderItemStatus.SERVED) || it.getStatus().equals(OrderItemStatus.CANCELLED)));
+            if (anyNotServed) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cannot complete order while items are not served or cancelled");
+            }
+        }
+
+        
+        order.setStatus(newStatus);
+        order.setUpdatedAt(OffsetDateTime.now());
+
+        
+        orderRepository.save(order);
+
+        log.info("Order {} status updated -> {}", orderId, newStatus);
+    }
+
+    
+    public static OrderStatus parseOrderStatus(String label) {
+        if (label == null) throw new IllegalArgumentException("status label is null");
+
+        
+        try {
+            return OrderStatus.valueOf(label.trim().toUpperCase());
+        } catch (IllegalArgumentException ignored) {}
+
+        
+        for (OrderStatus s : OrderStatus.values()) {
+            if (s.toString().equalsIgnoreCase(label.trim()) || s.name().equalsIgnoreCase(label.trim())) {
+                return s;
+            }
+            
+        }
+
+        throw new IllegalArgumentException("Unknown OrderStatus: " + label);
     }
 }

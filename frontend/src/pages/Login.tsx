@@ -23,15 +23,14 @@ const Login: React.FC = () => {
   const [tableNumber, setTableNumber] = useState('');
   const [tablePin, setTablePin] = useState('');
   const [isRegister, setIsRegister] = useState(false);
-  const [isEmployee, setIsEmployee] = useState(false); // NEW: employee mode toggle
+  const [isEmployee, setIsEmployee] = useState(false); 
   const [isLoading, setIsLoading] = useState(false);
   const { login, register, isAuthenticated, token } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
     if (isAuthenticated && token) {
-      // send employees to dashboard, customers to menu
-      if (isEmployee) navigate('/dashboard', { replace: true });
+      if (isEmployee) navigate('/tables', { replace: true });
       else navigate('/menu', { replace: true });
     }
   }, [isAuthenticated, token, navigate, isEmployee]);
@@ -42,7 +41,6 @@ const Login: React.FC = () => {
 
     try {
       if (isRegister) {
-        // Registration is customer-only in this UI
         if (isEmployee) {
           toast.error('Employee accounts must be created by an administrator.');
           setIsLoading(false);
@@ -62,7 +60,7 @@ const Login: React.FC = () => {
           const user = await login(email, password, undefined, undefined);
           if (user) {
             toast.success('Welcome back!');
-            navigate('/dashboard', { replace: true });
+            navigate('/menu', { replace: true });
           } else {
             toast.error('Login failed. Please check your credentials.');
           }
@@ -132,7 +130,6 @@ const Login: React.FC = () => {
                 type="checkbox"
                 checked={isEmployee}
                 onChange={() => {
-                  // switching mode clears table fields and registration mode
                   setIsEmployee((v) => !v);
                   setIsRegister(false);
                   setTableNumber('');

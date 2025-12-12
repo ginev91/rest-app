@@ -3,6 +3,7 @@ package org.example.main.controller.order;
 import org.example.main.dto.request.order.OrderRequestDto;
 import org.example.main.dto.response.order.OrderDetailsResponseDto;
 import org.example.main.dto.response.order.OrderResponseDto;
+import org.example.main.model.enums.OrderStatus;
 import org.example.main.service.order.IOrderService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -106,34 +107,28 @@ class OrderControllerTest {
     }
 
     @Test
-    void updateStatus_cancelled_callsCancelOrder_and_returnsNoContent() {
+    void updateStatus_cancelled_callsUpdateOrderStatus_and_returnsNoContent() {
         UUID id = UUID.randomUUID();
         OrderController ctrl = new OrderController(orderService);
-
-        when(orderService.getOrderSummary(id)).thenReturn(new OrderResponseDto());
 
         Map<String, String> body = Map.of("status", "cancelled");
         ResponseEntity<Void> resp = ctrl.updateStatus(id, body);
 
         assertThat(resp.getStatusCode().is2xxSuccessful()).isTrue();
-        verify(orderService).getOrderSummary(id);
-        verify(orderService).cancelOrder(id);
+        // controller parses and delegates to updateOrderStatus with OrderStatus.CANCELLED
+        verify(orderService).updateOrderStatus(eq(id), eq(OrderStatus.CANCELLED));
     }
 
     @Test
-    void updateStatus_other_throwsUnsupportedOperation() {
+    void updateStatus_other_parsesAndCallsUpdateOrderStatus() {
         UUID id = UUID.randomUUID();
         OrderController ctrl = new OrderController(orderService);
 
-        when(orderService.getOrderSummary(id)).thenReturn(new OrderResponseDto());
+        Map<String, String> body = Map.of("status", "processing");
+        ResponseEntity<Void> resp = ctrl.updateStatus(id, body);
 
-        Map<String, String> body = Map.of("status", "ready");
-        assertThatThrownBy(() -> ctrl.updateStatus(id, body))
-                .isInstanceOf(UnsupportedOperationException.class)
-                .hasMessageContaining("not yet implemented");
-
-        verify(orderService).getOrderSummary(id);
-        verify(orderService, never()).cancelOrder(any());
+        assertThat(resp.getStatusCode().is2xxSuccessful()).isTrue();
+        verify(orderService).updateOrderStatus(eq(id), eq(OrderStatus.PROCESSING));
     }
 
     @Test

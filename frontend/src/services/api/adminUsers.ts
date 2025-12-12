@@ -1,24 +1,47 @@
-import api from "./client";
-import type { User } from "@/types";
+import api from '@/services/api/client';
 
+export type RoleShort = {
+  id?: string;
+  name?: string;
+};
 
-export async function listAdminUsers(): Promise<User[]> {
-  const r = await api.get<User[]>("/admin/users");
-  return r.data ?? [];
-}
+export type AdminUser = {
+  id: string;
+  username: string;
+  fullName?: string;
+  role?: RoleShort;
+  blocked?: boolean;
+  sessionTableNumber?: number | null;
+};
 
-export async function changeRole(userId: string, roleName: string): Promise<User> {
-  const r = await api.put<User>(`/admin/users/${userId}/role`, { roleName });
-  return r.data;
-}
+export type RegisterPayload = {
+  username: string;
+  password: string;
+  fullName: string;
+  roleName?: string;
+};
 
+export const listAdminUsers = async (): Promise<AdminUser[]> => {
+  const res = await api.get('/admin/users');
+  console.debug('adminUsers.listAdminUsers: response.data =', res.data);
+  return res.data as AdminUser[]; // ensure we return the body (array)
+};
 
-export async function blockUser(userId: string): Promise<User> {
-  const r = await api.put<User>(`/admin/users/${userId}/block`);
-  return r.data;
-}
+export const deleteAdminUser = async (userId: string): Promise<void> => {
+  await api.delete(`/admin/users/${userId}`);
+};
 
-export async function unblockUser(userId: string, roleName: string): Promise<User> {
-  const r = await api.put<User>(`/admin/users/${userId}/unblock`, { roleName });
-  return r.data;
-}
+export const blockAdminUser = async (userId: string, blocked: boolean): Promise<AdminUser> => {
+  const res = await api.put(`/admin/users/${userId}/block`, { blocked });
+  return res.data as AdminUser;
+};
+
+export const changeUserRole = async (userId: string, roleName: string): Promise<AdminUser> => {
+  const res = await api.put(`/admin/users/${userId}/role`, { roleName });
+  return res.data as AdminUser;
+};
+
+export const createAdminUser = async (payload: RegisterPayload): Promise<AdminUser> => {
+  const res = await api.post('/admin/users', payload);
+  return res.data as AdminUser;
+};

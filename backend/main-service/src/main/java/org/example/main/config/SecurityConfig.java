@@ -30,10 +30,6 @@ import java.util.List;
 @EnableMethodSecurity(prePostEnabled = true)
 public class SecurityConfig {
 
-    /**
-     * AuthenticationManager bean wired with a DaoAuthenticationProvider so tests or other beans
-     * can obtain and use it when needed.
-     */
     @Bean
     public AuthenticationManager authenticationManager(HttpSecurity http,
                                                        UserDetailsService userDetailsService,
@@ -48,14 +44,6 @@ public class SecurityConfig {
         return authBuilder.build();
     }
 
-    /**
-     * Main security filter chain.
-     *
-     * - Permits unauthenticated access to /api/auth/** and the kitchen-ready callback path so kitchen-svc can call it.
-     * - Protects /api/internal/** endpoints (except the callback) to employees/admins.
-     * - Protects /api/admin/** to admins.
-     * - Adds the JwtAuthenticationFilter before Spring's UsernamePasswordAuthenticationFilter.
-     */
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http,
                                                    JwtUtils jwtUtils,
@@ -85,24 +73,18 @@ public class SecurityConfig {
         return http.build();
     }
 
-    /**
-     * Password encoder bean used by authentication provider and user service.
-     * Conditional so it won't conflict if another PasswordEncoder bean is defined elsewhere.
-     */
     @Bean
     @ConditionalOnMissingBean(PasswordEncoder.class)
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
-    /**
-     * CORS configuration for local frontend during development. Adjust origins for production.
-     */
+
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOrigins(List.of("http://localhost:3000"));
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept"));
         config.setAllowCredentials(true);
         config.setMaxAge(3600L);

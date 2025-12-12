@@ -4,13 +4,17 @@ import org.example.main.dto.request.table.OccupyRequest;
 import org.example.main.dto.request.table.ReservationRequestDto;
 import org.example.main.model.table.RestaurantTable;
 import org.example.main.model.table.TableReservationEntity;
+import org.example.main.model.enums.TableStatus;
 import org.example.main.service.table.RestaurantTableService;
+import org.example.main.exception.ResourceNotFoundException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
+import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.http.ResponseEntity;
 
+import java.net.URI;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -22,80 +26,213 @@ import static org.mockito.Mockito.*;
 class RestaurantTableControllerTest {
 
     @Mock
-    private RestaurantTableService service;
+    RestaurantTableService service;
+
+    @InjectMocks
+    RestaurantTableController controller;
 
     @Test
-    void getTables_delegatesToService_and_returnsList() {
+    void getTables_returnsListFromService() {
         RestaurantTable t1 = new RestaurantTable();
-        t1.setCode("T1");
+        t1.setId(UUID.randomUUID());
         RestaurantTable t2 = new RestaurantTable();
-        t2.setCode("T2");
+        t2.setId(UUID.randomUUID());
 
         when(service.findAll()).thenReturn(List.of(t1, t2));
 
-        RestaurantTableController ctrl = new RestaurantTableController(service);
-        ResponseEntity<List<RestaurantTable>> resp = ctrl.getTables();
+        ResponseEntity<List<RestaurantTable>> resp = controller.getTables();
 
-        assertThat(resp.getStatusCode().is2xxSuccessful()).isTrue();
+        assertThat(resp.getStatusCodeValue()).isEqualTo(200);
         assertThat(resp.getBody()).containsExactly(t1, t2);
         verify(service).findAll();
     }
 
     @Test
-    void reserve_callsService_withExpectedArguments_and_returnsSavedReservation() {
+    void getTable_returnsSingleTable() {
+        UUID id = UUID.randomUUID();
+        RestaurantTable t = new RestaurantTable();
+        t.setId(id);
+        when(service.findById(id)).thenReturn(t);
+
+        ResponseEntity<RestaurantTable> resp = controller.getTable(id);
+
+        assertThat(resp.getStatusCodeValue()).isEqualTo(200);
+        assertThat(resp.getBody()).isSameAs(t);
+        verify(service).findById(id);
+    }
+
+    @Test
+    void getTable_propagatesNotFound() {
+        UUID id = UUID.randomUUID();
+        when(service.findById(id)).thenThrow(new ResourceNotFoundException("not found"));
+
+        assertThatThrownBy(() -> controller.getTable(id))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessageContaining("not found");
+        verify(service).findById(id);
+    }
+
+    @Test
+    void createTable_returnsCreatedWithLocation() {
+        RestaurantTable in = new RestaurantTable();
+        RestaurantTable saved = new RestaurantTable();
+        UUID id = UUID.randomUUID();
+        saved.setId(id);
+
+        when(service.create(in)).thenReturn(saved);
+
+        ResponseEntity<RestaurantTable> resp = controller.createTable(in);
+
+        assertThat(resp.getStatusCodeValue()).isEqualTo(201);
+        assertThat(resp.getHeaders().getLocation()).isEqualTo(URI.create("/api/tables/" + id));
+        assertThat(resp.getBody()).isSameAs(saved);
+        verify(service).create(in);
+    }
+
+    @Test
+    void updateTable_returnsUpdated() {
+        UUID id = UUID.randomUUID();
+        RestaurantTable changes = new RestaurantTable();
+        RestaurantTable updated = new RestaurantTable();
+        updated.setId(id);
+
+        when(service.update(id, changes)).thenReturn(updated);
+
+        ResponseEntity<RestaurantTable> resp = controller.updateTable(id, changes);
+
+        assertThat(resp.getStatusCodeValue()).isEqualTo(200);
+        assertThat(resp.getBody()).isSameAs(updated);
+        verify(service).update(id, changes);
+    }
+
+    @Test
+    void deleteTable_noContent_and_propagatesNotFound() {
+        UUID id = UUID.randomUUID();
+        
+        doNothing().when(service).delete(id);
+        ResponseEntity<Void> resp = controller.deleteTable(id);
+        assertThat(resp.getStatusCodeValue()).isEqualTo(204);
+        verify(service).delete(id);
+
+        
+        doThrow(new ResourceNotFoundException("nope")).when(service).delete(id);
+        assertThatThrownBy(() -> controller.deleteTable(id))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessageContaining("nope");
+        verify(service, times(2)).delete(id); 
+    }
+
+    @Test
+    void reserve_callsService_and_returnsReservation_whenRequesterHeaderPresent() {
         UUID tableId = UUID.randomUUID();
-        UUID requester = UUID.randomUUID();
-        UUID userId = UUID.randomUUID();
-        OffsetDateTime from = OffsetDateTime.now().plusDays(1);
+        OffsetDateTime from = OffsetDateTime.now().plusHours(1);
         OffsetDateTime to = from.plusHours(2);
+        UUID userId = UUID.randomUUID();
+        UUID requesterId = UUID.randomUUID();
 
         ReservationRequestDto req = new ReservationRequestDto();
         req.setFrom(from);
         req.setTo(to);
         req.setUserId(userId);
-        req.setRequestedBy(UUID.fromString("00000000-0000-0000-0000-000000000000"));
 
-        TableReservationEntity saved = new TableReservationEntity();
-        saved.setTableId(tableId);
-        saved.setUserId(userId);
+        TableReservationEntity saved = TableReservationEntity.builder()
+                .id(UUID.randomUUID())
+                .tableId(tableId)
+                .startTime(from)
+                .endTime(to)
+                .userId(userId)
+                .createdBy(requesterId)
+                .build();
 
-        when(service.reserveTable(eq(tableId), eq(from), eq(to), eq(requester), eq(userId))).thenReturn(saved);
+        when(service.reserveTable(tableId, from, to, requesterId, userId)).thenReturn(saved);
 
-        RestaurantTableController ctrl = new RestaurantTableController(service);
-        ResponseEntity<TableReservationEntity> resp = ctrl.reserve(tableId, req, requester);
+        ResponseEntity<TableReservationEntity> resp = controller.reserve(tableId, req, requesterId);
 
-        assertThat(resp.getStatusCode().is2xxSuccessful()).isTrue();
+        assertThat(resp.getStatusCodeValue()).isEqualTo(200);
         assertThat(resp.getBody()).isSameAs(saved);
-
-        verify(service).reserveTable(tableId, from, to, requester, userId);
+        verify(service).reserveTable(tableId, from, to, requesterId, userId);
     }
 
     @Test
-    void getReservations_delegatesToService_and_returnsList() {
+    void reserve_callsService_and_returnsReservation_whenRequesterHeaderMissing() {
         UUID tableId = UUID.randomUUID();
-        TableReservationEntity r1 = new TableReservationEntity();
-        TableReservationEntity r2 = new TableReservationEntity();
+        OffsetDateTime from = OffsetDateTime.now().plusHours(1);
+        OffsetDateTime to = from.plusHours(2);
+        UUID userId = UUID.randomUUID();
 
-        when(service.findReservationsForTable(tableId)).thenReturn(List.of(r1, r2));
+        ReservationRequestDto req = new ReservationRequestDto();
+        req.setFrom(from);
+        req.setTo(to);
+        req.setUserId(userId);
 
-        RestaurantTableController ctrl = new RestaurantTableController(service);
-        ResponseEntity<List<TableReservationEntity>> resp = ctrl.getReservations(tableId);
+        TableReservationEntity saved = TableReservationEntity.builder()
+                .id(UUID.randomUUID())
+                .tableId(tableId)
+                .startTime(from)
+                .endTime(to)
+                .userId(userId)
+                .createdBy(null)
+                .build();
 
-        assertThat(resp.getStatusCode().is2xxSuccessful()).isTrue();
-        assertThat(resp.getBody()).containsExactly(r1, r2);
+        when(service.reserveTable(tableId, from, to, null, userId)).thenReturn(saved);
+
+        ResponseEntity<TableReservationEntity> resp = controller.reserve(tableId, req, null);
+
+        assertThat(resp.getStatusCodeValue()).isEqualTo(200);
+        assertThat(resp.getBody()).isSameAs(saved);
+        verify(service).reserveTable(tableId, from, to, null, userId);
+    }
+
+    @Test
+    void reserve_propagatesServiceValidationError() {
+        UUID tableId = UUID.randomUUID();
+        OffsetDateTime from = OffsetDateTime.now().plusHours(2);
+        OffsetDateTime to = from.minusHours(1);
+
+        ReservationRequestDto req = new ReservationRequestDto();
+        req.setFrom(from);
+        req.setTo(to);
+        req.setUserId(UUID.randomUUID());
+
+        when(service.reserveTable(eq(tableId), any(), any(), any(), any()))
+                .thenThrow(new ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "bad window"));
+
+        assertThatThrownBy(() -> controller.reserve(tableId, req, null))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("bad window");
+        verify(service).reserveTable(eq(tableId), any(), any(), any(), any());
+    }
+
+    @Test
+    void getReservations_returnsList() {
+        UUID tableId = UUID.randomUUID();
+        TableReservationEntity r = TableReservationEntity.builder()
+                .id(UUID.randomUUID())
+                .tableId(tableId)
+                .build();
+
+        when(service.findReservationsForTable(tableId)).thenReturn(List.of(r));
+
+        ResponseEntity<List<TableReservationEntity>> resp = controller.getReservations(tableId);
+
+        assertThat(resp.getStatusCodeValue()).isEqualTo(200);
+        assertThat(resp.getBody()).containsExactly(r);
         verify(service).findReservationsForTable(tableId);
     }
 
     @Test
-    void occupy_callsService_withRequestValues() {
+    void occupy_callsService_and_returnsOk() {
         OccupyRequest req = new OccupyRequest();
-        req.tableNumber = 5;
-        req.minutes = 30;
+        
+        req.tableNumber = 42;
+        req.minutes = 15;
 
-        RestaurantTableController ctrl = new RestaurantTableController(service);
-        ResponseEntity<Void> resp = ctrl.occupy(req);
+        
+        doNothing().when(service).occupyTable(42, 15);
 
-        assertThat(resp.getStatusCode().is2xxSuccessful()).isTrue();
-        verify(service).occupyTable(5, 30);
+        ResponseEntity<Void> resp = controller.occupy(req);
+
+        assertThat(resp.getStatusCodeValue()).isEqualTo(200);
+        verify(service).occupyTable(42, 15);
     }
 }

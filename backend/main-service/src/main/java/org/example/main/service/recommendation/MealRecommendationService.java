@@ -24,7 +24,7 @@ import java.util.Objects;
 public class MealRecommendationService {
 
     private static final Logger log = LoggerFactory.getLogger(MealRecommendationService.class);
-    private static final Duration CACHE_TTL = Duration.ofSeconds(60);
+    private static final Duration CACHE_TTL = Duration.ofSeconds(3600);
 
     private final LocalModelRecommendationService localModelService;
     private final ObjectMapper objectMapper;

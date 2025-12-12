@@ -8,6 +8,7 @@ import org.example.main.service.menu.IMenuItemService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import jakarta.validation.Valid;
 import java.net.URI;
@@ -41,6 +42,7 @@ public class MenuItemController {
     }
 
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<MenuItemResponseDto> create(@Valid @RequestBody MenuItemRequestDto request) {
         MenuItem entity = MenuItemMapper.toEntity(request);
         MenuItem created = menuItemService.create(entity);
@@ -49,9 +51,10 @@ public class MenuItemController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<MenuItemResponseDto> update(@PathVariable UUID id,
-                                                   @Valid @RequestBody MenuItemRequestDto changes) {
-        
+                                                      @Valid @RequestBody MenuItemRequestDto changes) {
+
         MenuItem existing = menuItemService.findById(id);
         MenuItemMapper.copyToEntity(changes, existing);
         MenuItem updated = menuItemService.update(id, existing);
@@ -59,6 +62,7 @@ public class MenuItemController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> delete(@PathVariable UUID id) {
         menuItemService.delete(id);
         return ResponseEntity.noContent().build();

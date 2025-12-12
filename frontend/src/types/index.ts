@@ -15,6 +15,7 @@ export interface User {
   roles?: RoleName[];
   tableNumber?: number;
   tableId?: string | null;
+  authorities?: string[];
 }
 
 export interface AuthState {
@@ -93,7 +94,7 @@ export interface OrderItem {
 }
 
 export interface Order {
-  id: string;
+  orderId: string;
   userId?: string;
   username?: string;
   tableNumber?: number;

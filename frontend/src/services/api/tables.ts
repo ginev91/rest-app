@@ -1,29 +1,39 @@
-import api from "./client";
-import type { RestaurantTable, ReservationRequestDto } from "@/types";
+import api from '@/services/api/client';
 
-export async function fetchTables(): Promise<RestaurantTable[]> {
-  const r = await api.get<RestaurantTable[]>("/tables");
-  return r.data ?? [];
-}
+export type TableStatus = 'AVAILABLE' | 'OCCUPIED' | 'RESERVED' | 'OUT_OF_SERVICE';
 
-export async function reserveTable(
-  tableId: string,
-  fromIso: string,
-  toIso: string,
-  requesterId?: string,
-  userId?: string
-) {
-  const payload: ReservationRequestDto = { from: fromIso, to: toIso, requestedBy: requesterId, userId };
-  const r = await api.post(`/tables/${tableId}/reserve`, payload);
-  return r.data;
-}
+export type TableDto = {
+  id: string;
+  code: string;
+  seats: number;
+  currentOccupancy: number;
+  status: TableStatus;
+  pinCode?: string;
+  tableNumber?: number | null;
+  occupiedUntil?: string | null;
+};
 
-export async function getReservationsForTable(tableId: string) {
-  const r = await api.get(`/tables/${tableId}/reservations`);
-  return r.data;
-}
+export const listTables = async (): Promise<TableDto[]> => {
+  const res = await api.get('/tables');
+  console.debug('tables.listTables res.data=', res.data);
+  return res.data || [];
+};
 
-export async function occupyTable(tableNumber: number, minutes: number) {
-  const r = await api.post("/tables/occupy", { tableNumber, minutes });
-  return r.data;
-}
+export const getTable = async (id: string): Promise<TableDto> => {
+  const res = await api.get(`/tables/${id}`);
+  return res.data;
+};
+
+export const createTable = async (payload: Partial<TableDto>): Promise<TableDto> => {
+  const res = await api.post('/tables', payload);
+  return res.data;
+};
+
+export const updateTable = async (id: string, payload: Partial<TableDto>): Promise<TableDto> => {
+  const res = await api.put(`/tables/${id}`, payload);
+  return res.data;
+};
+
+export const deleteTable = async (id: string): Promise<void> => {
+  await api.delete(`/tables/${id}`);
+};

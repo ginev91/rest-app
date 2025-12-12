@@ -15,6 +15,7 @@ class UserMapperTest {
     @Test
     void toEntity_and_toProfile_handlesNulls_and_roles() {
 
+        // null handling
         assertThat(UserMapper.toEntity(null)).isNull();
         assertThat(UserMapper.toProfile(null)).isNull();
 
@@ -27,12 +28,10 @@ class UserMapperTest {
         assertThat(u.getUsername()).isEqualTo("alice");
         assertThat(u.getFullName()).isEqualTo("Alice Doe");
 
-
         User user = new User();
         user.setId(UUID.fromString("00000000-0000-0000-0000-000000000001"));
         user.setUsername("bob");
         user.setFullName("Bob Smith");
-        // use Role entity instead of raw String
         Role role = new Role();
         role.setName("ADMIN");
         user.setRole(role);
@@ -41,10 +40,11 @@ class UserMapperTest {
         assertThat(profile).isNotNull();
         assertThat(profile.getId()).isEqualTo(UUID.fromString("00000000-0000-0000-0000-000000000001"));
         assertThat(profile.getUsername()).isEqualTo("bob");
-        assertThat(profile.getRoles()).containsExactly("ADMIN");
+        assertThat(profile.getRole()).isEqualTo("ADMIN");
 
         user.setRole(null);
         UserProfileResponseDto profile2 = UserMapper.toProfile(user);
-        assertThat(profile2.getRoles()).isEmpty();
+        assertThat(profile2).isNotNull();
+        assertThat(profile2.getRole()).isNull();
     }
 }

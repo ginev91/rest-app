@@ -76,7 +76,6 @@ public class UserService implements IUserService {
     public User create(User user, String rawPassword) {
         user.setPasswordHash(passwordEncoder.encode(rawPassword));
 
-        // If no Role object set, ensure default role entity exists and assign it.
         if (user.getRole() == null) {
             Role defaultRole = roleRepository.findByName("ROLE_USER")
                     .orElseGet(() -> {
@@ -86,7 +85,6 @@ public class UserService implements IUserService {
                     });
             user.setRole(defaultRole);
         } else {
-            // If client provided only role name in a DTO mapped earlier, ensure it's a managed Role entity.
             Role provided = user.getRole();
             if (provided.getName() != null) {
                 Role roleEntity = roleRepository.findByName(provided.getName())
@@ -94,6 +92,8 @@ public class UserService implements IUserService {
                 user.setRole(roleEntity);
             }
         }
+
+        if (user.getBlocked() == null) user.setBlocked(false);
 
         return userRepository.save(user);
     }
@@ -109,6 +109,8 @@ public class UserService implements IUserService {
                     .orElseGet(() -> roleRepository.save(Role.builder().name(changes.getRole().getName()).build()));
             existing.setRole(r);
         }
+        // allow admin to toggle blocked state via update as well (optional)
+        if (changes.getBlocked() != null) existing.setBlocked(changes.getBlocked());
         return userRepository.save(existing);
     }
 
@@ -142,6 +144,11 @@ public class UserService implements IUserService {
 
         if (!passwordEncoder.matches(dto.getPassword(), user.getPasswordHash())) {
             throw new ResourceNotFoundException("Invalid credentials");
+        }
+
+        // BLOCK CHECK: prevent login if user is blocked
+        if (Boolean.TRUE.equals(user.getBlocked())) {
+            throw new ResourceNotFoundException("User account is blocked");
         }
 
         boolean isUserRole = Optional.ofNullable(user.getRole())
@@ -224,6 +231,9 @@ public class UserService implements IUserService {
         });
         u.setRole(userRole);
 
+        // ensure not blocked by default
+        u.setBlocked(false);
+
         User saved = userRepository.save(u);
 
         List<String> rolesList = List.of(saved.getRole().getName());
@@ -272,6 +282,7 @@ public class UserService implements IUserService {
             Optional<User> userOpt = userRepository.findByUsername(username);
             userOpt.ifPresent(user -> dto.put("userId", user.getId()));
             userOpt.ifPresent(user -> dto.put("role", user.getRole() != null ? user.getRole().getName() : null));
+            userOpt.ifPresent(user -> dto.put("blocked", user.getBlocked()));
 
             if (session != null) {
                 logger.debug("/me sessionId={} attributes:", session.getId());
@@ -339,5 +350,12 @@ public class UserService implements IUserService {
         User u = findById(userId);
         u.setPasswordHash(passwordEncoder.encode(newRawPassword));
         userRepository.save(u);
+    }
+
+    @Override
+    public User block(UUID userId, boolean blocked) {
+        User u = findById(userId);
+        u.setBlocked(blocked);
+        return userRepository.save(u);
     }
 }

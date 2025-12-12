@@ -22,25 +22,25 @@ public class RestaurantTable {
     private UUID id;
 
     @Column(nullable = false, unique = true)
-    private String code; 
+    private String code;
 
     @Column(nullable = false)
-    private Integer seats; 
+    private Integer seats;
 
     @Column(nullable = false)
-    private Integer currentOccupancy = 0; 
+    private Integer currentOccupancy = 0;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private TableStatus status = TableStatus.AVAILABLE;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 4)
     private String pinCode;
 
-    @Column(name = "table_number", unique = true)
+    @Column(name = "table_number", unique = true, nullable = false)
     private Integer tableNumber;
 
-    
+
     @Column(name = "occupied_until")
     private OffsetDateTime occupiedUntil;
 }

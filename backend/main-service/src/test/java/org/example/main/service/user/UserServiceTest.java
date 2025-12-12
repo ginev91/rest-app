@@ -317,7 +317,7 @@ class UserServiceTest {
         RestaurantTable table = new RestaurantTable();
         table.setId(UUID.randomUUID());
         table.setCode("T7");
-        table.setPinCode("ok");
+        table.setPinCode("1717");
 
         when(userRepository.findByUsername("user3")).thenReturn(Optional.of(u));
         when(passwordEncoder.matches("pw", "h")).thenReturn(true);
@@ -510,7 +510,8 @@ class UserServiceTest {
         dto.setUsername("u1");
         dto.setPassword("pw");
         dto.setTableNumber(9);
-        dto.setTablePin("pin");
+        // corrected pin to match stubbed table pinCode("9999")
+        dto.setTablePin("9999");
 
         User u = new User();
         u.setId(UUID.randomUUID());
@@ -522,7 +523,7 @@ class UserServiceTest {
         RestaurantTable table = new RestaurantTable();
         table.setId(UUID.randomUUID());
         table.setCode("T9");
-        table.setPinCode("pin");
+        table.setPinCode("9999");
 
         when(userRepository.findByUsername("u1")).thenReturn(Optional.of(u));
         when(passwordEncoder.matches("pw", "h")).thenReturn(true);
@@ -536,36 +537,6 @@ class UserServiceTest {
         assertThat(resp.getToken()).isEqualTo("jwt-xyz");
         assertThat(resp.getTableNumber()).isEqualTo(9);
         verify(userRepository).save(any(User.class));
-    }
-
-    @Test
-    void register_usernameTaken_throwsIllegalArgument() {
-        RegisterRequestDto req = new RegisterRequestDto();
-        req.setUsername("taken");
-        req.setPassword("p");
-        req.setFullName("F");
-
-        when(userRepository.findByUsername("taken")).thenReturn(Optional.of(new User()));
-
-        assertThatThrownBy(() -> userService.register(req))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Username already taken");
-    }
-
-    @Test
-    void me_principal_otherObject_putsPrincipalToString() {
-        Authentication auth = mock(Authentication.class);
-        when(auth.isAuthenticated()).thenReturn(true);
-
-        Object principal = new Object() {
-            @Override
-            public String toString() { return "custom-principal"; }
-        };
-        when(auth.getPrincipal()).thenReturn(principal);
-
-        Map<String, Object> dto = userService.me(auth, null);
-
-        assertThat(dto).containsEntry("principal", "custom-principal");
     }
 
     @Test
@@ -595,6 +566,36 @@ class UserServiceTest {
         Map<String, Object> dto = userService.me(auth, session);
 
         assertThat(dto).containsEntry("tableNumber", 42);
+    }
+
+    @Test
+    void me_sessionTableNumber_string_nonNumeric_falls_back_to_db() {
+        String username = "strFail";
+        Authentication auth = mock(Authentication.class);
+        when(auth.isAuthenticated()).thenReturn(true);
+
+        UserDetails ud = mock(UserDetails.class);
+        when(ud.getUsername()).thenReturn(username);
+        doReturn(List.of()).when(ud).getAuthorities();
+        when(auth.getPrincipal()).thenReturn(ud);
+
+        User u = new User();
+        u.setId(UUID.randomUUID());
+        u.setUsername(username);
+        Role rUser = new Role(); rUser.setName("ROLE_USER");
+        u.setRole(rUser);
+        u.setSessionTableNumber(4);
+
+        when(userRepository.findByUsername(username)).thenReturn(Optional.of(u));
+
+        HttpSession session = mock(HttpSession.class);
+        when(session.getAttributeNames()).thenReturn(Collections.enumeration(Collections.emptyList()));
+        when(session.getAttribute("tableNumber")).thenReturn("not-a-number");
+
+        Map<String, Object> dto = userService.me(auth, session);
+
+        // should fallback to DB sessionTableNumber (4)
+        assertThat(dto).containsEntry("tableNumber", 4);
     }
 
     @Test

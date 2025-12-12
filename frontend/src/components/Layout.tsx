@@ -30,15 +30,16 @@ const Layout = ({ children }: LayoutProps) => {
   };
 
   const navItems = [
-    { path: '/menu', label: 'Menu', icon: Menu, roles: ['ROLE_USER', 'ROLE_EMPLOYEE', 'ROLE_ADMIN'] },
+    { path: '/menu', label: 'Menu', icon: Menu, roles: ['ROLE_USER', 'ROLE_EMPLOYEE'] },
     { path: '/orders', label: 'Orders', icon: ShoppingCart, roles: ['ROLE_USER', 'ROLE_EMPLOYEE', 'ROLE_ADMIN'] },
     { path: '/reservations', label: 'Reservations', icon: Calendar, roles: ['ROLE_USER', 'ROLE_EMPLOYEE', 'ROLE_ADMIN'] },
-    { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['ROLE_EMPLOYEE', 'ROLE_ADMIN'] },
     { path: '/tables', label: 'Tables', icon: Users, roles: ['ROLE_EMPLOYEE', 'ROLE_ADMIN'] },
     { path: '/recommendations', label: 'AI Recommendations', icon: Sparkles, roles: ['ROLE_USER', 'ROLE_EMPLOYEE', 'ROLE_ADMIN'] },
+    { path: '/favorites', label: 'Favorites', icon: Sparkles, roles: ['ROLE_USER'] },
+    { path: '/admin', label: 'Users', icon: Users, roles: ['ROLE_ADMIN'] },
+    { path: '/admin/menu', label: 'Admin Menu', icon: Menu, roles: ['ROLE_ADMIN'] },
   ];
 
-  // Support user.role being a string or an array of strings
   const userRoles: string[] = React.useMemo(() => {
     if (!user) return ['ROLE_USER'];
     const r = (user as any).role;

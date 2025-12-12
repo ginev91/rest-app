@@ -7,11 +7,13 @@ import { useAuth } from "@/contexts/AuthContext";
 import Login from "./pages/Login";
 import Menu from "./pages/Menu";
 import Orders from "./pages/Orders";
-import Dashboard from "./pages/Dashboard";
 import Reservations from "./pages/Reservations";
 import Profile from "./pages/Profile";
 import Tables from "./pages/Tables";
 import Recommendations from "./pages/Recommendations";
+import AdminMenu from "./pages/AdminMenu";
+import AdminUsers from "./pages/AdminUsers";
+import FavoriteRecommendations from "./pages/FavoriteRecommendations";
 import NotFound from "./pages/NotFound";
 import TableDetails from "./pages/TableDetails";
 import { Loader2 } from "lucide-react";
@@ -45,12 +47,14 @@ const App: React.FC = () => {
       <Route path="/" element={<Navigate to="/menu" replace />} />
       <Route path="/menu" element={<ProtectedRoute><Menu /></ProtectedRoute>} />
       <Route path="/orders" element={<ProtectedRoute><Orders /></ProtectedRoute>} />
-      <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/tables" element={<ProtectedRoute><Tables /></ProtectedRoute>} />
       <Route path="/tables/:tableId" element={<ProtectedRoute><TableDetails /></ProtectedRoute>} />
       <Route path="/recommendations" element={<ProtectedRoute><Recommendations /></ProtectedRoute>} />
+      <Route path="/favorites" element={<ProtectedRoute><FavoriteRecommendations /></ProtectedRoute>} />
       <Route path="/reservations" element={<ProtectedRoute><Reservations /></ProtectedRoute>} />
        <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+       <Route path="/admin" element={<ProtectedRoute><AdminUsers /></ProtectedRoute>} />
+       <Route path="/admin/menu" element={<ProtectedRoute><AdminMenu /></ProtectedRoute>} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

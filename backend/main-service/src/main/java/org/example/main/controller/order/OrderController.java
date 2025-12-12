@@ -4,11 +4,17 @@ import jakarta.validation.Valid;
 import org.example.main.dto.request.order.OrderRequestDto;
 import org.example.main.dto.response.order.OrderDetailsResponseDto;
 import org.example.main.dto.response.order.OrderResponseDto;
+import org.example.main.model.enums.OrderItemStatus;
+import org.example.main.model.enums.OrderStatus;
 import org.example.main.service.order.IOrderService;
 import lombok.extern.slf4j.Slf4j;
+import org.example.main.service.order.OrderService;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
+
 import java.util.*;
 import java.util.UUID;
 
@@ -52,29 +58,6 @@ public class OrderController {
         return ResponseEntity.status(201).body(resp);
     }
 
-    @PutMapping("/{id}/status")
-    @PreAuthorize("hasAnyRole('WAITER','ADMIN')")
-    public ResponseEntity<Void> updateStatus(@PathVariable("id") UUID id, @RequestBody Map<String, String> body) {
-        String status = body.get("status");
-        if (status == null) {
-            return ResponseEntity.badRequest().build();
-        }
-        orderService.getOrderSummary(id); 
-        
-        
-        if ("cancelled".equalsIgnoreCase(status)) {
-            orderService.cancelOrder(id);
-        } else {
-            
-            
-            
-            
-            
-            
-            throw new UnsupportedOperationException("Status update operation not yet implemented in service");
-        }
-        return ResponseEntity.noContent().build();
-    }
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAnyRole('ROLE_ADMIN')")
@@ -88,5 +71,73 @@ public class OrderController {
         return orderService.getActiveOrderForUser(userId)
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.noContent().build());
+    }
+
+
+    @PutMapping(value = "/{id}/claim", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+    @PreAuthorize("hasAnyRole('EMPLOYEE')")
+    public ResponseEntity<Map<String, Boolean>> claimOrder(
+            @PathVariable("id") UUID id,
+            @RequestBody Map<String, String> body) {
+
+        String waiterIdStr = body != null ? body.get("waiterId") : null;
+        if (waiterIdStr == null || waiterIdStr.isBlank()) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        UUID waiterId;
+        try {
+            waiterId = UUID.fromString(waiterIdStr);
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        boolean claimed = orderService.claimOrder(id, waiterId);
+        return ResponseEntity.ok(Collections.singletonMap("claimed", claimed));
+    }
+
+    @PutMapping(value = "/{id}/items/{itemId}/status", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+    @PreAuthorize("hasAnyRole('EMPLOYEE')")
+    public ResponseEntity<Void> updateOrderItemStatus(
+            @PathVariable("id") UUID id,
+            @PathVariable("itemId") UUID itemId,
+            @RequestBody(required = false) Map<String, String> body) {
+
+        if (body == null) {
+            return ResponseEntity.badRequest().build();
+        }
+        String statusLabel = body.get("status");
+        if (statusLabel == null || statusLabel.isBlank()) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        try {
+            OrderItemStatus status = OrderItemStatus.fromLabel(statusLabel);
+            orderService.updateOrderItemStatus(id, itemId, status);
+            return ResponseEntity.noContent().build();
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    @PutMapping("/{id}/status")
+    @PreAuthorize("hasAnyRole('EMPLOYEE')")
+    public ResponseEntity<Void> updateStatus(@PathVariable("id") UUID id, @RequestBody Map<String, String> body) {
+        String status = body.get("status");
+        if (status == null) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        try {
+            OrderStatus newStatus = OrderService.parseOrderStatus(status);
+            orderService.updateOrderStatus(id, newStatus);
+            return ResponseEntity.noContent().build();
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().build();
+        } catch (ResponseStatusException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            throw ex;
+        }
     }
 }

@@ -40,9 +40,6 @@ public class OrderEntity {
     @Column(name = "waiter_id", columnDefinition = "uuid", nullable = true)
     private UUID waiterId;
 
-    @Column(name = "customer_name")
-    private String customerName;
-
     @Column(nullable = false)
     private OrderStatus status;
 
@@ -83,7 +80,7 @@ public class OrderEntity {
     public boolean claimByWaiter(UUID newWaiterId) {
         if (this.waiterId == null) {
             this.waiterId = newWaiterId;
-            this.status = OrderStatus.PROCESSING; 
+            this.status = OrderStatus.PROCESSING;
             return true;
         }
         return false;

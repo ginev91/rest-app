@@ -1,190 +1,208 @@
 package org.example.main.controller.table;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.example.main.dto.request.table.CancelReservationRequestDto;
 import org.example.main.dto.request.table.ReservationRequestDto;
 import org.example.main.dto.response.table.TableReservationResponseDto;
 import org.example.main.mapper.table.ReservationMapper;
 import org.example.main.model.table.TableReservationEntity;
 import org.example.main.service.table.ITableReservationService;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
+import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.http.MediaType;
-import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.UUID;
 
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.assertj.core.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 
 @ExtendWith(MockitoExtension.class)
-class TableReservationControllerUnitTest {
+class TableReservationControllerTest {
 
     @Mock
-    private ITableReservationService reservationService;
+    ITableReservationService reservationService;
 
     @Mock
-    private ReservationMapper mapper;
+    ReservationMapper mapper;
 
-    private MockMvc mvc;
-    private ObjectMapper objectMapper;
-    private TableReservationController controller;
-
-    @BeforeEach
-    void setUp() {
-        controller = new TableReservationController(reservationService, mapper);
-
-        objectMapper = new ObjectMapper()
-                .registerModule(new JavaTimeModule())
-                .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-
-        mvc = MockMvcBuilders
-                .standaloneSetup(controller)
-                .setMessageConverters(new MappingJackson2HttpMessageConverter(objectMapper))
-                .build();
-    }
+    @InjectMocks
+    TableReservationController controller;
 
     @Test
-    void createReservation_returnsCreatedDto() throws Exception {
+    void createReservation_returnsMappedDto_onSuccess() {
         UUID tableId = UUID.randomUUID();
-        UUID requestedBy = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
-        OffsetDateTime from = OffsetDateTime.now().plusHours(1);
-        OffsetDateTime to = from.plusHours(2);
+        UUID requestedBy = UUID.randomUUID();
 
-        ReservationRequestDto req = ReservationRequestDto.builder()
+        ReservationRequestDto req = new ReservationRequestDto();
+        req.setTableId(tableId);
+        req.setFrom(OffsetDateTime.now().plusHours(1));
+        req.setTo(req.getFrom().plusHours(2));
+        req.setRequestedBy(requestedBy);
+        req.setUserId(userId);
+
+        TableReservationEntity createdEntity = TableReservationEntity.builder()
+                .id(UUID.randomUUID())
                 .tableId(tableId)
-                .from(from)
-                .to(to)
-                .requestedBy(requestedBy)
+                .startTime(req.getFrom())
+                .endTime(req.getTo())
                 .userId(userId)
+                .createdBy(requestedBy)
                 .build();
 
-        TableReservationEntity createdEntity = new TableReservationEntity();
-        createdEntity.setId(UUID.randomUUID());
-        createdEntity.setTableId(tableId);
-        createdEntity.setUserId(userId);
-        createdEntity.setStartTime(from);
-        createdEntity.setEndTime(to);
+        TableReservationResponseDto dto = mock(TableReservationResponseDto.class);
 
-        TableReservationResponseDto resp = TableReservationResponseDto.builder()
-                .id(createdEntity.getId())
-                .tableId(tableId)
-                .userId(userId)
-                .startTime(from)
-                .endTime(to)
-                .status(createdEntity.getStatus() != null ? createdEntity.getStatus().name() : null)
-                .build();
+        when(reservationService.reserveTable(tableId, req.getFrom(), req.getTo(), requestedBy, userId))
+                .thenReturn(createdEntity);
+        when(mapper.toResponse(createdEntity)).thenReturn(dto);
 
-        when(reservationService.reserveTable(
-                any(UUID.class),
-                any(OffsetDateTime.class),
-                any(OffsetDateTime.class),
-                any(UUID.class),
-                any(UUID.class)
-        )).thenReturn(createdEntity);
+        ResponseEntity<TableReservationResponseDto> resp = controller.createReservation(req);
 
-        when(mapper.toResponse(createdEntity)).thenReturn(resp);
+        assertThat(resp.getStatusCodeValue()).isEqualTo(200);
+        assertThat(resp.getBody()).isSameAs(dto);
 
-        mvc.perform(post("/api/reservations")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(req))
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.id").value(createdEntity.getId().toString()))
-                .andExpect(jsonPath("$.tableId").value(tableId.toString()))
-                .andExpect(jsonPath("$.userId").value(userId.toString()));
+        verify(reservationService).reserveTable(tableId, req.getFrom(), req.getTo(), requestedBy, userId);
+        verify(mapper).toResponse(createdEntity);
     }
 
     @Test
-    void cancel_returnsCancelledDto() throws Exception {
-        UUID reservationId = UUID.randomUUID();
+    void createReservation_propagatesServiceError() {
+        ReservationRequestDto req = new ReservationRequestDto();
+        req.setTableId(UUID.randomUUID());
+        req.setFrom(OffsetDateTime.now().plusHours(2));
+        req.setTo(req.getFrom().minusHours(1));
+
+        when(reservationService.reserveTable(any(), any(), any(), any(), any()))
+                .thenThrow(new ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "invalid"));
+
+        assertThatThrownBy(() -> controller.createReservation(req))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("invalid");
+
+        verify(reservationService).reserveTable(any(), any(), any(), any(), any());
+        verifyNoInteractions(mapper);
+    }
+
+    @Test
+    void cancel_returnsMappedDto_onSuccess() {
+        UUID id = UUID.randomUUID();
         UUID cancelledBy = UUID.randomUUID();
 
-        CancelReservationRequestDto cancelReq = CancelReservationRequestDto.builder()
-                .cancelledBy(cancelledBy)
+        CancelReservationRequestDto body = new CancelReservationRequestDto();
+        body.setCancelledBy(cancelledBy);
+
+        TableReservationEntity cancelled = TableReservationEntity.builder()
+                .id(id)
+                .tableId(UUID.randomUUID())
+                .createdBy(cancelledBy)
                 .build();
 
-        TableReservationEntity cancelledEntity = new TableReservationEntity();
-        cancelledEntity.setId(reservationId);
-        cancelledEntity.setDeleted(true);
+        TableReservationResponseDto dto = mock(TableReservationResponseDto.class);
 
-        TableReservationResponseDto dto = TableReservationResponseDto.builder()
-                .id(reservationId)
-                .status("CANCELLED")
-                .build();
+        when(reservationService.cancelReservation(id, cancelledBy)).thenReturn(cancelled);
+        when(mapper.toResponse(cancelled)).thenReturn(dto);
 
-        when(reservationService.cancelReservation(eq(reservationId), any(UUID.class))).thenReturn(cancelledEntity);
-        when(mapper.toResponse(cancelledEntity)).thenReturn(dto);
+        ResponseEntity<TableReservationResponseDto> resp = controller.cancel(id, body);
 
-        mvc.perform(post("/api/reservations/{id}/cancel", reservationId.toString())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(cancelReq))
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.id").value(reservationId.toString()))
-                .andExpect(jsonPath("$.status").value("CANCELLED"));
+        assertThat(resp.getStatusCodeValue()).isEqualTo(200);
+        assertThat(resp.getBody()).isSameAs(dto);
+
+        verify(reservationService).cancelReservation(id, cancelledBy);
+        verify(mapper).toResponse(cancelled);
     }
 
     @Test
-    void getActiveForTable_returnsListOfDtos() throws Exception {
-        UUID tableId = UUID.randomUUID();
+    void cancel_propagatesServiceError() {
+        UUID id = UUID.randomUUID();
+        CancelReservationRequestDto body = new CancelReservationRequestDto();
+        body.setCancelledBy(UUID.randomUUID());
 
-        TableReservationEntity e = new TableReservationEntity();
-        e.setId(UUID.randomUUID());
-        e.setTableId(tableId);
+        when(reservationService.cancelReservation(eq(id), any()))
+                .thenThrow(new ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "not found"));
 
-        TableReservationResponseDto dto = TableReservationResponseDto.builder()
-                .id(e.getId())
-                .tableId(tableId)
-                .build();
+        assertThatThrownBy(() -> controller.cancel(id, body))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("not found");
 
-        when(reservationService.findActiveReservationsForTable(eq(tableId))).thenReturn(List.of(e));
-        when(mapper.toResponse(e)).thenReturn(dto);
-
-        mvc.perform(get("/api/reservations/table/{tableId}", tableId.toString())
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$[0].id").value(e.getId().toString()))
-                .andExpect(jsonPath("$[0].tableId").value(tableId.toString()));
+        verify(reservationService).cancelReservation(eq(id), any());
+        verifyNoInteractions(mapper);
     }
 
     @Test
-    void getHistoryForTable_returnsListOfDtos() throws Exception {
+    void getActiveForTable_returnsMappedList() {
         UUID tableId = UUID.randomUUID();
 
-        TableReservationEntity e = new TableReservationEntity();
-        e.setId(UUID.randomUUID());
-        e.setTableId(tableId);
+        TableReservationEntity e1 = TableReservationEntity.builder().id(UUID.randomUUID()).tableId(tableId).build();
+        TableReservationEntity e2 = TableReservationEntity.builder().id(UUID.randomUUID()).tableId(tableId).build();
 
-        TableReservationResponseDto dto = TableReservationResponseDto.builder()
-                .id(e.getId())
-                .tableId(tableId)
-                .build();
+        TableReservationResponseDto d1 = mock(TableReservationResponseDto.class);
+        TableReservationResponseDto d2 = mock(TableReservationResponseDto.class);
 
-        when(reservationService.findReservationHistoryForTable(eq(tableId))).thenReturn(List.of(e));
+        when(reservationService.findActiveReservationsForTable(tableId)).thenReturn(List.of(e1, e2));
+        when(mapper.toResponse(e1)).thenReturn(d1);
+        when(mapper.toResponse(e2)).thenReturn(d2);
+
+        ResponseEntity<List<TableReservationResponseDto>> resp = controller.getActiveForTable(tableId);
+
+        assertThat(resp.getStatusCodeValue()).isEqualTo(200);
+        assertThat(resp.getBody()).containsExactly(d1, d2);
+
+        verify(reservationService).findActiveReservationsForTable(tableId);
+        verify(mapper).toResponse(e1);
+        verify(mapper).toResponse(e2);
+    }
+
+    @Test
+    void getHistoryForTable_returnsMappedList() {
+        UUID tableId = UUID.randomUUID();
+
+        TableReservationEntity e = TableReservationEntity.builder().id(UUID.randomUUID()).tableId(tableId).build();
+        TableReservationResponseDto dto = mock(TableReservationResponseDto.class);
+
+        when(reservationService.findReservationHistoryForTable(tableId)).thenReturn(List.of(e));
         when(mapper.toResponse(e)).thenReturn(dto);
 
-        mvc.perform(get("/api/reservations/table/{tableId}/history", tableId.toString())
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$[0].id").value(e.getId().toString()))
-                .andExpect(jsonPath("$[0].tableId").value(tableId.toString()));
+        ResponseEntity<List<TableReservationResponseDto>> resp = controller.getHistoryForTable(tableId);
+
+        assertThat(resp.getStatusCodeValue()).isEqualTo(200);
+        assertThat(resp.getBody()).containsExactly(dto);
+
+        verify(reservationService).findReservationHistoryForTable(tableId);
+        verify(mapper).toResponse(e);
+    }
+
+    @Test
+    void getReservationsByDate_parsesDate_andReturnsMappedList() {
+        String dateStr = "2025-12-12";
+        LocalDate expected = LocalDate.parse(dateStr);
+
+        TableReservationEntity e = TableReservationEntity.builder().id(UUID.randomUUID()).build();
+        TableReservationResponseDto dto = mock(TableReservationResponseDto.class);
+
+        when(reservationService.findReservationsByDate(expected)).thenReturn(List.of(e));
+        when(mapper.toResponse(e)).thenReturn(dto);
+
+        ResponseEntity<List<TableReservationResponseDto>> resp = controller.getReservationsByDate(dateStr);
+
+        assertThat(resp.getStatusCodeValue()).isEqualTo(200);
+        assertThat(resp.getBody()).containsExactly(dto);
+
+        verify(reservationService).findReservationsByDate(expected);
+        verify(mapper).toResponse(e);
+    }
+
+    @Test
+    void getReservationsByDate_invalidDate_throws() {
+        String bad = "not-a-date";
+        assertThatThrownBy(() -> controller.getReservationsByDate(bad))
+                .isInstanceOf(DateTimeParseException.class);
+        verifyNoInteractions(reservationService, mapper);
     }
 }

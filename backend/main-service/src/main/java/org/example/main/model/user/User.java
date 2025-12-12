@@ -39,4 +39,8 @@ public class User {
 
     @Column(name = "session_table_number")
     private Integer sessionTableNumber;
+
+    @Column(name = "is_blocked", nullable = false)
+    @Builder.Default
+    private Boolean blocked = false;
 }

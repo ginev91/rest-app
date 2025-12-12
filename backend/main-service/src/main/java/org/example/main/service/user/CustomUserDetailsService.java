@@ -24,8 +24,18 @@ public class CustomUserDetailsService implements UserDetailsService {
                 .orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
 
         List<SimpleGrantedAuthority> authorities;
+
         if (u.getRole() != null && u.getRole().getName() != null && !u.getRole().getName().isBlank()) {
-            authorities = List.of(new SimpleGrantedAuthority(u.getRole().getName()));
+
+            // FIX: Spring Security requires roles like "ROLE_ADMIN"
+            String roleName = u.getRole().getName().toUpperCase();
+
+            if (!roleName.startsWith("ROLE_")) {
+                roleName = "ROLE_" + roleName;
+            }
+
+            authorities = List.of(new SimpleGrantedAuthority(roleName));
+
         } else {
             authorities = Collections.emptyList();
         }

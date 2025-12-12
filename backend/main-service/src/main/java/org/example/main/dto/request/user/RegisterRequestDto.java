@@ -23,4 +23,7 @@ public class RegisterRequestDto {
     @NotBlank(message = "fullName must not be blank")
     @Size(max = 100, message = "fullName max length is 100")
     private String fullName;
+
+    @Size(max = 100, message = "roleName max length is 100")
+    private String roleName;
 }

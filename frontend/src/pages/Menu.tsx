@@ -152,8 +152,8 @@ const Menu = () => {
       let response;
       
       if (activeOrder) {
-        console.log('Adding items to order:', activeOrder.id);
-        response = await api.post(`orders/${activeOrder.id}/items`, {
+        console.log('Adding items to order:', activeOrder.orderId);
+        response = await api.post(`orders/${activeOrder.orderId}/items`, {
           items: orderItems
         });
         toast.success('Items added to order!');
@@ -207,7 +207,7 @@ const Menu = () => {
             {activeOrder && (
               <Button size="lg" variant="outline" onClick={() => navigate('/orders')}>
                 <Receipt className="h-5 w-5 mr-2" />
-                Order #{activeOrder.id} - ${activeOrder.totalAmount.toFixed(2)}
+                Order #{activeOrder.orderId} - ${activeOrder.totalAmount.toFixed(2)}
               </Button>
             )}
             {cartItemsCount > 0 && (
@@ -293,7 +293,7 @@ const Menu = () => {
           <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>
-                {activeOrder ? `Add to Order #${activeOrder.id}` : 'Create Order'}
+                {activeOrder ? `Add to Order #${activeOrder.orderId}` : 'Create Order'}
               </DialogTitle>
               <DialogDescription>
                 Table {tableNumber} • {user?.username}

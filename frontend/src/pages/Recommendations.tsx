@@ -1,17 +1,38 @@
-import { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import React, { useEffect, useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import Layout from '@/components/Layout';
 import { toast } from 'sonner';
-import { Sparkles, Loader2, ChefHat, Flame, Beef, Wheat, AlertCircle } from 'lucide-react';
+import { Sparkles, Loader2, ChefHat, Flame, Beef, Wheat, AlertCircle, Heart } from 'lucide-react';
 import { recommend, RecommendationRequest, RecommendationResponse } from '@/services/api/recommendations';
+import { addFavorite, listFavorites, removeFavorite, FavoriteDto } from '@/services/api/favorites';
 
-const Recommendations = () => {
+const Recommendations: React.FC = () => {
   const [prompt, setPrompt] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [recommendations, setRecommendations] = useState<RecommendationResponse[]>([]);
+  const [favorites, setFavorites] = useState<FavoriteDto[]>([]);
+  const [favLoading, setFavLoading] = useState<boolean>(false);
+
+  useEffect(() => {
+    fetchFavorites();
+    
+  }, []);
+
+  const fetchFavorites = async () => {
+    setFavLoading(true);
+    try {
+      const favs = await listFavorites();
+      setFavorites(favs || []);
+    } catch (err: any) {
+      console.error('Failed to load favorites', err);
+      
+    } finally {
+      setFavLoading(false);
+    }
+  };
 
   const getRecommendation = async () => {
     if (!prompt.trim()) {
@@ -25,13 +46,12 @@ const Recommendations = () => {
     try {
       const request: RecommendationRequest = { prompt };
       const response = await recommend(request);
-      
+
       console.log('Recommendation received:', response);
-      
-      
+
       const items = Array.isArray(response) ? response : [response];
       setRecommendations(items);
-      
+
       toast.success(`${items.length} recommendation${items.length > 1 ? 's' : ''} generated!`);
     } catch (err: any) {
       console.error('Recommendation error', err);
@@ -42,62 +62,156 @@ const Recommendations = () => {
     }
   };
 
+  
+  const normalizeString = (v?: string | null) => (v ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
+  const normalizeNumber = (v?: number | null) => (v === null || v === undefined ? null : Number(v));
+  const normalizeIngredientsArray = (ing?: string[] | string | null) => {
+    if (!ing) return '';
+    if (Array.isArray(ing)) {
+      const cleaned = ing.map(i => normalizeString(i)).filter(Boolean).sort();
+      return cleaned.join(',');
+    }
+    
+    return (ing as string).split(',').map(i => normalizeString(i)).filter(Boolean).sort().join(',');
+  };
+
+  const recFingerprint = (rec: RecommendationResponse) => {
+    
+    const key = {
+      name: normalizeString(rec.name ?? ''),
+      description: normalizeString(rec.description ?? ''),
+      ingredients: normalizeIngredientsArray(rec.ingredients as any),
+      calories: normalizeNumber((rec as any).calories ?? null),
+      protein: normalizeNumber((rec as any).protein ?? null),
+      fats: normalizeNumber((rec as any).fats ?? null),
+      carbs: normalizeNumber((rec as any).carbs ?? null),
+    };
+    return JSON.stringify(key);
+  };
+
+  const favFingerprint = (fav: FavoriteDto) => {
+    const key = {
+      name: normalizeString((fav as any).menuItemName ?? ''),
+      description: normalizeString((fav as any).description ?? ''),
+      ingredients: normalizeIngredientsArray((fav as any).ingredients ?? ''),
+      calories: normalizeNumber((fav as any).calories ?? null),
+      protein: normalizeNumber((fav as any).protein ?? null),
+      fats: normalizeNumber((fav as any).fats ?? null),
+      carbs: normalizeNumber((fav as any).carbs ?? null),
+    };
+    return JSON.stringify(key);
+  };
+
+  const isFavorited = (rec: RecommendationResponse) => {
+    const fp = recFingerprint(rec);
+    return favorites.some(f => favFingerprint(f) === fp);
+  };
+
+  const handleToggleFavorite = async (rec: RecommendationResponse) => {
+    setFavLoading(true);
+    try {
+      const recFp = recFingerprint(rec);
+      const existing = favorites.find(f => favFingerprint(f) === recFp);
+
+      if (existing) {
+        
+        await removeFavorite(existing.id);
+        setFavorites(prev => prev.filter(f => f.id !== existing.id));
+        toast.success('Removed from favourites');
+      } else {
+        
+        const ingAny = (rec as any).ingredients;
+        let ingredientsArr: string[] = [];
+        if (Array.isArray(ingAny)) {
+          ingredientsArr = ingAny.map((i: any) => (i ?? '').toString().trim()).filter(Boolean);
+        } else if (typeof ingAny === 'string') {
+          ingredientsArr = (ingAny as string).split(',').map(i => i.trim()).filter(Boolean);
+        }
+
+        
+        const payload = {
+          
+          menuItemId: (rec as any).menuItemId ?? undefined,
+          menuItemName: rec.name ?? undefined,
+          description: rec.description ?? undefined,
+          ingredients: ingredientsArr,
+          calories: (rec as any).calories ?? null,
+          protein: (rec as any).protein ?? null,
+          fats: (rec as any).fats ?? null,
+          carbs: (rec as any).carbs ?? null,
+        };
+
+        
+        const created: FavoriteDto = await addFavorite(payload as any);
+        setFavorites(prev => [created, ...prev]);
+        toast.success('Added to favourites');
+      }
+    } catch (err: any) {
+      console.error('Favorite toggle failed', err);
+      toast.error(err?.response?.data?.message || 'Failed to update favourites');
+    } finally {
+      setFavLoading(false);
+    }
+  };
+
   return (
-      <div className="max-w-6xl mx-auto space-y-6">
-        <div className="text-center space-y-2">
-          <div className="flex items-center justify-center gap-2 mb-4">
-            <Sparkles className="h-8 w-8 text-primary" />
-            <h2 className="text-3xl font-bold">AI Meal Recommendations</h2>
-          </div>
-          <p className="text-muted-foreground">
-            Tell us your preferences, dietary goals, and nutritional requirements. Our AI will recommend the perfect meals for you.
-          </p>
+    <div className="max-w-6xl mx-auto space-y-6">
+      <div className="text-center space-y-2">
+        <div className="flex items-center justify-center gap-2 mb-4">
+          <Sparkles className="h-8 w-8 text-primary" />
+          <h2 className="text-3xl font-bold">AI Meal Recommendations</h2>
         </div>
+        <p className="text-muted-foreground">
+          Tell us your preferences, dietary goals, and nutritional requirements. Our AI will recommend the perfect meals for you.
+        </p>
+      </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>What are you looking for?</CardTitle>
-            <CardDescription>
-              Example: "I want a high protein meal under 800 calories with chicken and vegetables"
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Textarea
-              placeholder="Describe your meal preferences, dietary requirements, and nutritional goals..."
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              className="min-h-[120px]"
-            />
-            <Button
-              onClick={getRecommendation}
-              disabled={isLoading || !prompt.trim()}
-              className="w-full gap-2"
-              size="lg"
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                  Generating recommendations...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="h-5 w-5" />
-                  Get AI Recommendations
-                </>
-              )}
-            </Button>
-          </CardContent>
-        </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>What are you looking for?</CardTitle>
+          <CardDescription>
+            Example: "I want a high protein meal under 800 calories with chicken and vegetables"
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Textarea
+            placeholder="Describe your meal preferences, dietary requirements, and nutritional goals..."
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            className="min-h-[120px]"
+          />
+          <Button
+            onClick={getRecommendation}
+            disabled={isLoading || !prompt.trim()}
+            className="w-full gap-2"
+            size="lg"
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="h-5 w-5 animate-spin" />
+                Generating recommendations...
+              </>
+            ) : (
+              <>
+                <Sparkles className="h-5 w-5" />
+                Get AI Recommendations
+              </>
+            )}
+          </Button>
+        </CardContent>
+      </Card>
 
-        {recommendations.length > 0 && (
-          <div className="space-y-4">
-            <h3 className="text-xl font-semibold flex items-center gap-2">
-              <ChefHat className="h-5 w-5 text-primary" />
-              Your Recommendations ({recommendations.length})
-            </h3>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {recommendations.map((recommendation, index) => (
+      {recommendations.length > 0 && (
+        <div className="space-y-4">
+          <h3 className="text-xl font-semibold flex items-center gap-2">
+            <ChefHat className="h-5 w-5 text-primary" />
+            Your Recommendations ({recommendations.length})
+          </h3>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {recommendations.map((recommendation, index) => {
+              const favorited = isFavorited(recommendation);
+              return (
                 <Card key={index} className="border-primary/50 bg-gradient-to-br from-primary/5 to-background hover:shadow-lg transition-shadow">
                   <CardHeader>
                     <div className="flex items-start justify-between">
@@ -112,7 +226,6 @@ const Recommendations = () => {
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    {/* Nutritional Information */}
                     <div className="grid grid-cols-2 gap-3">
                       <div className="p-3 rounded-lg bg-background/50 border">
                         <div className="flex items-center gap-2 mb-1">
@@ -142,7 +255,7 @@ const Recommendations = () => {
                     </div>
 
                     {/* Ingredients */}
-                    {recommendation.ingredients && recommendation.ingredients.length > 0 && (
+                    {recommendation.ingredients && Array.isArray(recommendation.ingredients) && recommendation.ingredients.length > 0 && (
                       <div>
                         <h4 className="text-sm font-semibold mb-2">Ingredients</h4>
                         <div className="flex flex-wrap gap-1">
@@ -165,36 +278,49 @@ const Recommendations = () => {
                       </div>
                     )}
 
-                    <Button className="w-full" size="sm" variant="outline" disabled>
-                      Add to Order (Coming Soon)
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        className="flex-1"
+                        size="sm"
+                        onClick={() => handleToggleFavorite(recommendation)}
+                        disabled={favLoading}
+                        variant={favorited ? 'destructive' : 'outline'}
+                      >
+                        <Heart className={`h-4 w-4 mr-2 ${favorited ? 'text-white' : ''}`} />
+                        {favorited ? 'Favorited' : 'Add to favourites'}
+                      </Button>
+
+                      {/* <Button className="w-36" size="sm" variant="outline" disabled>
+                        Add to Order (Coming Soon)
+                      </Button> */}
+                    </div>
                   </CardContent>
                 </Card>
-              ))}
-            </div>
-
-            {/* Allergy Warning - shown once at the bottom */}
-            <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
-              <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
-              <p className="text-sm text-amber-900 dark:text-amber-100">
-                Please be aware of potential allergies and check with the restaurant for further information.
-              </p>
-            </div>
+              );
+            })}
           </div>
-        )}
 
-        {recommendations.length === 0 && !isLoading && (
-          <Card className="border-dashed">
-            <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-              <Sparkles className="h-12 w-12 text-muted-foreground mb-4" />
-              <p className="text-lg font-semibold mb-2">No recommendations yet</p>
-              <p className="text-muted-foreground">
-                Describe what you're looking for and get personalized meal suggestions
-              </p>
-            </CardContent>
-          </Card>
-        )}
-      </div>
+          <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+            <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
+            <p className="text-sm text-amber-900 dark:text-amber-100">
+              Please be aware of potential allergies and check with the restaurant for further information.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {recommendations.length === 0 && !isLoading && (
+        <Card className="border-dashed">
+          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+            <Sparkles className="h-12 w-12 text-muted-foreground mb-4" />
+            <p className="text-lg font-semibold mb-2">No recommendations yet</p>
+            <p className="text-muted-foreground">
+              Describe what you're looking for and get personalized meal suggestions
+            </p>
+          </CardContent>
+        </Card>
+      )}
+    </div>
   );
 };
 

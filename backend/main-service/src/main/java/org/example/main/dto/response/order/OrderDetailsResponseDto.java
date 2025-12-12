@@ -21,6 +21,7 @@ public class OrderDetailsResponseDto {
     private BigDecimal totalAmount;
     private OffsetDateTime createdAt;
     private OffsetDateTime updatedAt;
+    private String waiterId;
 
     private String kitchenOrderId;
     private String kitchenStatus;

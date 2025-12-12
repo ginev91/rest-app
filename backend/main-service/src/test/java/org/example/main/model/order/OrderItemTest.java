@@ -13,40 +13,60 @@ import static org.assertj.core.api.Assertions.*;
 
 class OrderItemTest {
 
-    @Test
-    void getMenuItemId_and_setMenuItemId_behaviour() {
-        OrderItem oi = new OrderItem();
-        assertThat(oi.getMenuItemId()).isNull();
-
-        UUID id = UUID.randomUUID();
-        oi.setMenuItemId(id);
-
-        assertThat(oi.getMenuItem()).isNotNull();
-        assertThat(oi.getMenuItemId()).isEqualTo(id);
-        assertThat(oi.getMenuItem().getId()).isEqualTo(id);
+    
+    private void callSync(OrderItem oi) throws Exception {
+        Method sync = OrderItem.class.getDeclaredMethod("syncSnapshotFields");
+        sync.setAccessible(true);
+        sync.invoke(oi);
     }
 
     @Test
-    void isKitchenItem_variants() {
+    void getMenuItemId_and_setMenuItemId_behaviour_when_menuItem_absent_and_present() {
         OrderItem oi = new OrderItem();
 
-        // null menuItem => false
+        
+        oi.setMenuItem(null);
+        assertThat(oi.getMenuItemId()).isNull();
+
+        
+        UUID id = UUID.randomUUID();
+        oi.setMenuItemId(id);
+        assertThat(oi.getMenuItem()).isNotNull();
+        assertThat(oi.getMenuItemId()).isEqualTo(id);
+        assertThat(oi.getMenuItem().getId()).isEqualTo(id);
+
+        
+        OrderItem oi2 = new OrderItem();
+        MenuItem existing = new MenuItem();
+        existing.setId(null);
+        oi2.setMenuItem(existing);
+        UUID id2 = UUID.randomUUID();
+        oi2.setMenuItemId(id2);
+        assertThat(oi2.getMenuItem()).isSameAs(existing);
+        assertThat(oi2.getMenuItemId()).isEqualTo(id2);
+    }
+
+    @Test
+    void isKitchenItem_all_variants() {
+        OrderItem oi = new OrderItem();
+
+        
         oi.setMenuItem(null);
         assertThat(oi.isKitchenItem()).isFalse();
 
-        // menuItem with KITCHEN => true
+        
         MenuItem m1 = new MenuItem();
         m1.setItemType(ItemType.KITCHEN);
         oi.setMenuItem(m1);
         assertThat(oi.isKitchenItem()).isTrue();
 
-        // menuItem with null itemType => true (service treats null as kitchen)
+        
         MenuItem m2 = new MenuItem();
         m2.setItemType(null);
         oi.setMenuItem(m2);
         assertThat(oi.isKitchenItem()).isTrue();
 
-        // menuItem with BAR => false
+        
         MenuItem m3 = new MenuItem();
         m3.setItemType(ItemType.BAR);
         oi.setMenuItem(m3);
@@ -54,39 +74,49 @@ class OrderItemTest {
     }
 
     @Test
-    void syncSnapshotFields_copiesFromMenuItem_and_appliesDefaults() throws Exception {
+    void syncSnapshotFields_copiesFromMenuItem_and_appliesDefaults_and_handles_blank_name() throws Exception {
+        
         OrderItem oi = new OrderItem();
-        // prepare menu item with name and price
         MenuItem m = new MenuItem();
         m.setName("Test Dish");
         m.setPrice(BigDecimal.valueOf(4.25));
         oi.setMenuItem(m);
-
-        // ensure snapshot fields are null to start
         oi.setMenuItemName(null);
         oi.setPrice(null);
 
-        // invoke private lifecycle method
-        Method sync = OrderItem.class.getDeclaredMethod("syncSnapshotFields");
-        sync.setAccessible(true);
-        sync.invoke(oi);
+        callSync(oi);
 
         assertThat(oi.getMenuItemName()).isEqualTo("Test Dish");
         assertThat(oi.getPrice()).isEqualByComparingTo(BigDecimal.valueOf(4.25));
 
-        // now test when menuItem has null name/price -> defaults applied
-        OrderItem oi2 = new OrderItem();
+        
+        OrderItem oiBlank = new OrderItem();
+        MenuItem mBlank = new MenuItem();
+        mBlank.setName("NonBlankName");
+        mBlank.setPrice(BigDecimal.valueOf(1.50));
+        oiBlank.setMenuItem(mBlank);
+        
+        oiBlank.setMenuItemName("   "); 
+        oiBlank.setPrice(null);
+
+        callSync(oiBlank);
+
+        assertThat(oiBlank.getMenuItemName()).isEqualTo("NonBlankName");
+        assertThat(oiBlank.getPrice()).isEqualByComparingTo(BigDecimal.valueOf(1.50));
+
+        
+        OrderItem oiNulls = new OrderItem();
         MenuItem mNull = new MenuItem();
         mNull.setName(null);
         mNull.setPrice(null);
-        oi2.setMenuItem(mNull);
-        oi2.setMenuItemName(null);
-        oi2.setPrice(null);
+        oiNulls.setMenuItem(mNull);
+        oiNulls.setMenuItemName(null);
+        oiNulls.setPrice(null);
 
-        sync.invoke(oi2);
+        callSync(oiNulls);
 
-        assertThat(oi2.getMenuItemName()).isEqualTo("");
-        assertThat(oi2.getPrice()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(oiNulls.getMenuItemName()).isEqualTo("");
+        assertThat(oiNulls.getPrice()).isEqualByComparingTo(BigDecimal.ZERO);
     }
 
     @Test
@@ -97,44 +127,49 @@ class OrderItemTest {
         m.setPrice(BigDecimal.valueOf(2.50));
         oi.setMenuItem(m);
 
-        // set explicit snapshot values
+        
         oi.setMenuItemName("Existing Snapshot");
         oi.setPrice(BigDecimal.valueOf(9.99));
 
-        Method sync = OrderItem.class.getDeclaredMethod("syncSnapshotFields");
-        sync.setAccessible(true);
-        sync.invoke(oi);
+        callSync(oi);
 
-        // existing snapshot must remain unchanged
+        
         assertThat(oi.getMenuItemName()).isEqualTo("Existing Snapshot");
         assertThat(oi.getPrice()).isEqualByComparingTo(BigDecimal.valueOf(9.99));
     }
 
     @Test
-    void setMenuItemId_createsMenuItem_when_missing() {
+    void syncSnapshotFields_when_menuItem_null_applies_defaults() throws Exception {
+        
         OrderItem oi = new OrderItem();
         oi.setMenuItem(null);
-        UUID id = UUID.randomUUID();
-        oi.setMenuItemId(id);
+        oi.setMenuItemName(null);
+        oi.setPrice(null);
 
-        assertThat(oi.getMenuItem()).isNotNull();
-        assertThat(oi.getMenuItemId()).isEqualTo(id);
+        callSync(oi);
+
+        assertThat(oi.getMenuItem()).isNull();
+        assertThat(oi.getMenuItemName()).isEqualTo("");
+        assertThat(oi.getPrice()).isEqualByComparingTo(BigDecimal.ZERO);
     }
 
     @Test
-    void getMenuItemId_returnsNull_when_menuItem_missing() {
-        OrderItem oi = new OrderItem();
-        oi.setMenuItem(null);
-        assertThat(oi.getMenuItemId()).isNull();
-    }
-
-    @Test
-    void default_values_for_status_and_quantity_are_not_assumed_here_but_methods_exist() {
+    void basic_getters_and_setters_for_quantity_and_status() {
         OrderItem oi = new OrderItem();
         oi.setQuantity(3);
         oi.setStatus(OrderItemStatus.PENDING);
 
         assertThat(oi.getQuantity()).isEqualTo(3);
         assertThat(oi.getStatus()).isEqualTo(OrderItemStatus.PENDING);
+    }
+
+    @Test
+    void getMenuItemId_returns_null_when_menuItem_present_but_id_not_set() {
+        OrderItem oi = new OrderItem();
+        MenuItem m = new MenuItem();
+        m.setId(null);
+        oi.setMenuItem(m);
+
+        assertThat(oi.getMenuItemId()).isNull();
     }
 }

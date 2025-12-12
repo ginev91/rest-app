@@ -1,10 +1,10 @@
 package org.example.main.controller.user;
 
 import lombok.RequiredArgsConstructor;
+import org.example.main.dto.request.user.BlockUserRequestDto;
 import org.example.main.dto.request.user.RegisterRequestDto;
 import org.example.main.dto.response.user.UserProfileResponseDto;
 import org.example.main.mapper.user.UserMapper;
-import org.example.main.model.role.Role;
 import org.example.main.model.user.User;
 import org.example.main.service.user.IUserService;
 import org.example.main.service.role.IRoleService;
@@ -19,8 +19,8 @@ import jakarta.validation.Valid;
 
 import java.net.URI;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/admin/users")
@@ -33,9 +33,14 @@ public class AdminUserController {
     private final IRoleService roleService;
     private final RoleMapper roleMapper;
 
+    // RETURN DTOs (not JPA entities)
     @GetMapping
-    public ResponseEntity<List<User>> listUsers() {
-        return ResponseEntity.ok(userService.findAll());
+    public ResponseEntity<List<UserProfileResponseDto>> listUsers() {
+        List<User> users = userService.findAll();
+        List<UserProfileResponseDto> dtos = users.stream()
+                .map(UserMapper::toProfile)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(dtos);
     }
 
     @PostMapping
@@ -47,9 +52,9 @@ public class AdminUserController {
     }
 
     @PutMapping("/{userId}/role")
-    public ResponseEntity<User> changeRole(@PathVariable UUID userId, @Valid @RequestBody RoleChangeRequestDto req) {
+    public ResponseEntity<UserProfileResponseDto> changeRole(@PathVariable UUID userId, @Valid @RequestBody RoleChangeRequestDto req) {
         User updated = userService.assignRole(userId, req.getRoleName());
-        return ResponseEntity.ok(updated);
+        return ResponseEntity.ok(UserMapper.toProfile(updated));
     }
 
     @DeleteMapping("/{userId}")
@@ -58,9 +63,9 @@ public class AdminUserController {
         return ResponseEntity.noContent().build();
     }
 
-    @PutMapping("/{userId}/unblock")
-    public ResponseEntity<User> unblockUser(@PathVariable UUID userId, @Valid @RequestBody RoleChangeRequestDto req) {
-        User updated = userService.assignRole(userId, req.getRoleName());
-        return ResponseEntity.ok(updated);
+    @PutMapping("/{userId}/block")
+    public ResponseEntity<UserProfileResponseDto> blockUser(@PathVariable UUID userId, @Valid @RequestBody BlockUserRequestDto req) {
+        User updated = userService.block(userId, req.getBlocked()); // accepts true or false
+        return ResponseEntity.ok(UserMapper.toProfile(updated));
     }
 }

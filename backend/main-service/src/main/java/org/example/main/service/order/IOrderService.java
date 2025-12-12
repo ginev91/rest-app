@@ -3,6 +3,7 @@ package org.example.main.service.order;
 import org.example.main.dto.request.order.OrderRequestDto;
 import org.example.main.dto.response.order.OrderDetailsResponseDto;
 import org.example.main.dto.response.order.OrderResponseDto;
+import org.example.main.model.enums.OrderItemStatus;
 import org.example.main.model.enums.OrderStatus;
 
 import java.util.List;
@@ -31,4 +32,8 @@ public interface IOrderService {
     List<OrderResponseDto> getAllOrders();
 
     Optional <OrderResponseDto> getActiveOrderForUser(UUID userId);
+    boolean claimOrder(UUID orderId, UUID waiterId);
+
+    void updateOrderItemStatus(UUID id, UUID itemId, OrderItemStatus status);
+    void updateOrderStatus(UUID id, OrderStatus status);
 }

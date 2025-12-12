@@ -17,16 +17,19 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.context.annotation.Profile;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import org.example.main.model.enums.TableStatus;
 import org.example.main.model.enums.ItemType;
+
 import java.math.BigDecimal;
 import java.util.List;
 
 @Component
+@Profile("!test")
 public class DataInitializer implements ApplicationRunner {
 
     private static final Logger log = LoggerFactory.getLogger(DataInitializer.class);
@@ -110,7 +113,6 @@ public class DataInitializer implements ApplicationRunner {
                     log.warn("DataInitializer: menuItemRepository.deleteAll() failed: {}", ex.getMessage());
                 }
 
-                
                 if (tableExists("categories")) {
                     try {
                         categoryRepository.deleteAll();
@@ -124,7 +126,6 @@ public class DataInitializer implements ApplicationRunner {
             }
         }
 
-        
         try {
             Integer cols = jdbcTemplate.queryForObject(
                     "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'menu_items' AND column_name = 'item_type'",
@@ -138,7 +139,6 @@ public class DataInitializer implements ApplicationRunner {
             return;
         }
 
-        
         try {
             seedCategoriesAndMenuItems();
             seedRolesAndUsers();
@@ -149,328 +149,100 @@ public class DataInitializer implements ApplicationRunner {
         }
     }
 
-
     private void seedCategoriesAndMenuItems() {
-        if (categoryRepository.count() == 0) {
-            CategoryEntity mainCourse = categoryRepository.save(CategoryEntity.builder().name("Main Course").build());
-            CategoryEntity salads = categoryRepository.save(CategoryEntity.builder().name("Salads").build());
-            CategoryEntity drinks = categoryRepository.save(CategoryEntity.builder().name("Drinks").build());
+        
+        boolean needKitchen = categoryRepository.findByItemType(ItemType.KITCHEN).isEmpty();
+        boolean needBar = categoryRepository.findByItemType(ItemType.BAR).isEmpty();
 
-            if (menuItemRepository.count() == 0) {
-                List<MenuItem> items = List.of(
-                        
-                        MenuItem.builder()
-                                .name("Grilled Chicken Breast")
-                                .description("Tender grilled chicken with herbs and lemon")
-                                .price(BigDecimal.valueOf(18.99))
-                                .category(mainCourse)
-                                .calories(350)
-                                .macros(new Macros(42, 10, 5))
-                                .available(true)
-                                .itemType(ItemType.KITCHEN)
-                                .build(),
-                        MenuItem.builder()
-                                .name("Beef Steak with Chimichurri")
-                                .description("Seared sirloin steak with chimichurri sauce")
-                                .price(BigDecimal.valueOf(26.50))
-                                .category(mainCourse)
-                                .calories(620)
-                                .macros(new Macros(55, 12, 30))
-                                .available(true)
-                                .itemType(ItemType.KITCHEN)
-                                .build(),
-                        MenuItem.builder()
-                                .name("Lemon Herb Salmon")
-                                .description("Oven-roasted salmon with lemon and dill")
-                                .price(BigDecimal.valueOf(24.99))
-                                .category(mainCourse)
-                                .calories(480)
-                                .macros(new Macros(40, 8, 28))
-                                .available(true)
-                                .itemType(ItemType.KITCHEN)
-                                .build(),
-                        MenuItem.builder()
-                                .name("Pasta Primavera")
-                                .description("Penne with seasonal vegetables and light tomato sauce")
-                                .price(BigDecimal.valueOf(16.99))
-                                .category(mainCourse)
-                                .calories(540)
-                                .macros(new Macros(15, 80, 12))
-                                .available(true)
-                                .itemType(ItemType.KITCHEN)
-                                .build(),
-                        MenuItem.builder()
-                                .name("BBQ Ribs")
-                                .description("Slow-cooked ribs with house BBQ glaze")
-                                .price(BigDecimal.valueOf(22.50))
-                                .category(mainCourse)
-                                .calories(800)
-                                .macros(new Macros(60, 30, 50))
-                                .available(true)
-                                .itemType(ItemType.KITCHEN)
-                                .build(),
-                        MenuItem.builder()
-                                .name("Vegetable Stir-Fry with Tofu")
-                                .description("Wok-tossed seasonal veggies and marinated tofu")
-                                .price(BigDecimal.valueOf(14.99))
-                                .category(mainCourse)
-                                .calories(420)
-                                .macros(new Macros(18, 60, 10))
-                                .available(true)
-                                .itemType(ItemType.KITCHEN)
-                                .build(),
-                        MenuItem.builder()
-                                .name("Chicken Parmesan")
-                                .description("Breaded chicken, marinara, melted cheese")
-                                .price(BigDecimal.valueOf(19.99))
-                                .category(mainCourse)
-                                .calories(700)
-                                .macros(new Macros(48, 50, 28))
-                                .available(true)
-                                .itemType(ItemType.KITCHEN)
-                                .build(),
-                        MenuItem.builder()
-                                .name("Shrimp Scampi")
-                                .description("Garlic butter shrimp with linguine")
-                                .price(BigDecimal.valueOf(21.99))
-                                .category(mainCourse)
-                                .calories(560)
-                                .macros(new Macros(30, 45, 22))
-                                .available(true)
-                                .itemType(ItemType.KITCHEN)
-                                .build(),
-                        MenuItem.builder()
-                                .name("Stuffed Bell Peppers")
-                                .description("Peppers stuffed with rice, veggies and cheese")
-                                .price(BigDecimal.valueOf(15.50))
-                                .category(mainCourse)
-                                .calories(460)
-                                .macros(new Macros(20, 55, 18))
-                                .available(true)
-                                .itemType(ItemType.KITCHEN)
-                                .build(),
-                        MenuItem.builder()
-                                .name("Lamb Kofta")
-                                .description("Spiced lamb skewers with yogurt sauce")
-                                .price(BigDecimal.valueOf(23.00))
-                                .category(mainCourse)
-                                .calories(610)
-                                .macros(new Macros(45, 20, 34))
-                                .available(true)
-                                .itemType(ItemType.KITCHEN)
-                                .build(),
+        CategoryEntity kitchenCat = null;
+        CategoryEntity barCat = null;
 
-                        
-                        MenuItem.builder()
-                                .name("Caesar Salad")
-                                .description("Fresh romaine lettuce, parmesan, croutons")
-                                .price(BigDecimal.valueOf(12.99))
-                                .category(salads)
-                                .calories(280)
-                                .macros(new Macros(8, 18, 12))
-                                .available(true)
-                                .itemType(ItemType.KITCHEN)
-                                .build(),
-                        MenuItem.builder()
-                                .name("Greek Salad")
-                                .description("Tomatoes, cucumber, olives, feta cheese")
-                                .price(BigDecimal.valueOf(11.99))
-                                .category(salads)
-                                .calories(180)
-                                .macros(new Macros(6, 12, 10))
-                                .available(true)
-                                .itemType(ItemType.KITCHEN)
-                                .build(),
-                        MenuItem.builder()
-                                .name("Quinoa & Roasted Veg Salad")
-                                .description("Quinoa, roasted vegetables, lemon vinaigrette")
-                                .price(BigDecimal.valueOf(13.50))
-                                .category(salads)
-                                .calories(350)
-                                .macros(new Macros(12, 45, 9))
-                                .available(true)
-                                .itemType(ItemType.KITCHEN)
-                                .build(),
-                        MenuItem.builder()
-                                .name("Caprese Salad")
-                                .description("Tomato, fresh mozzarella, basil, olive oil")
-                                .price(BigDecimal.valueOf(12.50))
-                                .category(salads)
-                                .calories(320)
-                                .macros(new Macros(14, 8, 24))
-                                .available(true)
-                                .itemType(ItemType.KITCHEN)
-                                .build(),
-                        MenuItem.builder()
-                                .name("Spinach & Strawberry Salad")
-                                .description("Baby spinach, strawberries, nuts, light dressing")
-                                .price(BigDecimal.valueOf(11.50))
-                                .category(salads)
-                                .calories(220)
-                                .macros(new Macros(6, 28, 10))
-                                .available(true)
-                                .itemType(ItemType.KITCHEN)
-                                .build(),
-                        MenuItem.builder()
-                                .name("Kale & Avocado Salad")
-                                .description("Kale, avocado, sunflower seeds, citrus dressing")
-                                .price(BigDecimal.valueOf(13.99))
-                                .category(salads)
-                                .calories(360)
-                                .macros(new Macros(8, 20, 24))
-                                .available(true)
-                                .itemType(ItemType.KITCHEN)
-                                .build(),
-                        MenuItem.builder()
-                                .name("Warm Goat Cheese Salad")
-                                .description("Mixed greens, warm goat cheese, walnuts")
-                                .price(BigDecimal.valueOf(14.99))
-                                .category(salads)
-                                .calories(330)
-                                .macros(new Macros(10, 22, 18))
-                                .available(true)
-                                .itemType(ItemType.KITCHEN)
-                                .build(),
-                        MenuItem.builder()
-                                .name("Nicoise Salad")
-                                .description("Tuna, potatoes, green beans, olives")
-                                .price(BigDecimal.valueOf(15.50))
-                                .category(salads)
-                                .calories(420)
-                                .macros(new Macros(28, 30, 16))
-                                .available(true)
-                                .itemType(ItemType.KITCHEN)
-                                .build(),
-                        MenuItem.builder()
-                                .name("Asian Sesame Chicken Salad")
-                                .description("Grilled chicken, greens, sesame dressing")
-                                .price(BigDecimal.valueOf(14.50))
-                                .category(salads)
-                                .calories(390)
-                                .macros(new Macros(32, 24, 14))
-                                .available(true)
-                                .itemType(ItemType.KITCHEN)
-                                .build(),
-                        MenuItem.builder()
-                                .name("Mediterranean Chickpea Salad")
-                                .description("Chickpeas, cucumber, tomato, herbs")
-                                .price(BigDecimal.valueOf(12.00))
-                                .category(salads)
-                                .calories(300)
-                                .macros(new Macros(12, 38, 8))
-                                .available(true)
-                                .itemType(ItemType.KITCHEN)
-                                .build(),
-
-                        
-                        MenuItem.builder()
-                                .name("Fresh Lemonade")
-                                .description("House-made lemonade with fresh lemons")
-                                .price(BigDecimal.valueOf(4.50))
-                                .category(drinks)
-                                .calories(120)
-                                .macros(new Macros(0, 30, 0))
-                                .available(true)
-                                .itemType(ItemType.BAR)
-                                .build(),
-                        MenuItem.builder()
-                                .name("Iced Tea")
-                                .description("Brewed iced tea, unsweetened or sweetened")
-                                .price(BigDecimal.valueOf(3.50))
-                                .category(drinks)
-                                .calories(80)
-                                .macros(new Macros(0, 20, 0))
-                                .available(true)
-                                .itemType(ItemType.BAR)
-                                .build(),
-                        MenuItem.builder()
-                                .name("Coca-Cola")
-                                .description("Classic cola")
-                                .price(BigDecimal.valueOf(3.00))
-                                .category(drinks)
-                                .calories(140)
-                                .macros(new Macros(0, 39, 0))
-                                .available(true)
-                                .itemType(ItemType.BAR)
-                                .build(),
-                        MenuItem.builder()
-                                .name("Orange Juice")
-                                .description("Freshly squeezed orange juice")
-                                .price(BigDecimal.valueOf(4.00))
-                                .category(drinks)
-                                .calories(150)
-                                .macros(new Macros(2, 34, 0))
-                                .available(true)
-                                .itemType(ItemType.BAR)
-                                .build(),
-                        MenuItem.builder()
-                                .name("Espresso")
-                                .description("Single shot espresso")
-                                .price(BigDecimal.valueOf(2.50))
-                                .category(drinks)
-                                .calories(5)
-                                .macros(new Macros(0, 1, 0))
-                                .available(true)
-                                .itemType(ItemType.BAR)
-                                .build(),
-                        MenuItem.builder()
-                                .name("Cappuccino")
-                                .description("Espresso with steamed milk and foam")
-                                .price(BigDecimal.valueOf(4.25))
-                                .category(drinks)
-                                .calories(120)
-                                .macros(new Macros(6, 10, 6))
-                                .available(true)
-                                .itemType(ItemType.BAR)
-                                .build(),
-                        MenuItem.builder()
-                                .name("Mojito")
-                                .description("Rum, lime, mint, soda")
-                                .price(BigDecimal.valueOf(8.50))
-                                .category(drinks)
-                                .calories(200)
-                                .macros(new Macros(0, 14, 0))
-                                .available(true)
-                                .itemType(ItemType.BAR)
-                                .build(),
-                        MenuItem.builder()
-                                .name("Red Wine (Glass)")
-                                .description("House red wine, 150ml")
-                                .price(BigDecimal.valueOf(7.00))
-                                .category(drinks)
-                                .calories(125)
-                                .macros(new Macros(0, 4, 0))
-                                .available(true)
-                                .itemType(ItemType.BAR)
-                                .build(),
-                        MenuItem.builder()
-                                .name("White Wine (Glass)")
-                                .description("House white wine, 150ml")
-                                .price(BigDecimal.valueOf(7.00))
-                                .category(drinks)
-                                .calories(120)
-                                .macros(new Macros(0, 3, 0))
-                                .available(true)
-                                .itemType(ItemType.BAR)
-                                .build(),
-                        MenuItem.builder()
-                                .name("Craft Beer")
-                                .description("Local craft beer, 330ml")
-                                .price(BigDecimal.valueOf(6.50))
-                                .category(drinks)
-                                .calories(180)
-                                .macros(new Macros(0, 12, 0))
-                                .available(true)
-                                .itemType(ItemType.BAR)
-                                .build()
-                );
-
-                menuItemRepository.saveAll(items);
-            }
+        if (needKitchen) {
+            kitchenCat = categoryRepository.save(CategoryEntity.builder().itemType(ItemType.KITCHEN).build());
         } else {
-            if (categoryRepository.findByName("Main Course").isEmpty()) categoryRepository.save(CategoryEntity.builder().name("Main Course").build());
-            if (categoryRepository.findByName("Salads").isEmpty()) categoryRepository.save(CategoryEntity.builder().name("Salads").build());
-            if (categoryRepository.findByName("Drinks").isEmpty()) categoryRepository.save(CategoryEntity.builder().name("Drinks").build());
+            kitchenCat = categoryRepository.findByItemType(ItemType.KITCHEN).orElse(null);
+        }
+
+        if (needBar) {
+            barCat = categoryRepository.save(CategoryEntity.builder().itemType(ItemType.BAR).build());
+        } else {
+            barCat = categoryRepository.findByItemType(ItemType.BAR).orElse(null);
+        }
+
+        if (menuItemRepository.count() == 0) {
+            List<MenuItem> items = List.of(
+                    MenuItem.builder()
+                            .name("Grilled Chicken Breast")
+                            .description("Tender grilled chicken with herbs and lemon")
+                            .price(BigDecimal.valueOf(18.99))
+                            .category(kitchenCat)
+                            .calories(350)
+                            .macros(new Macros(42, 10, 5))
+                            .available(true)
+                            .itemType(ItemType.KITCHEN)
+                            .build(),
+                    MenuItem.builder()
+                            .name("Beef Steak with Chimichurri")
+                            .description("Seared sirloin steak with chimichurri sauce")
+                            .price(BigDecimal.valueOf(26.50))
+                            .category(kitchenCat)
+                            .calories(620)
+                            .macros(new Macros(55, 12, 30))
+                            .available(true)
+                            .itemType(ItemType.KITCHEN)
+                            .build(),
+                    MenuItem.builder()
+                            .name("Caesar Salad")
+                            .description("Fresh romaine lettuce, parmesan, croutons")
+                            .price(BigDecimal.valueOf(12.99))
+                            .category(kitchenCat)
+                            .calories(280)
+                            .macros(new Macros(8, 18, 12))
+                            .available(true)
+                            .itemType(ItemType.KITCHEN)
+                            .build(),
+                    MenuItem.builder()
+                            .name("Fresh Lemonade")
+                            .description("House-made lemonade with fresh lemons")
+                            .price(BigDecimal.valueOf(4.50))
+                            .category(barCat)
+                            .calories(120)
+                            .macros(new Macros(0, 30, 0))
+                            .available(true)
+                            .itemType(ItemType.BAR)
+                            .build(),
+                    MenuItem.builder()
+                            .name("Iced Tea")
+                            .description("Brewed iced tea, unsweetened or sweetened")
+                            .price(BigDecimal.valueOf(3.50))
+                            .category(barCat)
+                            .calories(80)
+                            .macros(new Macros(0, 20, 0))
+                            .available(true)
+                            .itemType(ItemType.BAR)
+                            .build(),
+                    MenuItem.builder()
+                            .name("Craft Beer")
+                            .description("Local craft beer, 330ml")
+                            .price(BigDecimal.valueOf(6.50))
+                            .category(barCat)
+                            .calories(180)
+                            .macros(new Macros(0, 12, 0))
+                            .available(true)
+                            .itemType(ItemType.BAR)
+                            .build()
+            );
+
+            menuItemRepository.saveAll(items);
+            log.info("DataInitializer: seeded {} menu items.", items.size());
+        } else {
+            
+            if (kitchenCat == null && categoryRepository.findByItemType(ItemType.KITCHEN).isEmpty()) {
+                categoryRepository.save(CategoryEntity.builder().itemType(ItemType.KITCHEN).build());
+            }
+            if (barCat == null && categoryRepository.findByItemType(ItemType.BAR).isEmpty()) {
+                categoryRepository.save(CategoryEntity.builder().itemType(ItemType.BAR).build());
+            }
         }
     }
 
@@ -487,8 +259,6 @@ public class DataInitializer implements ApplicationRunner {
             u.setUsername("admin@test.com");
             u.setPasswordHash(passwordEncoder.encode("adminpass"));
             u.setFullName("System Administrator");
-
-            // assign the Role entity, not the role name string
             u.setRole(adminRole);
             return userRepository.save(u);
         });
@@ -498,8 +268,6 @@ public class DataInitializer implements ApplicationRunner {
             u.setUsername("employee@test.com");
             u.setPasswordHash(passwordEncoder.encode("emppass"));
             u.setFullName("Employee User");
-
-            // assign the Role entity, not the role name string
             u.setRole(employeeRole);
             return userRepository.save(u);
         });
@@ -509,20 +277,19 @@ public class DataInitializer implements ApplicationRunner {
             u.setUsername("user@test.com");
             u.setPasswordHash(passwordEncoder.encode("userpass"));
             u.setFullName("Regular User");
-
-            // assign the Role entity, not the role name string
             u.setRole(userRole);
             return userRepository.save(u);
         });
     }
+
     private void seedTablesIfNeeded() {
         if (tableRepository.count() == 0) {
             List<RestaurantTable> tables = List.of(
-                    RestaurantTable.builder().code("T1").seats(2).currentOccupancy(0).status(TableStatus.AVAILABLE).pinCode("1111").build(),
-                    RestaurantTable.builder().code("T2").seats(2).currentOccupancy(0).status(TableStatus.AVAILABLE).pinCode("2222").build(),
-                    RestaurantTable.builder().code("T3").seats(4).currentOccupancy(0).status(TableStatus.AVAILABLE).pinCode("3333").build(),
-                    RestaurantTable.builder().code("T4").seats(4).currentOccupancy(0).status(TableStatus.AVAILABLE).pinCode("4444").build(),
-                    RestaurantTable.builder().code("T5").seats(6).currentOccupancy(0).status(TableStatus.AVAILABLE).pinCode("5555").build()
+                    RestaurantTable.builder().code("T1").tableNumber(1).seats(2).currentOccupancy(0).status(TableStatus.AVAILABLE).pinCode("1111").build(),
+                    RestaurantTable.builder().code("T2").tableNumber(2).seats(2).currentOccupancy(0).status(TableStatus.AVAILABLE).pinCode("2222").build(),
+                    RestaurantTable.builder().code("T3").tableNumber(3).seats(4).currentOccupancy(0).status(TableStatus.AVAILABLE).pinCode("3333").build(),
+                    RestaurantTable.builder().code("T4").tableNumber(4).seats(4).currentOccupancy(0).status(TableStatus.AVAILABLE).pinCode("4444").build(),
+                    RestaurantTable.builder().code("T5").tableNumber(5).seats(6).currentOccupancy(0).status(TableStatus.AVAILABLE).pinCode("5555").build()
             );
             tableRepository.saveAll(tables);
         }
